@@ -7,13 +7,15 @@ from .utils.db import (
     add_guild_admin_channel,
     add_guild_tz,
 )
-from .utils.utils import get_current_time
+from .utils.utils import get_current_time, get_settings_embed
 from .utils.checks import (
     check_admin_channel, check_admin, check_valid_timezone, check_bot
 )
+from dotenv import load_dotenv, find_dotenv
 
 
-DEFAUL_TZ = os.getenv('DEFAULT_TZ')
+load_dotenv(find_dotenv())
+DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 
 
 class Management(commands.Cog):
@@ -68,7 +70,7 @@ class Management(commands.Cog):
     )
     @commands.check(check_bot)
     @commands.check(check_admin)
-    async def setAdminChannel(self, ctx, channel: TextChannel, tz=DEFAUL_TZ):
+    async def setAdminChannel(self, ctx, channel: TextChannel, tz=DEFAULT_TZ):
         """
         Docstring goes here.
         """
@@ -118,3 +120,28 @@ class Management(commands.Cog):
                     "Error when setting the timezone."
                 )
         await ctx.channel.send(msg)
+
+    @commands.command(
+        help=(
+            "Show all the current settings for the bot"
+            " and guild."
+        ),
+        brief="Show all settings"
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def showSettings(self, ctx):
+        """
+        Docstring goes here.
+        """
+        guild_db = load_guild_db()
+        if ctx.guild.id not in guild_db.index:
+            await ctx.channel.send(
+                "Settings have not been configured for this guild."
+            )
+        else:
+            guild_settings = guild_db.loc[ctx.guild.id]
+            embed = get_settings_embed(ctx, guild_settings)
+
+            await ctx.channel.send(embed=embed)

@@ -16,6 +16,9 @@ def load_schedule_db():
 
     schedules = pd.read_sql_query(query, conn)
 
+    schedules['warning'] = schedules['warning'].astype(bool)
+    schedules['dynamic'] = schedules['dynamic'].astype(bool)
+
     conn.close()
 
     return schedules
@@ -158,7 +161,8 @@ def add_guild_tz(guild, tz):
 
 
 def create_schedule(
-    ctx, channel, open_time, close_time, open_message="None", close_message="None"
+    ctx, channel, open_time, close_time, open_message="None",
+    close_message="None", warning="True", dynamic="True"
 ):
     """
     Append to the schedule.
@@ -166,12 +170,16 @@ def create_schedule(
     try:
         role = ctx.guild.default_role
 
+        warning = str2bool(warning)
+        dynamic = str2bool(dynamic)
+
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
 
         sql_command = (
             "INSERT INTO schedules VALUES"
-            """ ({}, {}, {}, "{}", "{}", "{}", "{}", "{}", "{}");""".format(
+            """ ({}, {}, {}, "{}", "{}", "{}", """
+            """"{}", "{}", "{}", {}, {}, "99:99");""".format(
                 ctx.guild.id,
                 channel.id,
                 role.id,
@@ -180,7 +188,9 @@ def create_schedule(
                 open_time,
                 close_time,
                 open_message,
-                close_message
+                close_message,
+                warning,
+                dynamic
             )
         )
 
@@ -209,7 +219,7 @@ def drop_allowed_friend_code_channel(guild, channel):
         ):
             id_to_drop = row[0]
             sql_command = (
-                "DELETE FROM fc_channels WHERE rowid = {}".format(
+                "DELETE FROM fc_channels WHERE rowid = {};".format(
                     id_to_drop
                 )
             )
@@ -234,7 +244,7 @@ def drop_schedule(ctx, id_to_drop):
         c = conn.cursor()
 
         sql_command = (
-            "DELETE FROM schedules WHERE rowid = {}".format(
+            "DELETE FROM schedules WHERE rowid = {};".format(
                 id_to_drop
             )
         )
@@ -253,3 +263,18 @@ def drop_schedule(ctx, id_to_drop):
 def str2bool(v):
   return v.lower() in ["yes", "true", "t", "1"]
 
+
+def update_dynamic_close(schedule_id, new_close_time="99:99"):
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+
+    sql_command = (
+        "UPDATE schedules SET dynamic_close = '{}' WHERE rowid = {};".format(
+            new_close_time, schedule_id
+        )
+    )
+
+    c.execute(sql_command)
+
+    conn.commit()
+    conn.close()
