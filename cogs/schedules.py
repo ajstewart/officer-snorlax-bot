@@ -72,7 +72,7 @@ class Schedules(commands.Cog):
         self, ctx, channel: TextChannel, open_time: str, close_time: str,
         open_message: Optional[str] = "None",
         close_message: Optional[str] = "None",
-        warning: Optional[str] = "True", dynamic: Optional[str] = "True"
+        warning: Optional[str] = "False", dynamic: Optional[str] = "True"
     ):
         """
         Docstring goes here.

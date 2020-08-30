@@ -162,7 +162,7 @@ def add_guild_tz(guild, tz):
 
 def create_schedule(
     ctx, channel, open_time, close_time, open_message="None",
-    close_message="None", warning="True", dynamic="True"
+    close_message="None", warning="False", dynamic="True"
 ):
     """
     Append to the schedule.
