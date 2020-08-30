@@ -52,34 +52,34 @@ def add_allowed_friend_code_channel(guild, channel, secret="False"):
     Sets the admin channel for a guild and saves
     the updated dataframe to disk.
     """
-    # try:
-    conn = sqlite3.connect(DATABASE)
-    c = conn.cursor()
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
 
-    secret = str2bool(secret)
+        secret = str2bool(secret)
 
-    for row in c.execute(
-        "SELECT * FROM fc_channels WHERE guild = {} AND channel = {};".format(
-            guild.id, channel.id
-        )
-    ):
-        break
-
-    else:
-        sql_command = (
-            """INSERT INTO fc_channels VALUES ({}, {}, "{}", {});""".format(
-                guild.id, channel.id, channel.name, secret
+        for row in c.execute(
+            "SELECT * FROM fc_channels WHERE guild = {} AND channel = {};".format(
+                guild.id, channel.id
             )
-        )
-        c.execute(sql_command)
+        ):
+            break
 
-    conn.commit()
-    conn.close()
+        else:
+            sql_command = (
+                """INSERT INTO fc_channels VALUES ({}, {}, "{}", {});""".format(
+                    guild.id, channel.id, channel.name, secret
+                )
+            )
+            c.execute(sql_command)
 
-    #     return True
-    #
-    # except Exception as e:
-    #     return False
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        return False
 
 
 def add_guild_admin_channel(guild, channel):
