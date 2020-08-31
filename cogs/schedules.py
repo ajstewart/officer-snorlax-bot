@@ -183,6 +183,8 @@ class Schedules(commands.Cog):
 
                 if row.open == now_compare:
                     role = get(channel.guild.roles, id=row.role)
+                    # update dynamic close in case channel never got to close
+                    update_dynamic_close(row.rowid)
                     await channel.set_permissions(role, send_messages=None)
                     open_message = DEFAULT_OPEN_MESSAGE.format(
                         row.close
