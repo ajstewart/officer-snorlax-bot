@@ -196,27 +196,34 @@ class Schedules(commands.Cog):
                 close_hour, close_min = row.close.split(":")
 
                 if row.warning:
-                    warning = (
-                        datetime.datetime(
-                            1, 1, 1,
-                            hour=int(close_hour), minute=int(close_min)
-                        ) - datetime.timedelta(minutes=WARNING_TIME)
-                    ).strftime("%H:%M")
+                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
 
-                    if warning == now_compare:
-                        warning_msg = (
-                            "**Warning!** Snorlax is approaching! "
-                            "This channel is scheduled to close in {}"
-                            " minutes.".format(WARNING_TIME)
-                        )
-                        if row.dynamic:
-                            warning_msg += (
-                                "\n\nIf the channel is still active then"
-                                " closing will be delayed."
+                    messages = await channel.history(after=then).flatten()
+
+                    if check_if_channel_active(
+                        messages, client_user
+                    ):
+                        warning = (
+                            datetime.datetime(
+                                10, 10, 10,
+                                hour=int(close_hour), minute=int(close_min)
+                            ) - datetime.timedelta(minutes=WARNING_TIME)
+                        ).strftime("%H:%M")
+
+                        if warning == now_compare:
+                            warning_msg = (
+                                "**Warning!** Snorlax is approaching! "
+                                "This channel is scheduled to close in {}"
+                                " minutes.".format(WARNING_TIME)
                             )
+                            if row.dynamic:
+                                warning_msg += (
+                                    "\n\nIf the channel is still active then"
+                                    " closing will be delayed."
+                                )
 
-                        await channel.send(warning_msg)
-                        continue
+                            await channel.send(warning_msg)
+                            continue
 
                 if row.close == now_compare:
 
@@ -227,15 +234,6 @@ class Schedules(commands.Cog):
                     if check_if_channel_active(
                         messages, client_user
                     ):
-                        if row.warning:
-                            msg = (
-                                "This channel is scheduled to close now"
-                                " but the channel appears to be active."
-                                " Will wait until the channel is inactive."
-                            )
-
-                            await channel.send(msg)
-
                         new_close_time = (
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
