@@ -43,6 +43,8 @@ Once added to your server the bot will need to be set up with an admin channel b
 @Officer Snorlax setAdminChannel <#channel-mention>
 ```
 
+![setAdminChannel](/screenshots/setadmin.png)
+
 Once this is set use the designated `admin channel` to issue all other commands. Use the help function to see a list of commands.
 
 ### Guild Timezone
@@ -53,7 +55,7 @@ You can set the timezone for your Guild (if different from the default option se
 @Officer Snorlax setTimezone <tz>
 ```
 
-where tz is one of the standard timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+where `tz` is one of the standard timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
 
 ## Schedule Behaviour
 
@@ -63,9 +65,13 @@ To add a open and close schedule you mention the bot and use the `addSchedule` c
 @Officer Snorlax addSchedule <#channel-mention> <open-time> <close-time> "<custom-open-message>" "<custom-close-message>" <warning> <dynamic>
 ```
 
+![setSchedule](/screenshots/setSchedule.png)
+
 The time entries must be in the format of `HH:MM` in 24-hour format and the warning and dynamic are boolean entries which will accept `true,  yes, y, 1` as true. By default warning is `False` and dynamic is `True`. The custom messages are added to the base message provided in the `.env`.
 
 It works by toggling the `@everyone` role on the channel to `deny` for closure and `neutral` for open. The bot will check if the channel is already closed or opening before applying the change, so it won't attempt to close a channel already closed for example.
+
+![CloseAndOpen](/screenshots/CloseAndOpen.png)
 
 ### Warning Option
 
@@ -92,6 +98,8 @@ The feautre is activated when a channel is added to the whitelist. This is done 
 ```
 
 The `secret` option (accepting the true and false like above) if true means that while friend codes will be allowed in the added channel, it won't be communicated to the user in the removal notice message.
+
+![FriendCodeRemoval](/screenshots/FriendCodeRemoval.png)
 
 
 
