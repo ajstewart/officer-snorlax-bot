@@ -19,6 +19,7 @@ from discord import TextChannel
 import pytz
 import datetime
 import os
+import logging
 from .utils.utils import (
     get_current_time,
     get_schedule_embed
@@ -32,6 +33,8 @@ DEFAULT_CLOSE_MESSAGE = os.getenv('DEFAULT_CLOSE_MESSAGE')
 WARNING_TIME = int(os.getenv('WARNING_TIME'))
 INACTIVE_TIME = int(os.getenv('INACTIVE_TIME'))
 DELAY_TIME = int(os.getenv('DELAY_TIME'))
+
+logger = logging.getLogger()
 
 
 class Schedules(commands.Cog):
@@ -180,11 +183,18 @@ class Schedules(commands.Cog):
 
             for i,row in scheds_to_check.iterrows():
                 channel = self.bot.get_channel(row.channel)
+                role = get(channel.guild.roles, id=row.role)
+                allow, deny = channel.overwrites_for(role).pair()
 
                 if row.open == now_compare:
-                    role = get(channel.guild.roles, id=row.role)
                     # update dynamic close in case channel never got to close
                     update_dynamic_close(row.rowid)
+                    if allow.send_messages == deny.send_messages == False:
+                        # this means the channel is already set to neutral
+                        logger.warning(
+                            f'Channel {channel.name} already neutral, skipping opening.'
+                        )
+                        continue
                     await channel.set_permissions(role, send_messages=None)
                     open_message = DEFAULT_OPEN_MESSAGE.format(
                         row.close
@@ -229,6 +239,14 @@ class Schedules(commands.Cog):
 
                 if row.close == now_compare:
 
+                    if deny.send_messages is True:
+                        logger.warning(
+                            f'Channel {channel.name} already closed, skipping closing.'
+                        )
+                        # Channel already closed so skip
+
+                        continue
+
                     then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
 
                     messages = await channel.history(after=then).flatten()
@@ -244,7 +262,6 @@ class Schedules(commands.Cog):
                         continue
 
                     else:
-                        role = get(channel.guild.roles, id=row.role)
                         close_message = DEFAULT_CLOSE_MESSAGE.format(
                             row.open
                         )
@@ -254,6 +271,14 @@ class Schedules(commands.Cog):
                         await channel.set_permissions(role, send_messages=False)
 
                 if row.dynamic_close == now_compare:
+
+                    if deny.send_messages is True:
+                        # Channel already closed so skip
+                        update_dynamic_close(row.rowid)
+                        logger.warning(
+                            f'Channel {channel.name} already closed, skipping closing.'
+                        )
+                        continue
 
                     then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
 
@@ -272,7 +297,6 @@ class Schedules(commands.Cog):
 
                     else:
                         update_dynamic_close(row.rowid)
-                        role = get(channel.guild.roles, id=row.role)
                         close_message = DEFAULT_CLOSE_MESSAGE.format(
                             row.open
                         )

@@ -1,8 +1,10 @@
 import discord
 import os
+import logging
 from dotenv import load_dotenv
 from discord.ext import commands
 from cogs.utils.checks import check_admin
+from cogs.utils.utils import get_logger
 from cogs import initial, management, schedules, fc_filter
 
 # LOADS THE .ENV FILE THAT RESIDES ON THE SAME LEVEL AS THE SCRIPT.
@@ -10,6 +12,9 @@ load_dotenv()
 
 # GRAB THE API TOKEN FROM THE .ENV FILE.
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+
+logger = get_logger(logfile='snorlax.log')
+logger.info('Starting bot...')
 
 # GETS THE CLIENT OBJECT FROM DISCORD.PY. CLIENT IS SYNONYMOUS WITH BOT.
 bot = commands.Bot(command_prefix=commands.when_mentioned_or('!'))

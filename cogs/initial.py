@@ -2,7 +2,12 @@ from discord.ext import commands, tasks
 import discord
 import traceback
 import sys
+import logging
 from .utils.checks import check_for_friend_code, check_admin
+
+
+logger = logging.getLogger()
+
 
 class Initial(commands.Cog):
     """docstring for Initial"""
@@ -18,13 +23,13 @@ class Initial(commands.Cog):
         # LOOPS THROUGH ALL THE GUILD / SERVERS THAT THE BOT IS ASSOCIATED WITH.
         for guild in self.bot.guilds:
             # PRINT THE SERVER'S ID AND NAME.
-            print(f"- {guild.id} (name: {guild.name})")
+            logger.info(f"- {guild.id} (name: {guild.name})")
 
             # INCREMENTS THE GUILD COUNTER.
             guild_count = guild_count + 1
 
         # PRINTS HOW MANY GUILDS / SERVERS THE BOT IS IN.
-        print("Snorlax is in " + str(guild_count) + " guilds.")
+        logger.info("Snorlax is in " + str(guild_count) + " guilds.")
 
         await self.bot.change_presence(
             activity=discord.Game(name="Sleeping...")
@@ -33,7 +38,7 @@ class Initial(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.errors.CheckFailure):
-            print('Check failure occurred.')
+            logger.warning('Check failure occurred.')
         else:
-            print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            logger.warning('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)

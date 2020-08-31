@@ -1,6 +1,7 @@
 import pytz
 import datetime
 import os
+import logging
 from discord import Embed
 from dotenv import load_dotenv, find_dotenv
 
@@ -112,3 +113,37 @@ def get_settings_embed(ctx, guild_settings):
     )
 
     return embed
+
+
+def get_logger(logfile=None):
+    '''
+    Set up the logger
+
+    :param logfile: File to output log to
+    :type logfile: str
+
+    :returns: Logger
+    :rtype: `logging.RootLogger`
+    '''
+
+    logger = logging.getLogger()
+    s = logging.StreamHandler()
+    if logfile is not None:
+        fh = logging.FileHandler(logfile)
+        fh.setLevel(logging.DEBUG)
+    logformat = '[%(asctime)s] - %(levelname)s - %(message)s'
+
+    formatter = logging.Formatter(logformat, datefmt="%Y-%m-%d %H:%M:%S")
+
+    s.setFormatter(formatter)
+
+    s.setLevel(logging.INFO)
+
+    logger.addHandler(s)
+
+    if logfile is not None:
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+    logger.setLevel(logging.DEBUG)
+
+    return logger
