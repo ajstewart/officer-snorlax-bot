@@ -3,6 +3,7 @@ import time
 from .db import load_guild_db
 import re
 from discord.utils import escape_mentions
+import datetime
 
 
 def check_bot(ctx):
@@ -37,6 +38,26 @@ def check_admin_channel(ctx):
             return False
     else:
         return False
+
+
+def check_if_channel_active(messages, client_user):
+    """
+    Check if the channel has seen not client/bot
+    activity in the past `past_minutes` minutes.
+    """
+    active = False
+
+    if messages:
+        for m in messages:
+            if m.author == client_user:
+                continue
+            elif m.author.bot:
+                continue
+            else:
+                active = True
+                break
+
+    return active
 
 
 def check_for_friend_code(content):

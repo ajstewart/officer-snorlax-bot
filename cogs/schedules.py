@@ -4,18 +4,22 @@ from .utils.checks import (
     check_admin,
     check_admin_channel,
     check_time_format,
-    check_bot
+    check_bot,
+    check_if_channel_active
 )
 from .utils.db import (
     load_guild_db,
     load_schedule_db,
     create_schedule,
-    drop_schedule
+    drop_schedule,
+    update_dynamic_close
 )
 from discord.utils import get
 from discord import TextChannel
 import pytz
+import datetime
 import os
+import logging
 from .utils.utils import (
     get_current_time,
     get_schedule_embed
@@ -26,6 +30,11 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
 DEFAULT_CLOSE_MESSAGE = os.getenv('DEFAULT_CLOSE_MESSAGE')
+WARNING_TIME = int(os.getenv('WARNING_TIME'))
+INACTIVE_TIME = int(os.getenv('INACTIVE_TIME'))
+DELAY_TIME = int(os.getenv('DELAY_TIME'))
+
+logger = logging.getLogger()
 
 
 class Schedules(commands.Cog):
@@ -65,7 +74,8 @@ class Schedules(commands.Cog):
     async def addSchedule(
         self, ctx, channel: TextChannel, open_time: str, close_time: str,
         open_message: Optional[str] = "None",
-        close_message: Optional[str] = "None"
+        close_message: Optional[str] = "None",
+        warning: Optional[str] = "False", dynamic: Optional[str] = "True"
     ):
         """
         Docstring goes here.
@@ -90,7 +100,8 @@ class Schedules(commands.Cog):
 
         ok = create_schedule(
             ctx, channel, open_time, close_time,
-            open_message, close_message
+            open_message, close_message, warning,
+            dynamic
         )
 
         if ok:
@@ -151,10 +162,15 @@ class Schedules(commands.Cog):
     @tasks.loop(seconds=60)
     async def channel_manager(self):
         await self.bot.wait_until_ready()
+
+        client_user = self.bot.user
         guild_db = load_guild_db()
         schedule_db = load_schedule_db()
+
         for tz in guild_db['tz'].unique():
-            now = get_current_time(tz=tz).strftime(
+            now = get_current_time(tz=tz)
+            now_utc = datetime.datetime.utcnow()
+            now_compare = now.strftime(
                 "%H:%M"
             )
             guilds = guild_db.loc[guild_db['tz'] == tz].index.values
@@ -166,9 +182,19 @@ class Schedules(commands.Cog):
             scheds_to_check = schedule_db.loc[guild_mask, :]
 
             for i,row in scheds_to_check.iterrows():
-                if row.open == now:
-                    channel = self.bot.get_channel(row.channel)
-                    role = get(channel.guild.roles, id=row.role)
+                channel = self.bot.get_channel(row.channel)
+                role = get(channel.guild.roles, id=row.role)
+                allow, deny = channel.overwrites_for(role).pair()
+
+                if row.open == now_compare:
+                    # update dynamic close in case channel never got to close
+                    update_dynamic_close(row.rowid)
+                    if allow.send_messages == deny.send_messages == False:
+                        # this means the channel is already set to neutral
+                        logger.warning(
+                            f'Channel {channel.name} already neutral, skipping opening.'
+                        )
+                        continue
                     await channel.set_permissions(role, send_messages=None)
                     open_message = DEFAULT_OPEN_MESSAGE.format(
                         row.close
@@ -177,16 +203,104 @@ class Schedules(commands.Cog):
                         open_message += "\n\n" + row['open_message']
                     await channel.send(open_message)
 
-                if row.close == now:
-                    channel = self.bot.get_channel(row.channel)
-                    role = get(channel.guild.roles, id=row.role)
-                    close_message = DEFAULT_CLOSE_MESSAGE.format(
-                        row.open
-                    )
-                    if row['close_message'] != "None":
-                        close_message += "\n\n" + row['close_message']
-                    await channel.send(close_message)
-                    await channel.set_permissions(role, send_messages=False)
+                    continue
 
+                close_hour, close_min = row.close.split(":")
 
+                if row.warning:
+                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
 
+                    messages = await channel.history(after=then).flatten()
+
+                    if check_if_channel_active(
+                        messages, client_user
+                    ):
+                        warning = (
+                            datetime.datetime(
+                                10, 10, 10,
+                                hour=int(close_hour), minute=int(close_min)
+                            ) - datetime.timedelta(minutes=WARNING_TIME)
+                        ).strftime("%H:%M")
+
+                        if warning == now_compare:
+                            warning_msg = (
+                                "**Warning!** Snorlax is approaching! "
+                                "This channel is scheduled to close in {}"
+                                " minutes.".format(WARNING_TIME)
+                            )
+                            if row.dynamic:
+                                warning_msg += (
+                                    "\n\nIf the channel is still active then"
+                                    " closing will be delayed."
+                                )
+
+                            await channel.send(warning_msg)
+                            continue
+
+                if row.close == now_compare:
+
+                    if deny.send_messages is True:
+                        logger.warning(
+                            f'Channel {channel.name} already closed, skipping closing.'
+                        )
+                        # Channel already closed so skip
+
+                        continue
+
+                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
+
+                    messages = await channel.history(after=then).flatten()
+
+                    if check_if_channel_active(
+                        messages, client_user
+                    ):
+                        new_close_time = (
+                            now + datetime.timedelta(minutes=DELAY_TIME)
+                        ).strftime("%H:%M")
+
+                        update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        continue
+
+                    else:
+                        close_message = DEFAULT_CLOSE_MESSAGE.format(
+                            row.open
+                        )
+                        if row['close_message'] != "None":
+                            close_message += "\n\n" + row['close_message']
+                        await channel.send(close_message)
+                        await channel.set_permissions(role, send_messages=False)
+
+                if row.dynamic_close == now_compare:
+
+                    if deny.send_messages is True:
+                        # Channel already closed so skip
+                        update_dynamic_close(row.rowid)
+                        logger.warning(
+                            f'Channel {channel.name} already closed, skipping closing.'
+                        )
+                        continue
+
+                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
+
+                    messages = await channel.history(after=then).flatten()
+
+                    if check_if_channel_active(
+                        messages, client_user
+                    ):
+
+                        new_close_time = (
+                            now + datetime.timedelta(minutes=DELAY_TIME)
+                        ).strftime("%H:%M")
+
+                        update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        continue
+
+                    else:
+                        update_dynamic_close(row.rowid)
+                        close_message = DEFAULT_CLOSE_MESSAGE.format(
+                            row.open
+                        )
+                        if row['close_message'] != "None":
+                            close_message += "\n\n" + row['close_message']
+                        await channel.send(close_message)
+                        await channel.set_permissions(role, send_messages=False)
