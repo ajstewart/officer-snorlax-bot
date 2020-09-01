@@ -54,7 +54,6 @@ class FriendCodeFilter(commands.Cog):
             )
         await ctx.channel.send(msg)
 
-    # EVENT LISTENER FOR WHEN THE BOT HAS SWITCHED FROM OFFLINE TO ONLINE.
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
