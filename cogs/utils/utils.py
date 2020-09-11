@@ -1,6 +1,7 @@
 import pytz
 import datetime
 import os
+import re
 import logging
 from discord import Embed
 from dotenv import load_dotenv, find_dotenv
@@ -147,3 +148,7 @@ def get_logger(logfile=None):
     logger.setLevel(logging.DEBUG)
 
     return logger
+
+
+def strip_url(content):
+    return re.sub(r'http\S+', '', content)
