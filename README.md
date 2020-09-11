@@ -59,7 +59,7 @@ where `tz` is one of the standard timezones: https://en.wikipedia.org/wiki/List_
 
 ## Schedule Behaviour
 
-To add a open and close schedule you mention the bot and use the `addSchedule` command in the following format:
+To add an open and close schedule you mention the bot and use the `addSchedule` command in the following format:
 
 ```
 @Officer Snorlax addSchedule <#channel-mention> <open-time> <close-time> "<custom-open-message>" "<custom-close-message>" <warning> <dynamic>
@@ -89,9 +89,9 @@ At the moment it's possible to add multiple schedules to one channel - BUT - the
 
 By default this feature is turned off.
 
-The bot can monitor all messages on the server and remove those that contain friend codes. The bot will send a message, mentioning the user, telling them the message has been removed and where friend codes are allowed.
+The bot can monitor all messages on the server and remove those that contain friend codes. The bot will send a message, mentioning the user, telling them the message has been removed and where friend codes are allowed. The message from Snorlax will auto-delete after one minute.
 
-The feautre is activated when a channel is added to the whitelist. This is done with the command:
+The feature is activated when a channel is added to the whitelist. This is done with the command:
 
 ```
 @Officer Snorlax addFriendChannel <#channel-mention> <secret>
