@@ -2,6 +2,7 @@ import pytz
 import time
 from .db import load_guild_db
 import re
+from .utils import strip_url
 from discord.utils import escape_mentions
 import datetime
 
@@ -63,6 +64,7 @@ def check_if_channel_active(messages, client_user):
 def check_for_friend_code(content):
     pattern = "\d{4}.*\d{4}.*\d{4}(?!(\d*\>))"
     content = escape_mentions(content)
+    content = strip_url(content)
     match = re.search(pattern, content)
     if match:
         return True
