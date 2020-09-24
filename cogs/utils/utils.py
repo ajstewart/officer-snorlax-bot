@@ -152,3 +152,6 @@ def get_logger(logfile=None):
 
 def strip_url(content):
     return re.sub(r'http\S+', '', content)
+
+def strip_mentions(content):
+    return re.sub(r'<(?:[^\d>]+|:[A-Za-z0-9]+:)\w+>', '', content)
