@@ -184,7 +184,9 @@ class Schedules(commands.Cog):
             for i,row in scheds_to_check.iterrows():
                 channel = self.bot.get_channel(row.channel)
                 role = get(channel.guild.roles, id=row.role)
-                allow, deny = channel.overwrites_for(role).pair()
+                # get current overwrites
+                overwrites = channel.overwrites_for(role)
+                allow, deny = overwrites.pair()
 
                 if row.open == now_compare:
                     # update dynamic close in case channel never got to close
@@ -195,7 +197,8 @@ class Schedules(commands.Cog):
                             f'Channel {channel.name} already neutral, skipping opening.'
                         )
                         continue
-                    await channel.set_permissions(role, send_messages=None)
+                    overwrites.send_messages = None
+                    await channel.set_permissions(role, overwrite=overwrites)
                     open_message = DEFAULT_OPEN_MESSAGE.format(
                         row.close
                     )
@@ -268,7 +271,8 @@ class Schedules(commands.Cog):
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
                         await channel.send(close_message)
-                        await channel.set_permissions(role, send_messages=False)
+                        overwrites.send_messages = False
+                        await channel.set_permissions(role, overwrite=overwrites)
 
                 if row.dynamic_close == now_compare:
 
@@ -303,4 +307,5 @@ class Schedules(commands.Cog):
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
                         await channel.send(close_message)
-                        await channel.set_permissions(role, send_messages=False)
+                        overwrites.send_messages = False
+                        await channel.set_permissions(role, overwrite=overwrites)
