@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import discord
 import os
 import logging

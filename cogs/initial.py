@@ -40,5 +40,5 @@ class Initial(commands.Cog):
         if isinstance(error, commands.errors.CheckFailure):
             logger.warning('Check failure occurred.')
         else:
-            logger.warning('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            logger.warning('Ignoring exception in command {}:'.format(ctx.command))
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)

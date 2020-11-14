@@ -2,6 +2,7 @@ from discord.ext import commands, tasks
 from discord import TextChannel
 from typing import Optional
 import os
+import time
 from .utils.db import (
     load_guild_db,
     add_guild_admin_channel,
@@ -145,3 +146,22 @@ class Management(commands.Cog):
             embed = get_settings_embed(ctx, guild_settings)
 
             await ctx.channel.send(embed=embed)
+
+    @commands.command(
+        help=(
+            "Shutdown the bot."
+        ),
+        brief="Shutdown the bot."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def shutdown(self, ctx):
+        """
+        Function to force the bot to shutdown.
+        """
+
+        await ctx.channel.send(
+            "Snorlax is shutting down."
+        )
+        await ctx.bot.logout()
