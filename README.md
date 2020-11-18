@@ -79,7 +79,7 @@ If selected, then if the channel has seen activity in the past `X` minutes, wher
 
 ### Dynamic Closure Option
 
-If the channel has been active for `INACTIVE_TIME` minutes before the closure then the closure is pushed back by `DELAY_TIME` minutes. This happens silently from the users point of view. There is a `max_num_delays` setting available when adding the schedule to force closeure after a chosen amount of delays (defaults to 1).
+If the channel has been active for `INACTIVE_TIME` minutes before the closure then the closure is pushed back by `DELAY_TIME` minutes. This happens silently from the users point of view. There is a `max_num_delays` setting available when adding the schedule to force closure after a chosen amount of delays (defaults to 1).
 
 ### Current Behaviour Warning
 
