@@ -12,7 +12,8 @@ from .utils.db import (
     load_schedule_db,
     create_schedule,
     drop_schedule,
-    update_dynamic_close
+    update_dynamic_close,
+    update_current_delay_num
 )
 from discord.utils import get
 from discord import TextChannel
@@ -75,7 +76,8 @@ class Schedules(commands.Cog):
         self, ctx, channel: TextChannel, open_time: str, close_time: str,
         open_message: Optional[str] = "None",
         close_message: Optional[str] = "None",
-        warning: Optional[str] = "False", dynamic: Optional[str] = "True"
+        warning: Optional[str] = "False", dynamic: Optional[str] = "True",
+        max_num_delays: Optional[int] = 1
     ):
         """
         Docstring goes here.
@@ -101,7 +103,7 @@ class Schedules(commands.Cog):
         ok = create_schedule(
             ctx, channel, open_time, close_time,
             open_message, close_message, warning,
-            dynamic
+            dynamic, max_num_delays
         )
 
         if ok:
@@ -254,14 +256,17 @@ class Schedules(commands.Cog):
 
                     messages = await channel.history(after=then).flatten()
 
-                    if check_if_channel_active(
-                        messages, client_user
+                    if (check_if_channel_active(messages, client_user)
+                        and row.dynamic
+                        and row.current_delay_num < row.max_num_delays
                     ):
                         new_close_time = (
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
 
                         update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        update_current_delay_num(row.rowid, row.current_delay_num + 1)
+
                         continue
 
                     else:
@@ -273,6 +278,8 @@ class Schedules(commands.Cog):
                         await channel.send(close_message)
                         overwrites.send_messages = False
                         await channel.set_permissions(role, overwrite=overwrites)
+                        update_dynamic_close(row.rowid)
+                        update_current_delay_num(row.rowid)
 
                 if row.dynamic_close == now_compare:
 
@@ -288,19 +295,29 @@ class Schedules(commands.Cog):
 
                     messages = await channel.history(after=then).flatten()
 
-                    if check_if_channel_active(
-                        messages, client_user
-                    ):
-
+                    if (check_if_channel_active(messages, client_user)
+                        and row.current_delay_num < row.max_num_delays):
                         new_close_time = (
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
 
                         update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        update_current_delay_num(row.rowid, row.current_delay_num + 1)
+
+                        if row.current_delay_num + 1 == row.max_num_delays:
+                            warning_msg = (
+                                "**Warning!** Snorlax is approaching! "
+                                "This channel will close in {}"
+                                " minutes.".format(DELAY_TIME)
+                            )
+
+                            await channel.send(warning_msg)
+
                         continue
 
                     else:
                         update_dynamic_close(row.rowid)
+                        update_current_delay_num(row.rowid)
                         close_message = DEFAULT_CLOSE_MESSAGE.format(
                             row.open
                         )
