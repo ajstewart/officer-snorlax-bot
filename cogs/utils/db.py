@@ -162,7 +162,7 @@ def add_guild_tz(guild, tz):
 
 def create_schedule(
     ctx, channel, open_time, close_time, open_message="None",
-    close_message="None", warning="False", dynamic="True"
+    close_message="None", warning="False", dynamic="True", max_num_delays=1
 ):
     """
     Append to the schedule.
@@ -179,7 +179,7 @@ def create_schedule(
         sql_command = (
             "INSERT INTO schedules VALUES"
             """ ({}, {}, {}, "{}", "{}", "{}", """
-            """"{}", "{}", "{}", {}, {}, "99:99");""".format(
+            """"{}", "{}", "{}", {}, {}, "99:99", {}, 0);""".format(
                 ctx.guild.id,
                 channel.id,
                 role.id,
@@ -190,7 +190,8 @@ def create_schedule(
                 open_message,
                 close_message,
                 warning,
-                dynamic
+                dynamic,
+                max_num_delays
             )
         )
 
@@ -271,6 +272,23 @@ def update_dynamic_close(schedule_id, new_close_time="99:99"):
     sql_command = (
         "UPDATE schedules SET dynamic_close = '{}' WHERE rowid = {};".format(
             new_close_time, schedule_id
+        )
+    )
+
+    c.execute(sql_command)
+
+    conn.commit()
+    conn.close()
+
+
+def update_current_delay_num(schedule_id, new_delay_num=0):
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+
+    sql_command = (
+        "UPDATE schedules SET current_delay_num"
+        " = {} WHERE rowid = {};".format(
+            new_delay_num, schedule_id
         )
     )
 
