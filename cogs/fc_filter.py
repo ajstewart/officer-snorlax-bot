@@ -172,6 +172,8 @@ class FriendCodeFilter(commands.Cog):
                 # Add the newly created channel to allow fc
                 ok = add_allowed_friend_code_channel(channel.guild, channel, "True")
                 # TODO Add logging here.
+                # Turn on slow mode
+                await channel.edit(slowmode_delay=5)
             else:
                 pass
 
