@@ -3,6 +3,7 @@ import datetime
 import os
 import re
 import logging
+import string
 from discord import Embed
 from dotenv import load_dotenv, find_dotenv
 
@@ -95,10 +96,12 @@ def get_settings_embed(ctx, guild_settings):
         value=(
             'TZ: **{}**\n'
             'Admin Channel: **<#{}>**\n'
-            'Meowth Raid Category: **{}**'.format(
+            'Meowth Raid Category: **{}**\n'
+            'Any raids filter: **{}**'.format(
                 guild_settings['tz'],
                 guild_settings['admin_channel'],
-                cat_name
+                cat_name,
+                guild_settings['any_raids_filter']
             )
         ),
         inline=False
@@ -164,3 +167,6 @@ def strip_url(content):
 
 def strip_mentions(content):
     return re.sub(r'<(?:[^\d>]+|:[A-Za-z0-9]+:)\w+>', '', content)
+
+def strip_punctuation(content):
+    return content.translate(str.maketrans('', '', string.punctuation))
