@@ -152,6 +152,8 @@ class FriendCodeFilter(commands.Cog):
                                 allowed_channels['secret'] == False
                             ]['channel']:
                                 msg += ' <#{}>'.format(c)
+                            if guild_db.loc[message.guild.id]['meowth_raid_category'] != -1:
+                                msg += ' or any raid channel generated using the Mewoth bot.'
                             await message.channel.send(
                                 msg,
                                 delete_after=30
