@@ -80,6 +80,11 @@ def get_settings_embed(ctx, guild_settings):
     """
     Create an embed to show the schedules.
     """
+    if guild_settings['meowth_raid_category'] != -1:
+        cat_name = ctx.guild.get_channel(guild_settings['meowth_raid_category']).name
+    else:
+        cat_name = 'Not set'
+
     embed = Embed(
         title='Settings',
         color=16756290
@@ -89,9 +94,11 @@ def get_settings_embed(ctx, guild_settings):
         name="Guild Settings",
         value=(
             'TZ: **{}**\n'
-            'Admin Channel: **<#{}>**'.format(
+            'Admin Channel: **<#{}>**\n'
+            'Meowth Raid Category: **{}**'.format(
                 guild_settings['tz'],
-                guild_settings['admin_channel']
+                guild_settings['admin_channel'],
+                cat_name
             )
         ),
         inline=False
