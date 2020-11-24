@@ -31,7 +31,7 @@ class Management(commands.Cog):
             "Turn on the 'any raids' filter. If a user sends a message that"
             " just containts 'any raids?' it will be deleted."
         ),
-        brief="Turns on the any raids filter."
+        brief="Turns on the 'any raids' filter."
     )
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
@@ -55,10 +55,9 @@ class Management(commands.Cog):
 
     @commands.command(
         help=(
-            "Turn on the 'any raids' filter. If a user sends a message that"
-            " jsut containts 'any raids?' it will be deleted."
+            "Turn off the 'any raids' filter."
         ),
-        brief="Turns on the any raids filter."
+        brief="Turns off the 'any raids' filter."
     )
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
