@@ -181,6 +181,29 @@ class Management(commands.Cog):
 
     @commands.command(
         help=(
+            "Resets the Meowth raid category for the guild. Essentially"
+            " disabling the Meowth raid channel support."
+        ),
+        brief="Reset the meowth raid categry for the bot (disables)."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin)
+    async def resetMeowthRaidCategory(self, ctx):
+        """
+        Docstring goes here.
+        """
+        guild = ctx.guild
+        ok = add_guild_meowth_raid_category(guild, -1)
+        if ok:
+            msg = ("Meowth raid category has been reset.")
+        else:
+            msg = (
+                "Error when setting the meowth raid channel."
+            )
+        await ctx.channel.send(msg)
+
+    @commands.command(
+        help=(
             "Set the timezone for the guild. Use standard tz"
             " timezones, e.g. 'Australia/Sydney'."
         ),
