@@ -2,7 +2,7 @@ import pytz
 import time
 from .db import load_guild_db
 import re
-from .utils import strip_url, strip_mentions
+from .utils import strip_url, strip_mentions, strip_punctuation
 from discord.utils import escape_mentions
 import datetime
 
@@ -94,3 +94,9 @@ def check_time_format(time_input):
         return False
 
 
+def check_for_any_raids(content):
+    content = strip_punctuation(content)
+    if content.strip() == 'any raids':
+        return True
+    else:
+        return False

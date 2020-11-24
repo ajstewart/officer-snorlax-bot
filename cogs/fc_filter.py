@@ -7,7 +7,8 @@ from .utils.checks import (
     check_admin_channel,
     check_time_format,
     check_for_friend_code,
-    check_bot
+    check_bot,
+    check_for_any_raids
 )
 from .utils.db import (
     load_guild_db,
@@ -116,6 +117,23 @@ class FriendCodeFilter(commands.Cog):
         if check_bot(message):
             if not check_admin(message):
                 content = message.content.strip().lower()
+                guild_db = load_guild_db()
+                if guild_db.loc[message.guild.id]['any_raids_filter'] == True:
+                    if check_for_any_raids(content):
+                        msg = (
+                            "{}, please don't spam this channel with"
+                            " 'any raids?'. Check to see if there is a raid"
+                            " being hosted or post your raid if you'd like to"
+                            " host one yourself. See the relevant rules"
+                            " channel for rules and instructions."
+                        ).format(message.author.mention)
+                        await message.channel.send(
+                            msg,
+                            delete_after=30
+                        )
+                        await message.delete()
+
+                        return
                 if check_for_friend_code(content):
                     allowed_channels = load_friend_code_channels_db()
                     allowed_channels = allowed_channels.loc[
@@ -136,7 +154,7 @@ class FriendCodeFilter(commands.Cog):
                                 msg += ' <#{}>'.format(c)
                             await message.channel.send(
                                 msg,
-                                delete_after=60
+                                delete_after=30
                             )
                             await message.delete()
 

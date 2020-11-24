@@ -107,7 +107,7 @@ def add_guild_admin_channel(guild, channel):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", {}, -1);""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", {}, -1, False);""".format(
                     guild.id, DEFAULT_TZ, channel.id
                 )
             )
@@ -145,7 +145,7 @@ def add_guild_tz(guild, tz):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0);""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False);""".format(
                     guild.id, tz
                 )
             )
@@ -181,7 +181,7 @@ def add_guild_meowth_raid_category(guild, category):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, {});""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", 0, {}, False);""".format(
                     guild.id, DEFAULT_TZ, category.id
                 )
             )
@@ -332,3 +332,39 @@ def update_current_delay_num(schedule_id, new_delay_num=0):
 
     conn.commit()
     conn.close()
+
+
+def toggle_any_raids_filter(guild, any_raids):
+    """
+    Sets the Meowth raid category for Meowth such that
+    the friend code filter can play nice with the created channels.
+    """
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+        for row in c.execute(
+            "SELECT * FROM guilds WHERE id={}".format(guild.id)
+        ):
+            entry_id = row[0]
+            sql_command = (
+                "UPDATE guilds SET any_raids_filter"
+                " = {} WHERE ID = {};".format(any_raids, entry_id)
+            )
+            c.execute(sql_command)
+            break
+
+        else:
+            sql_command = (
+                """INSERT INTO guilds VALUES ({}, "{}", 0, {}, {});""".format(
+                    guild.id, DEFAULT_TZ, category.id
+                )
+            )
+            c.execute(sql_command)
+
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        return False

@@ -6,7 +6,8 @@ from .utils.db import (
     load_guild_db,
     add_guild_admin_channel,
     add_guild_tz,
-    add_guild_meowth_raid_category
+    add_guild_meowth_raid_category,
+    toggle_any_raids_filter
 )
 from .utils.utils import get_current_time, get_settings_embed
 from .utils.checks import (
@@ -24,6 +25,60 @@ class Management(commands.Cog):
     def __init__(self, bot):
         super(Management, self).__init__()
         self.bot = bot
+
+    @commands.command(
+        help=(
+            "Turn on the 'any raids' filter. If a user sends a message that"
+            " just containts 'any raids?' it will be deleted."
+        ),
+        brief="Turns on the any raids filter."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def activateAnyRaidsFilter(self, ctx):
+        """
+        Docstring goes here.
+        """
+        guild_db = load_guild_db()
+        any_filter = guild_db.loc[ctx.guild.id]['any_raids_filter']
+        if any_filter:
+            msg = ("The 'any raids' filter is already activated.")
+        else:
+            ok = toggle_any_raids_filter(ctx.guild, True)
+            if ok:
+                msg = ("'Any raids' filter activated.")
+            else:
+                msg = ("Error when attempting to activate the 'Any raids' filter")
+
+        await ctx.channel.send(msg)
+
+    @commands.command(
+        help=(
+            "Turn on the 'any raids' filter. If a user sends a message that"
+            " jsut containts 'any raids?' it will be deleted."
+        ),
+        brief="Turns on the any raids filter."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def deactivateAnyRaidsFilter(self, ctx):
+        """
+        Docstring goes here.
+        """
+        guild_db = load_guild_db()
+        any_filter = guild_db.loc[ctx.guild.id]['any_raids_filter']
+        if not any_filter:
+            msg = ("The 'any raids' filter is already deactivated.")
+        else:
+            ok = toggle_any_raids_filter(ctx.guild, False)
+            if ok:
+                msg = ("'Any raids' filter deactivated.")
+            else:
+                msg = ("Error when attempting to deactivate the 'Any raids' filter")
+
+        await ctx.channel.send(msg)
 
     @commands.command(
         help=(
