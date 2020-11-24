@@ -31,7 +31,8 @@ c.execute(SQL_STATEMENT)
 SQL_STATEMENT = """CREATE TABLE guilds (
     id INTEGER PRIMARY KEY,
     tz VARCHAR(40),
-    admin_channel INTEGER
+    admin_channel INTEGER,
+    meowth_raid_category INTEGER
 );
 """
 

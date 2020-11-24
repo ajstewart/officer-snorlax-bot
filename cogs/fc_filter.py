@@ -10,6 +10,7 @@ from .utils.checks import (
     check_bot
 )
 from .utils.db import (
+    load_guild_db,
     load_friend_code_channels_db,
     add_allowed_friend_code_channel,
     drop_allowed_friend_code_channel
@@ -138,3 +139,32 @@ class FriendCodeFilter(commands.Cog):
                                 delete_after=60
                             )
                             await message.delete()
+
+
+    @commands.Cog.listener()
+    async def on_guild_channel_create(self, channel):
+        guild_db = load_guild_db()
+        guild_meowth_cat = guild_db.loc[channel.guild.id]['meowth_raid_category']
+        if guild_meowth_cat == -1:
+            pass
+        else:
+            if channel.category.id == guild_meowth_cat:
+                # Add the newly created channel to allow fc
+                ok = add_allowed_friend_code_channel(channel.guild, channel, "True")
+                # TODO Add logging here.
+            else:
+                pass
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        guild_db = load_guild_db()
+        guild_meowth_cat = guild_db.loc[channel.guild.id]['meowth_raid_category']
+        if guild_meowth_cat == -1:
+            pass
+        else:
+            if channel.category.id == guild_meowth_cat:
+                # Add the newly created channel to allow fc
+                ok = drop_allowed_friend_code_channel(channel.guild, channel)
+                # TODO Add logging here.
+            else:
+                pass

@@ -107,7 +107,7 @@ def add_guild_admin_channel(guild, channel):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", {});""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", {}, -1);""".format(
                     guild.id, DEFAULT_TZ, channel.id
                 )
             )
@@ -147,6 +147,42 @@ def add_guild_tz(guild, tz):
             sql_command = (
                 """INSERT INTO guilds VALUES ({}, "{}", 0);""".format(
                     guild.id, tz
+                )
+            )
+            c.execute(sql_command)
+
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+def add_guild_meowth_raid_category(guild, category):
+    """
+    Sets the Meowth raid category for Meowth such that
+    the friend code filter can play nice with the created channels.
+    """
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+        for row in c.execute(
+            "SELECT * FROM guilds WHERE id={}".format(guild.id)
+        ):
+            entry_id = row[0]
+            sql_command = (
+                "UPDATE guilds SET meowth_raid_category"
+                " = {} WHERE ID = {};".format(category.id, entry_id)
+            )
+            c.execute(sql_command)
+            break
+
+        else:
+            sql_command = (
+                """INSERT INTO guilds VALUES ({}, "{}", 0, {});""".format(
+                    guild.id, DEFAULT_TZ, category.id
                 )
             )
             c.execute(sql_command)
