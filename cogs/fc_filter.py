@@ -167,7 +167,7 @@ class FriendCodeFilter(commands.Cog):
         guild_meowth_cat = guild_db.loc[channel.guild.id]['meowth_raid_category']
         if guild_meowth_cat == -1:
             pass
-        else:
+        elif channel.category is not None:
             if channel.category.id == guild_meowth_cat:
                 # Add the newly created channel to allow fc
                 ok = add_allowed_friend_code_channel(channel.guild, channel, "True")
@@ -181,7 +181,7 @@ class FriendCodeFilter(commands.Cog):
         guild_meowth_cat = guild_db.loc[channel.guild.id]['meowth_raid_category']
         if guild_meowth_cat == -1:
             pass
-        else:
+        elif channel.category is not None:
             if channel.category.id == guild_meowth_cat:
                 # Add the newly created channel to allow fc
                 ok = drop_allowed_friend_code_channel(channel.guild, channel)
