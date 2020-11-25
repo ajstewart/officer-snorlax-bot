@@ -153,7 +153,7 @@ class FriendCodeFilter(commands.Cog):
                             ]['channel']:
                                 msg += ' <#{}>'.format(c)
                             if guild_db.loc[message.guild.id]['meowth_raid_category'] != -1:
-                                msg += ' or any raid channel generated using the Mewoth bot.'
+                                msg += ' or any raid channel generated using the Pokenav bot.'
                             await message.channel.send(
                                 msg,
                                 delete_after=30
@@ -172,8 +172,6 @@ class FriendCodeFilter(commands.Cog):
                 # Add the newly created channel to allow fc
                 ok = add_allowed_friend_code_channel(channel.guild, channel, "True")
                 # TODO Add logging here.
-                # Turn on slow mode
-                await channel.edit(slowmode_delay=5)
             else:
                 pass
 
