@@ -96,7 +96,8 @@ def check_time_format(time_input):
 
 def check_for_any_raids(content):
     content = strip_punctuation(content)
-    if content.strip() == 'any raids':
+    content_strip = content.strip().split(" ")
+    if content_strip[0] == 'any' and content_strip[-1] in ['raid', 'raids']:
         return True
     else:
         return False
