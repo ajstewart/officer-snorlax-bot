@@ -91,15 +91,23 @@ def get_settings_embed(ctx, guild_settings):
         color=16756290
     )
 
+    log_channel_id = guild_settings['log_channel']
+    if log_channel_id == -1:
+        log_channel = "Not set"
+    else:
+        log_channel = "<#{}>".format(log_channel_id)
+
     embed.add_field(
         name="Guild Settings",
         value=(
             'TZ: **{}**\n'
             'Admin Channel: **<#{}>**\n'
+            'Log Channel: **{}**\n'
             'Meowth Raid Category: **{}**\n'
             'Any raids filter: **{}**'.format(
                 guild_settings['tz'],
                 guild_settings['admin_channel'],
+                log_channel,
                 cat_name,
                 guild_settings['any_raids_filter']
             )

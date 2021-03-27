@@ -5,6 +5,7 @@ from discord.ext import commands, tasks
 from .utils.db import (
     load_guild_db,
     add_guild_admin_channel,
+    add_guild_log_channel,
     add_guild_tz,
     add_guild_meowth_raid_category,
     toggle_any_raids_filter
@@ -141,6 +142,33 @@ class Management(commands.Cog):
         else:
             msg = (
                 "Error when setting the admin channel."
+            )
+        await ctx.channel.send(msg)
+
+    @commands.command(
+        help=(
+            "Sets the log channel for the guild where Snorlax"
+            " will post log messages."
+        ),
+        brief="Set the log channel for the bot."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin)
+    async def setLogChannel(self, ctx, channel: TextChannel):
+        """
+        Docstring goes here.
+        """
+        guild = ctx.guild
+        ok = add_guild_log_channel(guild, channel)
+        if ok:
+            msg = (
+                "{} set as the Snorlax log channel successfully.".format(
+                    channel.mention
+                )
+            )
+        else:
+            msg = (
+                "Error when setting the log channel."
             )
         await ctx.channel.send(msg)
 

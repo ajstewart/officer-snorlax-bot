@@ -25,6 +25,7 @@ from .utils.utils import (
     get_current_time,
     get_schedule_embed
 )
+from .utils.log_msgs import schedule_log_embed
 from dotenv import load_dotenv, find_dotenv
 
 
@@ -183,7 +184,17 @@ class Schedules(commands.Cog):
 
             scheds_to_check = schedule_db.loc[guild_mask, :]
 
+            last_guild_id = -1
+
             for i,row in scheds_to_check.iterrows():
+                # Load the log channel for the guild
+                guild_id = row['guild']
+                if guild_id != last_guild_id:
+                    log_channel_id = int(guild_db.loc[guild_id]['log_channel'])
+                    if log_channel_id != -1:
+                        log_channel = self.bot.get_channel(log_channel_id)
+                    last_guild_id = guild_id
+
                 channel = self.bot.get_channel(row.channel)
                 role = get(channel.guild.roles, id=row.role)
                 # get current overwrites
@@ -198,7 +209,15 @@ class Schedules(commands.Cog):
                         logger.warning(
                             f'Channel {channel.name} already neutral, skipping opening.'
                         )
+                        if log_channel_id != -1:
+                            embed = schedule_log_embed(
+                                channel,
+                                tz,
+                                'open_skip'
+                            )
+                            await log_channel.send(embed=embed)
                         continue
+
                     overwrites.send_messages = None
                     await channel.set_permissions(role, overwrite=overwrites)
                     open_message = DEFAULT_OPEN_MESSAGE.format(
@@ -207,6 +226,18 @@ class Schedules(commands.Cog):
                     if row['open_message'] != "None":
                         open_message += "\n\n" + row['open_message']
                     await channel.send(open_message)
+
+                    logger.info(
+                        f'Opened {channel.name} in {channel.guild.name}.'
+                    )
+
+                    if log_channel_id != -1:
+                        embed = schedule_log_embed(
+                            channel,
+                            tz,
+                            'open'
+                        )
+                        await log_channel.send(embed=embed)
 
                     continue
 
@@ -239,6 +270,14 @@ class Schedules(commands.Cog):
                                     " closing will be delayed."
                                 )
 
+                            if log_channel_id != -1:
+                                embed = schedule_log_embed(
+                                    channel,
+                                    tz,
+                                    'warning'
+                                )
+                                await log_channel.send(embed=embed)
+
                             await channel.send(warning_msg)
                             continue
 
@@ -248,6 +287,15 @@ class Schedules(commands.Cog):
                         logger.warning(
                             f'Channel {channel.name} already closed, skipping closing.'
                         )
+
+                        if log_channel_id != -1:
+                            embed = schedule_log_embed(
+                                channel,
+                                tz,
+                                'close_skip'
+                            )
+                            await log_channel.send(embed=embed)
+
                         # Channel already closed so skip
 
                         continue
@@ -265,7 +313,24 @@ class Schedules(commands.Cog):
                         ).strftime("%H:%M")
 
                         update_dynamic_close(row.rowid, new_close_time=new_close_time)
+
                         update_current_delay_num(row.rowid, row.current_delay_num + 1)
+
+                        if log_channel_id != -1:
+                            embed = schedule_log_embed(
+                                channel,
+                                tz,
+                                'delay',
+                                DELAY_TIME,
+                                row.current_delay_num + 1,
+                                row.max_num_delays
+                            )
+                            await log_channel.send(embed=embed)
+
+                        logger.info(
+                            f'Delayed closing for {channel.name} in '
+                            f'guild {channel.guild.name}.'
+                        )
 
                         continue
 
@@ -281,14 +346,37 @@ class Schedules(commands.Cog):
                         update_dynamic_close(row.rowid)
                         update_current_delay_num(row.rowid)
 
+                        if log_channel_id != -1:
+                            embed = schedule_log_embed(
+                                channel,
+                                tz,
+                                'close'
+                            )
+                            await log_channel.send(embed=embed)
+
+                        logger.info(
+                            f'Channel {channel.name} closed in guild'
+                            f' {channel.guild.name}.'
+                        )
+
                 if row.dynamic_close == now_compare:
 
                     if deny.send_messages is True:
                         # Channel already closed so skip
                         update_dynamic_close(row.rowid)
                         logger.warning(
-                            f'Channel {channel.name} already closed, skipping closing.'
+                            f'Channel {channel.name} already closed in guild'
+                            f' {channel.guild.name}, skipping closing.'
                         )
+
+                        if log_channel_id != -1:
+                            embed = schedule_log_embed(
+                                channel,
+                                tz,
+                                'close_skip'
+                            )
+                            await log_channel.send(embed=embed)
+
                         continue
 
                     then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
@@ -302,7 +390,24 @@ class Schedules(commands.Cog):
                         ).strftime("%H:%M")
 
                         update_dynamic_close(row.rowid, new_close_time=new_close_time)
+
                         update_current_delay_num(row.rowid, row.current_delay_num + 1)
+
+                        if log_channel_id != -1:
+                            embed = schedule_log_embed(
+                                channel,
+                                tz,
+                                'delay',
+                                DELAY_TIME,
+                                row.current_delay_num + 1,
+                                row.max_num_delays
+                            )
+                            await log_channel.send(embed=embed)
+
+                        logger.info(
+                            f'Delayed closing for {channel.name} in '
+                            f'guild {channel.guild.name}.'
+                        )
 
                         if row.current_delay_num + 1 == row.max_num_delays:
                             warning_msg = (
@@ -323,6 +428,20 @@ class Schedules(commands.Cog):
                         )
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
+
                         await channel.send(close_message)
                         overwrites.send_messages = False
                         await channel.set_permissions(role, overwrite=overwrites)
+
+                        if log_channel_id != -1:
+                            embed = schedule_log_embed(
+                                channel,
+                                tz,
+                                'close'
+                            )
+                            await log_channel.send(embed=embed)
+
+                        logger.info(
+                            f'Channel {channel.name} closed in guild'
+                            f' {channel.guild.name}.'
+                        )
