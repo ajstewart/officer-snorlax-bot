@@ -33,7 +33,8 @@ SQL_STATEMENT = """CREATE TABLE guilds (
     tz VARCHAR(40),
     admin_channel INTEGER,
     meowth_raid_category INTEGER,
-    any_raids_filter BOOLEAN
+    any_raids_filter BOOLEAN,
+    log_channel INTEGER
 );
 """
 

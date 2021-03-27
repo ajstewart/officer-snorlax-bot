@@ -2,6 +2,7 @@ from discord.ext import commands
 from discord import TextChannel
 from typing import Optional
 import discord
+from discord.utils import get
 from .utils.checks import (
     check_admin,
     check_admin_channel,
@@ -16,6 +17,7 @@ from .utils.db import (
     add_allowed_friend_code_channel,
     drop_allowed_friend_code_channel
 )
+from .utils.log_msgs import filter_delete_log_embed
 from .utils.utils import get_friend_channels_embed
 
 
@@ -132,8 +134,16 @@ class FriendCodeFilter(commands.Cog):
                             delete_after=30
                         )
                         await message.delete()
-
+                        log_channel_id = guild_db.loc[message.guild.id]['log_channel']
+                        if log_channel_id != -1:
+                            tz = guild_db.loc[message.guild.id]['tz']
+                            log_channel = get(
+                                message.guild.channels, id=int(log_channel_id)
+                            )
+                            embed = filter_delete_log_embed(message, tz, "Any raids filter.")
+                            await log_channel.send(embed=embed)
                         return
+
                 if check_for_friend_code(content):
                     allowed_channels = load_friend_code_channels_db()
                     allowed_channels = allowed_channels.loc[
@@ -159,6 +169,14 @@ class FriendCodeFilter(commands.Cog):
                                 delete_after=30
                             )
                             await message.delete()
+                            log_channel_id = guild_db.loc[message.guild.id]['log_channel']
+                            if log_channel_id != -1:
+                                tz = guild_db.loc[message.guild.id]['tz']
+                                log_channel = get(
+                                    message.guild.channels, id=int(log_channel_id)
+                                )
+                                embed = filter_delete_log_embed(message, tz, "Friend code filter.")
+                                await log_channel.send(embed=embed)
 
 
     @commands.Cog.listener()
