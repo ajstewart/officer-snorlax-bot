@@ -88,4 +88,9 @@ def schedule_log_embed(
         color=colors[stype]
     )
 
+    embed.set_author(
+        name=f"{channel.guild.name}",
+        icon_url=channel.guild.icon_url
+    )
+
     return embed
