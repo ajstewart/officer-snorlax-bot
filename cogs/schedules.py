@@ -17,6 +17,7 @@ from .utils.db import (
 )
 from discord.utils import get
 from discord import TextChannel
+from discord.errors import DiscordServerError
 import pytz
 import datetime
 import os
@@ -45,6 +46,7 @@ class Schedules(commands.Cog):
         super(Schedules, self).__init__()
         self.bot = bot
 
+        self.channel_manager.add_exception_type(DiscordServerError)
         self.channel_manager.start()
 
     async def cog_check(self, ctx):
