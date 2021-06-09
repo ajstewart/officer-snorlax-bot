@@ -222,7 +222,7 @@ class Schedules(commands.Cog):
                     overwrites.send_messages = None
                     await channel.set_permissions(role, overwrite=overwrites)
                     open_message = DEFAULT_OPEN_MESSAGE.format(
-                        row.close
+                        row.close, now.tzname()
                     )
                     if row['open_message'] != "None":
                         open_message += "\n\n" + row['open_message']
@@ -337,7 +337,7 @@ class Schedules(commands.Cog):
 
                     else:
                         close_message = DEFAULT_CLOSE_MESSAGE.format(
-                            row.open
+                            row.open, now.tzname()
                         )
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
@@ -425,7 +425,7 @@ class Schedules(commands.Cog):
                         update_dynamic_close(row.rowid)
                         update_current_delay_num(row.rowid)
                         close_message = DEFAULT_CLOSE_MESSAGE.format(
-                            row.open
+                            row.open, now.tzname()
                         )
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
