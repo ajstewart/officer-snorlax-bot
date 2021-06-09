@@ -34,6 +34,32 @@ def filter_delete_log_embed(message, tz, reason="None") -> Embed:
     return embed
 
 
+def ban_log_embed(user, tz, reason="None") -> Embed:
+    """
+    Create an embed to send to the logging channel
+    """
+    tz = pytz.timezone(tz)
+    now = datetime.datetime.now(tz=tz)
+    embed = Embed(
+        description=f'**New joiner {user.mention} banned**',
+        timestamp=now,
+        color=10038562
+    )
+    embed.set_author(
+        name=f"{user.name}#{user.discriminator}",
+        icon_url=user.avatar_url
+    )
+    embed.add_field(
+        name="Reason",
+        value=reason
+    )
+    embed.set_footer(
+        text=f"Snorlax is keeping you safe!"
+    )
+
+    return embed
+
+
 def schedule_log_embed(
     channel, tz, stype, delay_mins=-1, delay_num=-1, max_delay_num=-1,
 ) -> Embed:

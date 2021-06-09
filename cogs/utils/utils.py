@@ -111,13 +111,15 @@ def get_settings_embed(ctx, guild_settings):
             'Log Channel: **{}**\n'
             'Time Channel: **{}**\n'
             'Meowth Raid Category: **{}**\n'
-            'Any raids filter: **{}**'.format(
+            'Any raids filter: **{}**\n'
+            'Join name filter: **{}**'.format(
                 guild_settings['tz'],
                 guild_settings['admin_channel'],
                 log_channel,
                 time_channel,
                 cat_name,
-                guild_settings['any_raids_filter']
+                guild_settings['any_raids_filter'],
+                guild_settings['join_name_filter'],
             )
         ),
         inline=False
