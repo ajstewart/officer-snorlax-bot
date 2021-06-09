@@ -97,17 +97,25 @@ def get_settings_embed(ctx, guild_settings):
     else:
         log_channel = "<#{}>".format(log_channel_id)
 
+    time_channel_id = guild_settings['time_channel']
+    if time_channel_id == -1:
+        time_channel = "Not set"
+    else:
+        time_channel = "<#{}>".format(time_channel_id)
+
     embed.add_field(
         name="Guild Settings",
         value=(
             'TZ: **{}**\n'
             'Admin Channel: **<#{}>**\n'
             'Log Channel: **{}**\n'
+            'Time Channel: **{}**\n'
             'Meowth Raid Category: **{}**\n'
             'Any raids filter: **{}**'.format(
                 guild_settings['tz'],
                 guild_settings['admin_channel'],
                 log_channel,
+                time_channel,
                 cat_name,
                 guild_settings['any_raids_filter']
             )
@@ -173,8 +181,30 @@ def get_logger(logfile=None):
 def strip_url(content):
     return re.sub(r'http\S+', '', content)
 
+
 def strip_mentions(content):
     return re.sub(r'<(?:[^\d>]+|:[A-Za-z0-9]+:)\w+>', '', content)
 
+
 def strip_punctuation(content):
     return content.translate(str.maketrans('', '', string.punctuation))
+
+
+def get_hour_emoji(hour: str):
+
+    emojis = {
+        "01" : '🕐',
+        "02" : '🕑',
+        "03" : '🕒',
+        "04" : '🕓',
+        "05" : '🕔',
+        "06" : '🕕',
+        "07" : '🕖',
+        "08" : '🕗',
+        "09" : '🕘',
+        "10" : '🕙',
+        "11" : '🕚',
+        "12" : '🕛',
+    }
+
+    return emojis[hour]

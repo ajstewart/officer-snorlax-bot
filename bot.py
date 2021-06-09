@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from cogs.utils.checks import check_admin
 from cogs.utils.utils import get_logger
-from cogs import initial, management, schedules, fc_filter
+from cogs import initial, management, schedules, fc_filter, time_channel
 
 # LOADS THE .ENV FILE THAT RESIDES ON THE SAME LEVEL AS THE SCRIPT.
 load_dotenv()
@@ -26,6 +26,7 @@ bot.add_cog(initial.Initial(bot))
 bot.add_cog(management.Management(bot))
 bot.add_cog(schedules.Schedules(bot))
 bot.add_cog(fc_filter.FriendCodeFilter(bot))
+bot.add_cog(time_channel.TimeChannel(bot))
 
 # EXECUTES THE BOT WITH THE SPECIFIED TOKEN. TOKEN HAS BEEN REMOVED AND USED JUST AS AN EXAMPLE.
 bot.run(DISCORD_TOKEN)

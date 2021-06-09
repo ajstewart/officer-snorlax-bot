@@ -47,6 +47,20 @@ Once added to your server the bot will need to be set up with an admin channel b
 
 Once this is set use the designated `admin channel` to issue all other commands. Use the help function to see a list of commands.
 
+### Log Channel
+
+Snorlax will notify of some events in a designated log channel. 
+To enable logging firstly create or identify the text channel where you wish logs to be written to. Then in the admin channel use the command:
+
+```
+@Officer Snorlax setLogChannel <#channel-mention>
+```
+
+Log messages will now be sent to your chosen channel.
+
+![setLogChannel](/screenshots/setLogChannel.png)
+![Log Example](/screenshots/log_example.png)
+
 ### Guild Timezone
 
 You can set the timezone for your Guild (if different from the default option set in the `.env` file) using the command:
@@ -56,6 +70,27 @@ You can set the timezone for your Guild (if different from the default option se
 ```
 
 where `tz` is one of the standard timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+
+## Local Time Display Channel
+
+The local time and timezone of the server can be displayed to server members by using a voice channel. 
+The name of the voice channel is updated periodically to represent the time.
+**Note**: Because of Discord rate limiting the amount of times a bot can change a channel name, the time is only updated every 10 mins.
+On first launch the bot will wait for a even 10 minute time to start displaying the time. E.g. if you launch the bot at 1:36 the first update will be done at 1:40.
+
+To set this up:
+
+  1. Create a voice channel and make sure the permissions are so that no one can connect to it.
+  2. Copy the ID of the voice channel created.
+  3. Enter the following command in Discord in the Snorlax admin channel, replacing ID with the channel ID copied:
+    ```
+    @Officer Snorlax setTimeChannel <#ID>
+    ```
+
+The voice channel name will now be updated every 10 minutes and will look like the example below.
+
+![setTimeChannel](/screenshots/setTimeChannel.png)
+![Time Example](/screenshots/time_display_example.png)
 
 ## Schedule Behaviour
 

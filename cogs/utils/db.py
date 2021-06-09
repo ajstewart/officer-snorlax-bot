@@ -107,7 +107,7 @@ def add_guild_admin_channel(guild, channel):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", {}, -1, False, -1);""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", {}, -1, False, -1, -1);""".format(
                     guild.id, DEFAULT_TZ, channel.id
                 )
             )
@@ -144,7 +144,44 @@ def add_guild_log_channel(guild, channel):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, {});""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, {}, -1);""".format(
+                    guild.id, DEFAULT_TZ, channel.id
+                )
+            )
+            c.execute(sql_command)
+
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+def add_guild_time_channel(guild, channel):
+    """
+    Sets the time channel for a guild and saves
+    the updated dataframe to disk.
+    """
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+        for row in c.execute(
+            "SELECT * FROM guilds WHERE id = {};".format(guild.id)
+        ):
+            sql_command = (
+                """UPDATE guilds SET time_channel = '{}' WHERE id = {};""".format(
+                    channel.id,
+                    guild.id
+                )
+            )
+            c.execute(sql_command)
+            break
+
+        else:
+            sql_command = (
+                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, -1, {});""".format(
                     guild.id, DEFAULT_TZ, channel.id
                 )
             )
@@ -182,7 +219,7 @@ def add_guild_tz(guild, tz):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False);""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, -1, -1);""".format(
                     guild.id, tz
                 )
             )
@@ -220,7 +257,7 @@ def add_guild_meowth_raid_category(guild, channel):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, {}, False, -1);""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", 0, {}, False, -1, -1);""".format(
                     guild.id, DEFAULT_TZ, channel_id
                 )
             )
@@ -394,7 +431,7 @@ def toggle_any_raids_filter(guild, any_raids):
 
         else:
             sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, {}, {}, -1);""".format(
+                """INSERT INTO guilds VALUES ({}, "{}", 0, {}, {}, -1, -1);""".format(
                     guild.id, DEFAULT_TZ, category.id
                 )
             )
