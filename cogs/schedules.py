@@ -18,6 +18,7 @@ from .utils.db import (
 from discord.utils import get
 from discord import TextChannel
 from discord.errors import DiscordServerError
+import asyncio
 import pytz
 import datetime
 import os
@@ -166,8 +167,6 @@ class Schedules(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def channel_manager(self):
-        await self.bot.wait_until_ready()
-
         client_user = self.bot.user
         guild_db = load_guild_db()
         schedule_db = load_schedule_db()
@@ -447,3 +446,16 @@ class Schedules(commands.Cog):
                             f'Channel {channel.name} closed in guild'
                             f' {channel.guild.name}.'
                         )
+
+    @channel_manager.before_loop
+    async def before_timer(self):
+        await self.bot.wait_until_ready()
+        # Make sure the loop starts at the top of the minute
+        seconds = datetime.datetime.now().second
+        sleep_time = 60 - seconds
+        logger.info(
+            f'Waiting {sleep_time} seconds to start the channel manager loop.'
+        )
+
+        await asyncio.sleep(sleep_time)
+

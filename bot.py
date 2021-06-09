@@ -24,9 +24,9 @@ bot.help_command.add_check(check_admin)
 
 bot.add_cog(initial.Initial(bot))
 bot.add_cog(management.Management(bot))
-bot.add_cog(schedules.Schedules(bot))
 bot.add_cog(fc_filter.FriendCodeFilter(bot))
 bot.add_cog(time_channel.TimeChannel(bot))
+bot.add_cog(schedules.Schedules(bot))
 
 # EXECUTES THE BOT WITH THE SPECIFIED TOKEN. TOKEN HAS BEEN REMOVED AND USED JUST AS AN EXAMPLE.
 bot.run(DISCORD_TOKEN)
