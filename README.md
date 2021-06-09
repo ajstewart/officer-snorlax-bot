@@ -137,4 +137,47 @@ The `secret` option (accepting the true and false like above) if true means that
 ![FriendCodeRemoval](/screenshots/FriendCodeRemoval.png)
 
 
+## Any Raids Filter
 
+By default this feature is turned off.
+
+The bot can monitor all messages on the server and remove those that contain the expression `any raids?` or `any X raids?`.
+Snorlax will let the user know to please not spam this message in raid channels.
+
+The feature is activated by issuing the command below in the admin channel:
+
+```
+@Officer Snorlax activateAnyRaidsFilter
+```
+
+It is deactivated with:
+
+```
+@Officer Snorlax deactivateAnyRaidsFilter
+```
+
+## Join Name Filtering
+
+By default this feature is turned off.
+
+The bot can ban new members to a server who's name matches a user defined pattern list.
+
+The feature is activated by issuing the command below in the admin channel:
+
+```
+@Officer Snorlax activateJoinNameFilter
+```
+
+It is deactivated with:
+
+```
+@Officer Snorlax deactivateJoinNameFilter
+```
+
+The ban list is defined in the `.env` file using a comma separated list. For example:
+
+```
+BAN_NAMES=firstname,secondname
+```
+
+The patterns will be matched by converting names to lower case.

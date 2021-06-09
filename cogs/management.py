@@ -8,7 +8,8 @@ from .utils.db import (
     add_guild_log_channel,
     add_guild_tz,
     add_guild_meowth_raid_category,
-    toggle_any_raids_filter
+    toggle_any_raids_filter,
+    toggle_join_name_filter
 )
 from .utils.utils import get_current_time, get_settings_embed
 from .utils.checks import (
@@ -77,6 +78,60 @@ class Management(commands.Cog):
                 msg = ("'Any raids' filter deactivated.")
             else:
                 msg = ("Error when attempting to deactivate the 'Any raids' filter")
+
+        await ctx.channel.send(msg)
+
+
+    @commands.command(
+        help=(
+            "Turn on the 'join name' filter. If a user joins a server with a name"
+            " that is on the ban list then Snorlax will ban them."
+        ),
+        brief="Turns on the 'join name' filter."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def activateJoinNameFilter(self, ctx):
+        """
+        Docstring goes here.
+        """
+        guild_db = load_guild_db()
+        any_filter = guild_db.loc[ctx.guild.id]['join_name_filter']
+        if any_filter:
+            msg = ("The 'join name' filter is already activated.")
+        else:
+            ok = toggle_join_name_filter(ctx.guild, True)
+            if ok:
+                msg = ("'Join name' filter activated.")
+            else:
+                msg = ("Error when attempting to activate the 'Join name' filter")
+
+        await ctx.channel.send(msg)
+
+    @commands.command(
+        help=(
+            "Turn off the 'join name' filter."
+        ),
+        brief="Turns off the 'join name' filter."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def deactivateJoinNameFilter(self, ctx):
+        """
+        Docstring goes here.
+        """
+        guild_db = load_guild_db()
+        any_filter = guild_db.loc[ctx.guild.id]['join_name_filter']
+        if not any_filter:
+            msg = ("The 'join name' filter is already deactivated.")
+        else:
+            ok = toggle_join_name_filter(ctx.guild, False)
+            if ok:
+                msg = ("'Join name' filter deactivated.")
+            else:
+                msg = ("Error when attempting to deactivate the 'Join name' filter")
 
         await ctx.channel.send(msg)
 
