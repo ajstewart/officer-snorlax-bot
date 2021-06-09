@@ -72,7 +72,7 @@ class TimeChannel(commands.Cog):
             )
 
 
-    @tasks.loop(minutes=10)
+    @tasks.loop(minutes=5)
     async def time_channels_manager(self):
         client_user = self.bot.user
         guild_db = load_guild_db()
