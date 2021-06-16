@@ -72,7 +72,7 @@ class TimeChannel(commands.Cog):
             )
 
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=10)
     async def time_channels_manager(self):
         client_user = self.bot.user
         guild_db = load_guild_db()
@@ -90,7 +90,7 @@ class TimeChannel(commands.Cog):
                     time_channel = self.bot.get_channel(time_channel_id)
 
                     new_name = now.strftime("%I:%M %p %Z")
-                    new_name = get_hour_emoji(new_name[:2]) + " " + new_name
+                    new_name = get_hour_emoji(new_name[:5]) + " " + new_name
 
                     await time_channel.edit(name=new_name)
 
