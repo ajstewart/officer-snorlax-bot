@@ -75,7 +75,7 @@ where `tz` is one of the standard timezones: https://en.wikipedia.org/wiki/List_
 
 The local time and timezone of the server can be displayed to server members by using a voice channel. 
 The name of the voice channel is updated periodically to represent the time.
-**Note**: Because of Discord rate limiting the amount of times a bot can change a channel name, the time is only updated every 5 mins.
+**Note**: Because of Discord rate limiting the amount of times a bot can change a channel name, the time is only updated every 10 mins.
 On first launch the bot will wait for a even 10 minute time to start displaying the time. E.g. if you launch the bot at 1:36 the first update will be done at 1:40.
 
 To set this up:
