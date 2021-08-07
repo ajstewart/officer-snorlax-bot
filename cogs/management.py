@@ -1,4 +1,6 @@
 import os
+import logging
+
 from typing import Optional
 from discord import TextChannel
 from discord.ext import commands, tasks
@@ -9,15 +11,18 @@ from .utils.db import (
     add_guild_tz,
     add_guild_meowth_raid_category,
     toggle_any_raids_filter,
-    toggle_join_name_filter
+    toggle_join_name_filter,
+    set_guild_active,
+    add_guild
 )
 from .utils.utils import get_current_time, get_settings_embed
 from .utils.checks import (
-    check_admin_channel, check_admin, check_valid_timezone, check_bot
+    check_admin_channel, check_admin, check_valid_timezone, check_bot,
+    check_guild_exists
 )
 from dotenv import load_dotenv, find_dotenv
 
-
+logger = logging.getLogger()
 load_dotenv(find_dotenv())
 DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 
@@ -360,3 +365,28 @@ class Management(commands.Cog):
             "Snorlax is shutting down."
         )
         await ctx.bot.logout()
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        """
+        Process to complete when a guild is joined.
+        """
+        # check if the new guild is already in the database
+        if check_guild_exists(guild.id):
+            logger.info(f'Setting guild {guild.name} to active.')
+            ok = set_guild_active(guild.id, 1)
+        # if not then create the new entry in the db
+        else:
+            logger.info(f'Adding {guild.name} to database.')
+            ok = add_guild(guild)
+
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild):
+        """
+        Process to complete when a guild is removed.
+        """
+        # check if the new guild is already in the database
+        if check_guild_exists(guild.id):
+            logger.info(f'Setting guild {guild.name} to not active.')
+            ok = set_guild_active(guild.id, 0)

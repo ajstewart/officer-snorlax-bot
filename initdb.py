@@ -37,7 +37,8 @@ SQL_STATEMENT = """CREATE TABLE guilds (
     any_raids_filter BOOLEAN,
     log_channel INTEGER,
     time_channel INTEGER,
-    join_name_filter BOOLEAN
+    join_name_filter BOOLEAN,
+    active BOOLEAN
 );
 """
 

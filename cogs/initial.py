@@ -3,7 +3,10 @@ import discord
 import traceback
 import sys
 import logging
-from .utils.checks import check_for_friend_code, check_admin
+from .utils.checks import (
+    check_for_friend_code, check_admin, check_guild_exists
+)
+from .utils.db import add_guild
 
 
 logger = logging.getLogger()
@@ -27,6 +30,12 @@ class Initial(commands.Cog):
 
             # INCREMENTS THE GUILD COUNTER.
             guild_count = guild_count + 1
+
+            # CHECK THAT THE GUILD IS IN THE DB
+            if not check_guild_exists(guild.id, check_active=True):
+                # ADD TO DB IF DOES NOT EXIST
+                logger.info(f'Adding {guild.name} to database.')
+                ok = add_guild(guild)
 
         # PRINTS HOW MANY GUILDS / SERVERS THE BOT IS IN.
         logger.info("Snorlax is in " + str(guild_count) + " guilds.")

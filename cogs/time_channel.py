@@ -13,7 +13,7 @@ from .utils.checks import (
 )
 from .utils.utils import get_current_time, get_hour_emoji
 from .utils.db import add_guild_time_channel, load_guild_db
-from discord.errors import DiscordServerError
+from discord.errors import DiscordServerError, Forbidden
 
 
 logger = logging.getLogger()
@@ -24,7 +24,10 @@ class TimeChannel(commands.Cog):
     def __init__(self, bot):
         super(TimeChannel, self).__init__()
         self.bot = bot
-        self.time_channels_manager.add_exception_type(DiscordServerError)
+        self.time_channels_manager.add_exception_type(
+            DiscordServerError,
+            Forbidden
+        )
         self.time_channels_manager.start()
 
     @commands.command(
