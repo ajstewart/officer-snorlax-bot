@@ -38,24 +38,32 @@ def load_friend_code_channels_db():
     return fc_channels
 
 
-def load_guild_db():
+def load_guild_db(active_only=False):
     conn = sqlite3.connect(DATABASE)
     query = "SELECT * FROM guilds;"
 
     guilds = pd.read_sql_query(query, conn)
 
+    if active_only:
+        guilds = guilds.loc[guilds['active']==True]
+
     conn.close()
 
     guilds = guilds.set_index('id')
+
+    guilds['any_raids_filter'] = guilds['any_raids_filter'].astype(bool)
+    guilds['join_name_filter'] = guilds['join_name_filter'].astype(bool)
+    guilds['active'] = guilds['active'].astype(bool)
 
     return guilds
 
 
 def add_allowed_friend_code_channel(guild, channel, secret="False"):
     """
-    Sets the admin channel for a guild and saves
-    the updated dataframe to disk.
+    Adds an allowed friend code channel.
     """
+    # TODO: This is an awkward way of doing it really.
+    #       Should change check to be in the actual command code.
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
@@ -94,25 +102,13 @@ def add_guild_admin_channel(guild, channel):
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        for row in c.execute(
-            "SELECT * FROM guilds WHERE id = {};".format(guild.id)
-        ):
-            sql_command = (
-                """UPDATE guilds SET admin_channel = '{}' WHERE id = {};""".format(
-                    channel.id,
-                    guild.id
-                )
+        sql_command = (
+            """UPDATE guilds SET admin_channel = '{}' WHERE id = {};""".format(
+                channel.id,
+                guild.id
             )
-            c.execute(sql_command)
-            break
-
-        else:
-            sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", {}, -1, False, -1, -1, False);""".format(
-                    guild.id, DEFAULT_TZ, channel.id
-                )
-            )
-            c.execute(sql_command)
+        )
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()
@@ -125,31 +121,19 @@ def add_guild_admin_channel(guild, channel):
 
 def add_guild_log_channel(guild, channel):
     """
-    Sets the admin channel for a guild and saves
+    Sets the log channel for a guild and saves
     the updated dataframe to disk.
     """
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        for row in c.execute(
-            "SELECT * FROM guilds WHERE id = {};".format(guild.id)
-        ):
-            sql_command = (
-                """UPDATE guilds SET log_channel = '{}' WHERE id = {};""".format(
-                    channel.id,
-                    guild.id
-                )
+        sql_command = (
+            """UPDATE guilds SET log_channel = '{}' WHERE id = {};""".format(
+                channel.id,
+                guild.id
             )
-            c.execute(sql_command)
-            break
-
-        else:
-            sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, {}, -1, False);""".format(
-                    guild.id, DEFAULT_TZ, channel.id
-                )
-            )
-            c.execute(sql_command)
+        )
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()
@@ -168,25 +152,13 @@ def add_guild_time_channel(guild, channel):
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        for row in c.execute(
-            "SELECT * FROM guilds WHERE id = {};".format(guild.id)
-        ):
-            sql_command = (
-                """UPDATE guilds SET time_channel = '{}' WHERE id = {};""".format(
-                    channel.id,
-                    guild.id
-                )
+        sql_command = (
+            """UPDATE guilds SET time_channel = '{}' WHERE id = {};""".format(
+                channel.id,
+                guild.id
             )
-            c.execute(sql_command)
-            break
-
-        else:
-            sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, -1, {}, False);""".format(
-                    guild.id, DEFAULT_TZ, channel.id
-                )
-            )
-            c.execute(sql_command)
+        )
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()
@@ -205,26 +177,13 @@ def add_guild_tz(guild, tz):
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        for row in c.execute(
-            "SELECT * FROM guilds WHERE id={}".format(guild.id)
-        ):
-            entry_id = row[0]
-            sql_command = (
-                """UPDATE guilds SET tz = '{}' WHERE ID = {};""".format(
-                    tz,
-                    entry_id
-                )
+        sql_command = (
+            """UPDATE guilds SET tz = '{}' WHERE id = {};""".format(
+                tz,
+                guild.id
             )
-            c.execute(sql_command)
-            break
-
-        else:
-            sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, -1, -1, False);""".format(
-                    guild.id, tz
-                )
-            )
-            c.execute(sql_command)
+        )
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()
@@ -245,24 +204,11 @@ def add_guild_meowth_raid_category(guild, channel):
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        for row in c.execute(
-            "SELECT * FROM guilds WHERE id={}".format(guild.id)
-        ):
-            entry_id = row[0]
-            sql_command = (
-                "UPDATE guilds SET meowth_raid_category"
-                " = {} WHERE ID = {};".format(channel_id, entry_id)
-            )
-            c.execute(sql_command)
-            break
-
-        else:
-            sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, {}, False, -1, -1, False);""".format(
-                    guild.id, DEFAULT_TZ, channel_id
-                )
-            )
-            c.execute(sql_command)
+        sql_command = (
+            "UPDATE guilds SET meowth_raid_category"
+            " = {} WHERE id = {};".format(channel_id, guild.id)
+        )
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()
@@ -421,24 +367,12 @@ def toggle_any_raids_filter(guild, any_raids):
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        for row in c.execute(
-            "SELECT * FROM guilds WHERE id={}".format(guild.id)
-        ):
-            entry_id = row[0]
-            sql_command = (
-                "UPDATE guilds SET any_raids_filter"
-                " = {} WHERE ID = {};".format(any_raids, entry_id)
-            )
-            c.execute(sql_command)
-            break
 
-        else:
-            sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, -1, -1, False);""".format(
-                    guild.id, DEFAULT_TZ
-                )
-            )
-            c.execute(sql_command)
+        sql_command = (
+            "UPDATE guilds SET any_raids_filter"
+            " = {} WHERE id = {};".format(any_raids, guild.id)
+        )
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()
@@ -456,24 +390,57 @@ def toggle_join_name_filter(guild, join_name):
     try:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        for row in c.execute(
-            "SELECT * FROM guilds WHERE id={}".format(guild.id)
-        ):
-            entry_id = row[0]
-            sql_command = (
-                "UPDATE guilds SET join_name_filter"
-                " = {} WHERE ID = {};".format(join_name, entry_id)
-            )
-            c.execute(sql_command)
-            break
 
-        else:
-            sql_command = (
-                """INSERT INTO guilds VALUES ({}, "{}", 0, -1, False, -1, -1, False);""".format(
-                    guild.id, DEFAULT_TZ
-                )
+        sql_command = (
+            "UPDATE guilds SET join_name_filter"
+            " = {} WHERE id = {};".format(join_name, guild.id)
+        )
+        c.execute(sql_command)
+
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+def set_guild_active(guild_id, value):
+    """
+    Toggles the guild active status on and off
+    """
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+
+        sql_command = (
+            "UPDATE guilds SET active = {} WHERE id = {};".format(
+                value, guild_id
             )
-            c.execute(sql_command)
+        )
+
+        c.execute(sql_command)
+
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+def add_guild(guild):
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+        sql_command = (
+            """INSERT INTO guilds VALUES ({}, "{}", -1, -1, False, -1, -1, False, True);""".format(
+                guild.id, DEFAULT_TZ
+            )
+        )
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()

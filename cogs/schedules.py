@@ -191,7 +191,7 @@ class Schedules(commands.Cog):
     @tasks.loop(seconds=60)
     async def channel_manager(self):
         client_user = self.bot.user
-        guild_db = load_guild_db()
+        guild_db = load_guild_db(active_only=True)
         schedule_db = load_schedule_db()
 
         for tz in guild_db['tz'].unique():
