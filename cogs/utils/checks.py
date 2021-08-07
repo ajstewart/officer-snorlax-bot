@@ -1,6 +1,6 @@
 import pytz
 import time
-from .db import load_guild_db
+from .db import load_guild_db, load_schedule_db
 import re
 from .utils import strip_url, strip_mentions, strip_punctuation
 from discord.utils import escape_mentions
@@ -101,3 +101,21 @@ def check_for_any_raids(content):
         return True
     else:
         return False
+
+
+def check_schedule_exists(sched_id: int):
+    schedules = load_schedule_db()
+    exists = sched_id in schedules['rowid'].astype(int).tolist()
+
+    return exists
+
+
+def check_remove_schedule(ctx, sched_id: int):
+    schedules = load_schedule_db().set_index('rowid')
+
+    schedule_guild = schedules.loc[sched_id]['guild']
+    ctx_guild_id = ctx.guild.id
+
+    allowed = schedule_guild == ctx_guild_id
+
+    return allowed

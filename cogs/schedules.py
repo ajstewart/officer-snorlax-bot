@@ -5,7 +5,9 @@ from .utils.checks import (
     check_admin_channel,
     check_time_format,
     check_bot,
-    check_if_channel_active
+    check_if_channel_active,
+    check_remove_schedule,
+    check_schedule_exists
 )
 from .utils.db import (
     load_guild_db,
@@ -153,6 +155,26 @@ class Schedules(commands.Cog):
         """
         Docstring goes here.
         """
+        exists = check_schedule_exists(id)
+
+        if not exists:
+            msg = 'Schedule ID {} does not exist!'.format(
+                id
+            )
+
+            await ctx.channel.send(msg)
+
+            return
+
+        allowed = check_remove_schedule(ctx, id)
+
+        if not allowed:
+            msg = 'You do not have permission to remove this schedule'
+
+            await ctx.channel.send(msg)
+
+            return
+
         ok = drop_schedule(ctx, id)
 
         if ok:
