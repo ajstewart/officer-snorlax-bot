@@ -188,6 +188,63 @@ class Schedules(commands.Cog):
 
         await ctx.channel.send(msg)
 
+    @commands.command(
+        help=(
+            "Remove multiple schedules."
+            " Use the 'id' value to remove with space in between."
+            " E.g. removeSchedules 1 2 4 10"
+        ),
+        brief="Remove multiple schedules."
+    )
+    async def removeSchedules(self, ctx, *args):
+        for id in args:
+            try:
+                await self.removeSchedule(ctx, int(id))
+            except Exception as e:
+                pass
+
+    @commands.command(
+        help="Remove all schedules. Confirmation will be requested.",
+        brief="Remove all schedules."
+    )
+    async def removeAllSchedules(self, ctx):
+        schedules = load_schedule_db(guild_id=ctx.guild.id)
+
+        requester = ctx.author.id
+
+        message = await ctx.send(
+            "Are you sure you want to remove all "
+            f"{schedules.shape[0]} schedules?"
+        )
+
+        emojis = ['✅', '❌']
+
+        for emoji in (emojis):
+            await message.add_reaction(emoji)
+
+        def check(reaction, user):
+            reacted = reaction.emoji
+            return user.id == requester and str(reaction.emoji) in emojis
+
+        try:
+            reaction, user = await self.bot.wait_for(
+                'reaction_add', timeout=10, check=check
+            )
+        except asyncio.TimeoutError:
+            await ctx.send("Command timeout, cancelling.", delete_after=5)
+            await message.delete()
+        else:
+            if reaction.emoji == '✅':
+                for id in schedules['rowid'].tolist():
+                    try:
+                        await self.removeSchedule(ctx, int(id))
+                    except Exception as e:
+                        pass
+                await message.delete()
+            elif reaction.emoji == '❌':
+                await ctx.send("Remove all schedules cancelled!")
+                await message.delete()
+
     @tasks.loop(seconds=60)
     async def channel_manager(self):
         client_user = self.bot.user
