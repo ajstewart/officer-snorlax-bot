@@ -19,7 +19,9 @@ from .utils.db import (
 )
 from discord.utils import get
 from discord import TextChannel
-from discord.errors import DiscordServerError, Forbidden
+from discord.errors import (
+    DiscordServerError, Forbidden,
+)
 import asyncio
 import pytz
 import datetime
@@ -126,6 +128,22 @@ class Schedules(commands.Cog):
             msg = "Error when setting schedule."
 
         await ctx.channel.send(msg)
+
+    @addSchedule.error
+    async def addSchedule_error(self, ctx, error):
+        if isinstance(error, commands.InvalidEndOfQuotedStringError):
+            msg = (
+                "Error in setting schedule."
+                " Were the open and close messages entered correctly?"
+                f"\n```{error}```\n"
+            )
+            await ctx.send(msg)
+        else:
+            msg = (
+                "Unknown error in setting schedule."
+                f"\n```{error}```\n"
+            )
+            await ctx.send(msg)
 
     @commands.command(
         help=(
