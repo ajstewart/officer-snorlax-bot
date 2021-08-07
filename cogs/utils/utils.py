@@ -42,10 +42,10 @@ def get_schedule_embed(ctx, schedule_db, tz):
                 "Channel: <#{}>\nOpen: **{}**\nOpen Custom Message: **{}**\n"
                 "Close: **{}**\nClose Custom Message: **{}**"
                 "\nWarning: **{}**\nDynamic: **{}**\n"
-                "Max number of delays: **{}**".format(
+                "Max number of delays: **{}**\nSilent: **{}**".format(
                     row.channel, row.open, row.open_message,
                     row.close, row.close_message, row.warning, row.dynamic,
-                    row.max_num_delays
+                    row.max_num_delays, row.silent
                 )
             ),
             inline=False

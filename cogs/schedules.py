@@ -17,7 +17,7 @@ from .utils.db import (
 )
 from discord.utils import get
 from discord import TextChannel
-from discord.errors import DiscordServerError
+from discord.errors import DiscordServerError, Forbidden
 import asyncio
 import pytz
 import datetime
@@ -47,7 +47,7 @@ class Schedules(commands.Cog):
         super(Schedules, self).__init__()
         self.bot = bot
 
-        self.channel_manager.add_exception_type(DiscordServerError)
+        self.channel_manager.add_exception_type(DiscordServerError, Forbidden)
         self.channel_manager.start()
 
     async def cog_check(self, ctx):
@@ -81,7 +81,8 @@ class Schedules(commands.Cog):
         open_message: Optional[str] = "None",
         close_message: Optional[str] = "None",
         warning: Optional[str] = "False", dynamic: Optional[str] = "True",
-        max_num_delays: Optional[int] = 1
+        max_num_delays: Optional[int] = 1,
+        silent: Optional[str] = "False"
     ):
         """
         Docstring goes here.
@@ -107,7 +108,7 @@ class Schedules(commands.Cog):
         ok = create_schedule(
             ctx, channel, open_time, close_time,
             open_message, close_message, warning,
-            dynamic, max_num_delays
+            dynamic, max_num_delays, silent
         )
 
         if ok:
@@ -226,7 +227,8 @@ class Schedules(commands.Cog):
                     )
                     if row['open_message'] != "None":
                         open_message += "\n\n" + row['open_message']
-                    await channel.send(open_message)
+                    if not row.silent:
+                        await channel.send(open_message)
 
                     logger.info(
                         f'Opened {channel.name} in {channel.guild.name}.'
@@ -341,7 +343,8 @@ class Schedules(commands.Cog):
                         )
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
-                        await channel.send(close_message)
+                        if not row.silent:
+                            await channel.send(close_message)
                         overwrites.send_messages = False
                         await channel.set_permissions(role, overwrite=overwrites)
                         update_dynamic_close(row.rowid)
@@ -430,7 +433,8 @@ class Schedules(commands.Cog):
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
 
-                        await channel.send(close_message)
+                        if not row.silent:
+                            await channel.send(close_message)
                         overwrites.send_messages = False
                         await channel.set_permissions(role, overwrite=overwrites)
 
