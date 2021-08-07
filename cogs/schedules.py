@@ -107,6 +107,13 @@ class Schedules(commands.Cog):
             await ctx.channel.send(msg)
             return
 
+        # Replace empty strings
+        if open_message == "":
+            open_message = "None"
+
+        if close_message == "":
+            close_message = "None"
+
         ok = create_schedule(
             ctx, channel, open_time, close_time,
             open_message, close_message, warning,
@@ -209,6 +216,10 @@ class Schedules(commands.Cog):
     )
     async def removeAllSchedules(self, ctx):
         schedules = load_schedule_db(guild_id=ctx.guild.id)
+
+        if schedules.empty:
+            await ctx.send("There are no schedules to delete!")
+            return
 
         requester = ctx.author.id
 
