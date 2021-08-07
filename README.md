@@ -97,7 +97,7 @@ The voice channel name will now be updated every 10 minutes and will look like t
 To add an open and close schedule you mention the bot and use the `addSchedule` command in the following format:
 
 ```
-@Officer Snorlax addSchedule <#channel-mention> <open-time> <close-time> "<custom-open-message>" "<custom-close-message>" <warning> <dynamic>
+@Officer Snorlax addSchedule <#channel-mention> <open-time> <close-time> "<custom-open-message>" "<custom-close-message>" <warning> <dynamic> <max_num_delays> <silent>
 ```
 
 ![setSchedule](/screenshots/setSchedule.png)
@@ -115,6 +115,10 @@ If selected, then if the channel has seen activity in the past `X` minutes, wher
 ### Dynamic Closure Option
 
 If the channel has been active for `INACTIVE_TIME` minutes before the closure then the closure is pushed back by `DELAY_TIME` minutes. This happens silently from the users point of view. There is a `max_num_delays` setting available when adding the schedule to force closure after a chosen amount of delays (defaults to 1).
+
+### Silent Mode
+
+When set to `True`, silent mode means that Snorlax will open and close the channel without posting the accompanying messages.
 
 ### Current Behaviour Warning
 

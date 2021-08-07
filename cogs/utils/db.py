@@ -18,6 +18,7 @@ def load_schedule_db():
 
     schedules['warning'] = schedules['warning'].astype(bool)
     schedules['dynamic'] = schedules['dynamic'].astype(bool)
+    schedules['silent'] = schedules['silent'].astype(bool)
 
     conn.close()
 
@@ -274,7 +275,8 @@ def add_guild_meowth_raid_category(guild, channel):
 
 def create_schedule(
     ctx, channel, open_time, close_time, open_message="None",
-    close_message="None", warning="False", dynamic="True", max_num_delays=1
+    close_message="None", warning="False", dynamic="True", max_num_delays=1,
+    silent="False"
 ):
     """
     Append to the schedule.
@@ -291,7 +293,7 @@ def create_schedule(
         sql_command = (
             "INSERT INTO schedules VALUES"
             """ ({}, {}, {}, "{}", "{}", "{}", """
-            """"{}", "{}", "{}", {}, {}, "99:99", {}, 0);""".format(
+            """"{}", "{}", "{}", {}, {}, "99:99", {}, 0, {});""".format(
                 ctx.guild.id,
                 channel.id,
                 role.id,
@@ -303,7 +305,8 @@ def create_schedule(
                 close_message,
                 warning,
                 dynamic,
-                max_num_delays
+                max_num_delays,
+                silent
             )
         )
 
