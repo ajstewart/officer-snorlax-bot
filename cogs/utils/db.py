@@ -451,7 +451,7 @@ def add_guild(guild):
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
         sql_command = (
-            """INSERT INTO guilds VALUES ({}, "{}", -1, -1, False, -1, -1, False, True, {});""".format(
+            """INSERT INTO guilds VALUES ({}, "{}", -1, -1, False, -1, -1, False, True, '{}');""".format(
                 guild.id, DEFAULT_TZ, DEFAULT_PREFIX
             )
         )
