@@ -88,10 +88,12 @@ def check_time_format(time_input):
     Checks user time input.
     """
     try:
-        time.strptime(time_input, '%H:%M')
-        return True
+        thetime = time.strptime(time_input, '%H:%M')
+        # check for single hour entries, e.g. 6:00
+        thetime = time.strftime('%H:%M', thetime)
+        return True, thetime
     except ValueError:
-        return False
+        return False, '99:99'
 
 
 def check_for_any_raids(content):

@@ -235,6 +235,19 @@ The available columns to use are:
   * `silent` Turn on or off [silent mode](#silent-mode) when opening and closing channels.  
     ```@Officer Snorlax updateSchedule 1 silent on```
 
+It is possible to update multiple values with one command.
+To achieve this the format should be:
+
+```
+@Officer Snorlax updateSchedule <id> <column1> <value1> <column2> <value2> ... <columnN> <valueN>
+```
+
+for example:
+
+```
+@Officer Snorlax updateSchedule 1 open 06:30 close 22:30 silent on
+```
+
 ### Deactivating & Activating a Schedule
 
 Schedules have an 'active' status which can be on or off.
