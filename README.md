@@ -50,6 +50,32 @@ this will create `database.db`.
 python bot.py
 ```
 
+## Permissions Required
+
+For all features to work the following permissions are needed:
+
+  * View channels
+  * Manage channels
+  * Manage roles
+  * Ban members
+  * Send messages
+  * Add reactions
+  * Manage messages
+  * Read message history
+
+If channel permissions are present which override the server permissions makes sure to add the bot role to the relevant channels.
+The scheduling works by toggling the `@everyone` role on the channel to `deny` for closure and `neutral` for open.
+So make sure the channel permissions for the bot and users are set such that this toggle will be effective.
+For channels that are part of a schedule it's important to have the following permissions:
+
+  * View channel
+  * Manage channel
+  * Manage permissions
+  * Send messages
+  * Add reactions
+  * Manage messages
+  * Read message history
+
 ## Bot Setup
 
 **All the commands below are done on the Discord server.**
@@ -206,7 +232,7 @@ The available columns to use are:
     ```@Officer Snorlax updateSchedule 1 dynamic off```
   * `max_num_delays` The maximum number of delays to use with the dynamic option.  
     ```@Officer Snorlax updateSchedule 1 max_num_delays 4```
-  * `silent` Turn on or off [silent mode](#silent-mode) when opening and closing channels.
+  * `silent` Turn on or off [silent mode](#silent-mode) when opening and closing channels.  
     ```@Officer Snorlax updateSchedule 1 silent on```
 
 ### Deactivating & Activating a Schedule
