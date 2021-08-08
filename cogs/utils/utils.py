@@ -8,8 +8,6 @@ from discord import Embed
 from discord.ext.commands import when_mentioned_or
 from dotenv import load_dotenv, find_dotenv
 
-from .db import get_guild_prefix
-
 
 load_dotenv(find_dotenv())
 DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
@@ -34,7 +32,7 @@ def get_schedule_embed(ctx, schedule_db, tz):
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
     embed = Embed(
-        title='Active Schedules',
+        title='Schedules',
         timestamp=now,
         color=2061822
     )
@@ -42,15 +40,16 @@ def get_schedule_embed(ctx, schedule_db, tz):
         embed.add_field(
             name='ID: {}'.format(row.rowid),
             value=(
+                "Active: **{}**\n"
                 "Channel: <#{}>\nOpen: **{}**\nOpen Custom Message: **{}**\n"
                 "Close: **{}**\nClose Custom Message: **{}**"
                 "\nWarning: **{}**\nDynamic: **{}**\n"
                 "Max number of delays: **{}**\nSilent: **{}**".format(
-                    row.channel, row.open, row.open_message,
+                    row.active, row.channel, row.open, row.open_message,
                     row.close, row.close_message, row.warning, row.dynamic,
                     row.max_num_delays, row.silent
                 )
-            ),
+            ).replace('True', '✅').replace('False', '❌'),
             inline=False
         )
 
@@ -126,7 +125,7 @@ def get_settings_embed(ctx, guild_settings):
                 guild_settings['join_name_filter'],
                 guild_settings['prefix']
             )
-        ),
+        ).replace('True', '✅').replace('False', '❌'),
         inline=False
     )
 
@@ -239,5 +238,10 @@ def get_hour_emoji(time: str):
 
 
 def get_prefix(client, message):
+    from .db import get_guild_prefix
     prefix = get_guild_prefix(int(message.guild.id))
     return when_mentioned_or(*prefix)(client, message)
+
+
+def str2bool(v):
+  return v.lower() in ["yes", "true", "t", "1", "on"]

@@ -3,6 +3,8 @@ import sqlite3
 import os
 from dotenv import load_dotenv, find_dotenv
 
+from .utils import str2bool
+
 
 load_dotenv(find_dotenv())
 DATABASE = os.getenv('DATABASE')
@@ -10,7 +12,7 @@ DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 DEFAULT_PREFIX = os.getenv('DEFAULT_PREFIX')
 
 
-def load_schedule_db(guild_id: int = None):
+def load_schedule_db(guild_id: int = None, active_only: bool = False):
 
     conn = sqlite3.connect(DATABASE)
     query = "SELECT rowid, * FROM schedules;"
@@ -19,12 +21,16 @@ def load_schedule_db(guild_id: int = None):
 
     conn.close()
 
+    schedules['active'] = schedules['active'].astype(bool)
     schedules['warning'] = schedules['warning'].astype(bool)
     schedules['dynamic'] = schedules['dynamic'].astype(bool)
     schedules['silent'] = schedules['silent'].astype(bool)
 
     if guild_id is not None:
         schedules = schedules.loc[schedules['guild'] == guild_id]
+
+    if active_only:
+        schedules = schedules.loc[schedules['active'] == True]
 
     return schedules
 
@@ -106,6 +112,7 @@ def add_allowed_friend_code_channel(guild, channel, secret="False"):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -131,6 +138,7 @@ def add_guild_admin_channel(guild, channel):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -156,6 +164,7 @@ def add_guild_log_channel(guild, channel):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -181,6 +190,7 @@ def add_guild_time_channel(guild, channel):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -206,6 +216,7 @@ def add_guild_tz(guild, tz):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -231,22 +242,22 @@ def add_guild_meowth_raid_category(guild, channel):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
 def create_schedule(
-    ctx, channel, open_time, close_time, open_message="None",
-    close_message="None", warning="False", dynamic="True", max_num_delays=1,
-    silent="False"
+    guild_id, channel_id, channel_name, role_id, role_name, open_time,
+    close_time, open_message="None", close_message="None", warning="False",
+    dynamic="True", max_num_delays=1, silent="False"
 ):
     """
     Append to the schedule.
     """
     try:
-        role = ctx.guild.default_role
-
         warning = str2bool(warning)
         dynamic = str2bool(dynamic)
+        silent = str2bool(silent)
 
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
@@ -254,12 +265,12 @@ def create_schedule(
         sql_command = (
             "INSERT INTO schedules VALUES"
             """ ({}, {}, {}, "{}", "{}", "{}", """
-            """"{}", "{}", "{}", {}, {}, "99:99", {}, 0, {});""".format(
-                ctx.guild.id,
-                channel.id,
-                role.id,
-                channel.name,
-                role.name,
+            """"{}", "{}", "{}", {}, {}, "99:99", {}, 0, {}, True);""".format(
+                guild_id,
+                channel_id,
+                role_id,
+                channel_name,
+                role_name,
                 open_time,
                 close_time,
                 open_message,
@@ -272,13 +283,52 @@ def create_schedule(
         )
 
         c.execute(sql_command)
+        rowid = int(c.lastrowid)
+
+        conn.commit()
+        conn.close()
+
+        return True, rowid
+
+    except Exception as e:
+        conn.close()
+        return False, 0
+
+
+def update_schedule(schedule_id, column, value):
+    """Update a parameter of a schedule."""
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+
+        if column in [
+            "open",
+            "close",
+            "open_message",
+            "close_message",
+        ]:
+            sql_command = (
+                "UPDATE schedules SET {}"
+                " = '{}' WHERE rowid = {};".format(
+                    column, value, schedule_id
+                )
+            )
+        else:
+            sql_command = (
+                "UPDATE schedules SET {}"
+                " = {} WHERE rowid = {};".format(
+                    column, value, schedule_id
+                )
+            )
+
+        c.execute(sql_command)
 
         conn.commit()
         conn.close()
 
         return True
-
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -309,6 +359,7 @@ def drop_allowed_friend_code_channel(guild, channel):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -334,11 +385,8 @@ def drop_schedule(ctx, id_to_drop):
         return True
 
     except Exception as e:
+        conn.close()
         return False
-
-
-def str2bool(v):
-  return v.lower() in ["yes", "true", "t", "1"]
 
 
 def update_dynamic_close(schedule_id, new_close_time="99:99"):
@@ -395,6 +443,7 @@ def toggle_any_raids_filter(guild, any_raids):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -418,6 +467,7 @@ def toggle_join_name_filter(guild, join_name):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -443,6 +493,7 @@ def set_guild_active(guild_id, value):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -463,6 +514,7 @@ def add_guild(guild):
         return True
 
     except Exception as e:
+        conn.close()
         return False
 
 
@@ -488,4 +540,5 @@ def set_guild_prefix(guild_id, value: str):
         return True
 
     except Exception as e:
+        conn.close()
         return False

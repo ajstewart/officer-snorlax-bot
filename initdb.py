@@ -23,7 +23,8 @@ SQL_STATEMENT = """CREATE TABLE schedules (
     dynamic_close CHAR(5),
     max_num_delays INTEGER,
     current_delay_num INTEGER,
-    silent BOOLEAN
+    silent BOOLEAN,
+    active BOOLEAN
 );
 """
 
