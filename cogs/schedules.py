@@ -152,7 +152,8 @@ class Schedules(commands.Cog):
         """
         Docstring goes here.
         """
-        if not check_time_format(open_time):
+        time_ok, f_open_time = check_time_format(open_time)
+        if not time_ok:
             msg = (
                 "{} is not a valid time.".format(
                     open_time
@@ -160,8 +161,11 @@ class Schedules(commands.Cog):
             )
             await ctx.channel.send(msg)
             return
+        # this just checks for single hour inputs, e.g. 6:00
+        open_time = f_open_time
 
-        if not check_time_format(close_time):
+        time_ok, f_close_time = check_time_format(close_time)
+        if not time_ok:
             msg = (
                 "{} is not a valid time.".format(
                     close_time
@@ -169,6 +173,7 @@ class Schedules(commands.Cog):
             )
             await ctx.channel.send(msg)
             return
+        close_time = f_close_time
 
         # Replace empty strings
         if open_message == "":
@@ -421,7 +426,7 @@ class Schedules(commands.Cog):
             "See full help for details."
         )
     )
-    async def updateSchedule(self, ctx, id: int, column: str, value):
+    async def updateSchedule(self, ctx, id: int, *args):
         exists = check_schedule_exists(id)
 
         if not exists:
@@ -442,6 +447,13 @@ class Schedules(commands.Cog):
 
             return
 
+        if len(args) % 2 != 0:
+            msg = 'Error! There are an odd number of columns and values!'
+
+            await ctx.channel.send(msg)
+
+            return
+
         valid_columns = [
             "active",
             "open",
@@ -454,39 +466,56 @@ class Schedules(commands.Cog):
             "silent",
         ]
 
-        if column not in valid_columns:
-             msg = (
-                 "'{}' is not a valid column to update."
-                 " Valid columns are: {}".format(
-                     column, ", ".join(valid_columns)
+        to_update = {}
+
+        for i in range(0, len(args), 2):
+            column = args[i]
+            value = args[i+1]
+
+            if column not in valid_columns:
+                 msg = (
+                     "'{}' is not a valid column to update."
+                     " Valid columns are: {}".format(
+                         column, ", ".join(valid_columns)
+                     )
                  )
-             )
-             await ctx.channel.send(msg)
-             return
+                 await ctx.channel.send(msg)
+                 return
 
-        if column in ['open', 'close']:
-            if not check_time_format(value):
-                msg = "{} is not a valid time.".format(value)
-                await ctx.channel.send(msg)
-                return
+            elif column in ['open', 'close']:
+                time_ok, f_value = check_time_format(value)
+                if not time_ok:
+                    msg = "{} is not a valid time.".format(value)
+                    await ctx.channel.send(msg)
+                    return
+                value = f_value
 
-        if column == 'max_num_delays':
-            value = int(value)
+            elif column == 'max_num_delays':
+                value = int(value)
 
-        if column in ['active', 'warning', 'dynamic', 'silent']:
-            value = str2bool(value)
+            elif column in ['active', 'warning', 'dynamic', 'silent']:
+                value = str2bool(value)
 
-        ok = update_schedule(id, column, value)
+            to_update[column] = value
 
-        if ok:
-            msg = 'Schedule ID {} updated successfully.'.format(
-                id
-            )
+        errored = False
+
+        for column in to_update:
+            ok = update_schedule(id, column, to_update[column])
+            if not ok:
+                errored = True
+                msg = (
+                    f'Error during update of schedule with ID {id} on'
+                    f' column {column}. Check inputs and try again.'
+                )
+                await ctx.send(msg)
+        if not errored:
+            msg = f'Schedule ID {id} updated successfully.'
         else:
-            msg = 'Error during update of schedule with ID {}.'.format(
-                id
+            msg = (
+                f'Schedule ID {id} updated, however some columns were not.'
+                'Refer to the error message above and check input.'
             )
-
         await ctx.channel.send(msg)
         await self.listSchedules(ctx, schedule_id=id)
 
