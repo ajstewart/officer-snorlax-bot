@@ -357,24 +357,25 @@ class Schedules(commands.Cog):
                 if row.warning:
                     then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
 
-                    messages = await channel.history(after=then).flatten()
+                    warning = (
+                        datetime.datetime(
+                            10, 10, 10,
+                            hour=int(close_hour), minute=int(close_min)
+                        ) - datetime.timedelta(minutes=WARNING_TIME)
+                    ).strftime("%H:%M")
 
-                    if check_if_channel_active(
-                        messages, client_user
-                    ):
-                        warning = (
-                            datetime.datetime(
-                                10, 10, 10,
-                                hour=int(close_hour), minute=int(close_min)
-                            ) - datetime.timedelta(minutes=WARNING_TIME)
-                        ).strftime("%H:%M")
-
-                        if warning == now_compare:
+                    if warning == now_compare:
+                        messages = await channel.history(after=then).flatten()
+                        if check_if_channel_active(messages, client_user):
                             warning_msg = (
                                 "**Warning!** Snorlax is approaching! "
                                 "This channel is scheduled to close in {}"
-                                " minutes.".format(WARNING_TIME)
+                                " minute".format(WARNING_TIME)
                             )
+                            if WARNING_TIME > 1:
+                                warning_msg+="s."
+                            else:
+                                warning_msg+="."
                             if row.dynamic:
                                 warning_msg += (
                                     "\n\nIf the channel is still active then"
