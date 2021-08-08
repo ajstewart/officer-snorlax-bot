@@ -17,7 +17,7 @@ load_dotenv()
 # GRAB THE API TOKEN FROM THE .ENV FILE.
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
-version='0.1.0dev'
+version = '0.1.0'
 
 intents = discord.Intents.default()
 intents.members = True
@@ -30,7 +30,7 @@ bot = commands.Bot(
     intents=intents, command_prefix=(get_prefix))
 bot.help_command.add_check(check_admin)
 
-bot.add_cog(initial.Initial(bot))
+bot.add_cog(initial.Initial(bot, version))
 bot.add_cog(management.Management(bot))
 bot.add_cog(fc_filter.FriendCodeFilter(bot))
 bot.add_cog(join_name_filter.JoinNameFilter(bot))
