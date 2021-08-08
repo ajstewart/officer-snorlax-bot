@@ -7,6 +7,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 DATABASE = os.getenv('DATABASE')
 DEFAULT_TZ = os.getenv('DEFAULT_TZ')
+DEFAULT_PREFIX = os.getenv('DEFAULT_PREFIX')
 
 
 def load_schedule_db(guild_id: int = None):
@@ -59,6 +60,17 @@ def load_guild_db(active_only=False):
     guilds['active'] = guilds['active'].astype(bool)
 
     return guilds
+
+
+def get_guild_prefix(guild_id: int):
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    query = "SELECT prefix FROM guilds WHERE id={};".format(guild_id)
+    c.execute(query)
+
+    prefix = c.fetchone()[0]
+
+    return prefix
 
 
 def add_allowed_friend_code_channel(guild, channel, secret="False"):
@@ -439,10 +451,35 @@ def add_guild(guild):
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
         sql_command = (
-            """INSERT INTO guilds VALUES ({}, "{}", -1, -1, False, -1, -1, False, True);""".format(
-                guild.id, DEFAULT_TZ
+            """INSERT INTO guilds VALUES ({}, "{}", -1, -1, False, -1, -1, False, True, '{}');""".format(
+                guild.id, DEFAULT_TZ, DEFAULT_PREFIX
             )
         )
+        c.execute(sql_command)
+
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+def set_guild_prefix(guild_id, value: str):
+    """
+    Sets the guild prefix.
+    """
+    try:
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+
+        sql_command = (
+            "UPDATE guilds SET prefix = '{}' WHERE id = {};".format(
+                value, guild_id
+            )
+        )
+
         c.execute(sql_command)
 
         conn.commit()

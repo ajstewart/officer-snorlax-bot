@@ -13,7 +13,8 @@ from .utils.db import (
     toggle_any_raids_filter,
     toggle_join_name_filter,
     set_guild_active,
-    add_guild
+    add_guild,
+    set_guild_prefix
 )
 from .utils.utils import get_current_time, get_settings_embed
 from .utils.checks import (
@@ -213,6 +214,7 @@ class Management(commands.Cog):
         brief="Set the log channel for the bot."
     )
     @commands.check(check_bot)
+    @commands.check(check_admin_channel)
     @commands.check(check_admin)
     async def setLogChannel(self, ctx, channel: TextChannel):
         """
@@ -241,6 +243,7 @@ class Management(commands.Cog):
         brief="Set the meowth raid categry for the bot."
     )
     @commands.check(check_bot)
+    @commands.check(check_admin_channel)
     @commands.check(check_admin)
     async def setMeowthRaidCategory(
         self, ctx, category_id: int=-1):
@@ -275,6 +278,7 @@ class Management(commands.Cog):
         brief="Reset the meowth raid categry for the bot (disables)."
     )
     @commands.check(check_bot)
+    @commands.check(check_admin_channel)
     @commands.check(check_admin)
     async def resetMeowthRaidCategory(self, ctx):
         """
@@ -320,6 +324,38 @@ class Management(commands.Cog):
                 msg = (
                     "Error when setting the timezone."
                 )
+        await ctx.channel.send(msg)
+
+    @commands.command(
+        help=(
+            "Set the prefix for the server. Must be 3 characters or less"
+        ),
+        brief="Set the prefix for the bot."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def setPrefix(self, ctx, prefix: str):
+        """
+        Docstring goes here.
+        """
+        guild_id = ctx.guild.id
+
+        if len(prefix) > 3:
+            await ctx.send("Prefix must be 3 or less characters.")
+            return
+
+        ok = set_guild_prefix(guild_id, prefix)
+        if ok:
+            msg = (
+                "{} set as the prefix for Snorlax successfully.".format(
+                    prefix
+                )
+            )
+        else:
+            msg = (
+                "Error when setting the prefix."
+            )
         await ctx.channel.send(msg)
 
     @commands.command(
