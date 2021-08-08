@@ -355,7 +355,7 @@ class Management(commands.Cog):
     )
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
-    @commands.check(check_admin)
+    @commands.is_owner()
     async def shutdown(self, ctx):
         """
         Function to force the bot to shutdown.

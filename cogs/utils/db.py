@@ -9,18 +9,21 @@ DATABASE = os.getenv('DATABASE')
 DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 
 
-def load_schedule_db():
+def load_schedule_db(guild_id: int = None):
 
     conn = sqlite3.connect(DATABASE)
     query = "SELECT rowid, * FROM schedules;"
 
     schedules = pd.read_sql_query(query, conn)
 
+    conn.close()
+
     schedules['warning'] = schedules['warning'].astype(bool)
     schedules['dynamic'] = schedules['dynamic'].astype(bool)
     schedules['silent'] = schedules['silent'].astype(bool)
 
-    conn.close()
+    if guild_id is not None:
+        schedules = schedules.loc[schedules['guild'] == guild_id]
 
     return schedules
 
