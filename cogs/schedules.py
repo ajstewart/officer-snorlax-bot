@@ -15,7 +15,8 @@ from .utils.db import (
     create_schedule,
     drop_schedule,
     update_dynamic_close,
-    update_current_delay_num
+    update_current_delay_num,
+    update_schedule
 )
 from discord.utils import get
 from discord import TextChannel
@@ -29,7 +30,8 @@ import os
 import logging
 from .utils.utils import (
     get_current_time,
-    get_schedule_embed
+    get_schedule_embed,
+    str2bool
 )
 from .utils.log_msgs import schedule_log_embed
 from dotenv import load_dotenv, find_dotenv
@@ -72,15 +74,74 @@ class Schedules(commands.Cog):
             return False
 
     @commands.command(
+        help="Set a schedule to be active.",
+        brief="Set a schedule to be active."
+    )
+    async def activateSchedule(self, ctx, id: int):
+        exists = check_schedule_exists(id)
+
+        if not exists:
+            msg = 'Schedule ID {} does not exist!'.format(
+                id
+            )
+
+            await ctx.channel.send(msg)
+
+            return
+
+        allowed = check_remove_schedule(ctx, id)
+
+        if not allowed:
+            msg = f'You do not have permission to activate schedule {id}.'
+
+            await ctx.channel.send(msg)
+
+            return
+
+        try:
+            await self.updateSchedule(ctx, int(id), 'active', 'on')
+        except Exception as e:
+            pass
+
+    @commands.command(
+        help="Set multiple schedules to be active.",
+        brief="Set multiple schedules to be active."
+    )
+    async def activateSchedules(self, ctx, *args):
+        for id in args:
+            try:
+                await self.activateSchedule(ctx, int(id))
+            except Exception as e:
+                pass
+
+    @commands.command(
+        help="Set all schedules to be active.",
+        brief="Set all schedules to be active."
+    )
+    async def activateAllSchedules(self, ctx):
+        schedules = load_schedule_db(guild_id=ctx.guild.id)
+
+        if schedules.empty:
+            await ctx.send("There are no schedules to delete!")
+            return
+
+        for id in schedules['rowid'].tolist():
+            try:
+                await self.activateSchedule(ctx, int(id))
+            except Exception as e:
+                pass
+
+    @commands.command(
         help=(
             "Create an opening and closing schedule for a channel"
             " in the guild. Times must be provided in 24 hour format"
             " e.g. '21:00'. Custom messages will appear under the"
-            " default Snorlax message."
+            " default Snorlax message. Schedules created will be"
+            " activated by default."
         ),
         brief="Create an opening and closing schedule for a channel."
     )
-    async def addSchedule(
+    async def createSchedule(
         self, ctx, channel: TextChannel, open_time: str, close_time: str,
         open_message: Optional[str] = "None",
         close_message: Optional[str] = "None",
@@ -116,21 +177,25 @@ class Schedules(commands.Cog):
         if close_message == "":
             close_message = "None"
 
-        ok = create_schedule(
-            ctx, channel, open_time, close_time,
-            open_message, close_message, warning,
+        # Could support different roles in future.
+        role = ctx.guild.default_role
+
+        ok, rowid = create_schedule(
+            ctx.guild.id, channel.id, channel.name, role.id, role.name,
+            open_time, close_time, open_message, close_message, warning,
             dynamic, max_num_delays, silent
         )
 
         if ok:
             msg = "Schedule set successfully."
+            await self.listSchedules(ctx, schedule_id=rowid)
         else:
             msg = "Error when setting schedule."
 
         await ctx.channel.send(msg)
 
-    @addSchedule.error
-    async def addSchedule_error(self, ctx, error):
+    @createSchedule.error
+    async def createSchedule_error(self, ctx, error):
         if isinstance(error, commands.InvalidEndOfQuotedStringError):
             msg = (
                 "Error in setting schedule."
@@ -146,13 +211,71 @@ class Schedules(commands.Cog):
             await ctx.send(msg)
 
     @commands.command(
+        help="Deactivate a schedule.",
+        brief="Deactivate a schedule."
+    )
+    async def deactivateSchedule(self, ctx, id: int):
+        exists = check_schedule_exists(id)
+
+        if not exists:
+            msg = 'Schedule ID {} does not exist!'.format(
+                id
+            )
+
+            await ctx.channel.send(msg)
+
+            return
+
+        allowed = check_remove_schedule(ctx, id)
+
+        if not allowed:
+            msg = f'You do not have permission to deactivate schedule {id}.'
+
+            await ctx.channel.send(msg)
+
+            return
+
+        try:
+            await self.updateSchedule(ctx, int(id), 'active', 'off')
+        except Exception as e:
+            pass
+
+    @commands.command(
+        help="Deactivate multiple schedules.",
+        brief="Deactivate multiple schedules."
+    )
+    async def deactivateSchedules(self, ctx, *args):
+        for id in args:
+            try:
+                await self.deactivateSchedule(ctx, int(id))
+            except Exception as e:
+                pass
+
+    @commands.command(
+        help="Deactivate all schedules.",
+        brief="Deactivate all schedules."
+    )
+    async def deactivateAllSchedules(self, ctx):
+        schedules = load_schedule_db(guild_id=ctx.guild.id)
+
+        if schedules.empty:
+            await ctx.send("There are no schedules to delete!")
+            return
+
+        for id in schedules['rowid'].tolist():
+            try:
+                await self.deactivateSchedule(ctx, int(id))
+            except Exception as e:
+                pass
+
+    @commands.command(
         help=(
             "Will list all the active schedules for the"
             " guild, showing the open and close times."
         ),
         brief="Show a list of active schedules."
     )
-    async def listSchedules(self, ctx):
+    async def listSchedules(self, ctx, schedule_id: int = None):
         """
         Docstring goes here.
         """
@@ -163,9 +286,15 @@ class Schedules(commands.Cog):
             guild_schedules = schedule_db.loc[
                 schedule_db['guild'] == ctx.guild.id
             ]
+            if schedule_id is not None:
+                guild_schedules = guild_schedules.loc[
+                    guild_schedules['rowid'] == schedule_id
+                ]
             guild_db = load_guild_db()
             guild_tz = guild_db.loc[ctx.guild.id]['tz']
-            embed = get_schedule_embed(ctx, guild_schedules, guild_tz)
+            embed = get_schedule_embed(
+                ctx, guild_schedules, guild_tz
+            )
 
             await ctx.channel.send(embed=embed)
 
@@ -194,7 +323,7 @@ class Schedules(commands.Cog):
         allowed = check_remove_schedule(ctx, id)
 
         if not allowed:
-            msg = 'You do not have permission to remove this schedule'
+            msg = f'You do not have permission to remove schedule {id}.'
 
             await ctx.channel.send(msg)
 
@@ -274,11 +403,106 @@ class Schedules(commands.Cog):
                 await ctx.send("Remove all schedules cancelled!")
                 await message.delete()
 
+    @commands.command(
+        help=(
+            "Updates a specific parameter of an existing schedule."
+            " The columns to use are:"
+            "\nopen"
+            "\nclose"
+            "\nopen_message"
+            "\nclose_message"
+            "\nwarning"
+            "\ndynamic"
+            "\nmax_num_delays"
+            "\nsilent"
+        ),
+        brief=(
+            "Update a parameter in an existing schedule. "
+            "See full help for details."
+        )
+    )
+    async def updateSchedule(self, ctx, id: int, column: str, value):
+        exists = check_schedule_exists(id)
+
+        if not exists:
+            msg = 'Schedule ID {} does not exist!'.format(
+                id
+            )
+
+            await ctx.channel.send(msg)
+
+            return
+
+        allowed = check_remove_schedule(ctx, id)
+
+        if not allowed:
+            msg = 'You do not have permission to update this schedule'
+
+            await ctx.channel.send(msg)
+
+            return
+
+        valid_columns = [
+            "active",
+            "open",
+            "close",
+            "open_message",
+            "close_message",
+            "warning",
+            "dynamic",
+            "max_num_delays",
+            "silent",
+        ]
+
+        if column not in valid_columns:
+             msg = (
+                 "'{}' is not a valid column to update."
+                 " Valid columns are: {}".format(
+                     column, ", ".join(valid_columns)
+                 )
+             )
+             await ctx.channel.send(msg)
+             return
+
+        if column in ['open', 'close']:
+            if not check_time_format(value):
+                msg = "{} is not a valid time.".format(value)
+                await ctx.channel.send(msg)
+                return
+
+        if column == 'max_num_delays':
+            value = int(value)
+
+        if column in ['active', 'warning', 'dynamic', 'silent']:
+            value = str2bool(value)
+
+        ok = update_schedule(id, column, value)
+
+        if ok:
+            msg = 'Schedule ID {} updated successfully.'.format(
+                id
+            )
+        else:
+            msg = 'Error during update of schedule with ID {}.'.format(
+                id
+            )
+
+        await ctx.channel.send(msg)
+        await self.listSchedules(ctx, schedule_id=id)
+
+    @updateSchedule.error
+    async def updateSchedule_error(self, ctx, error):
+        msg = (
+            "Unknown error in updating schedule."
+            f"\n```{error}```\n"
+        )
+        await ctx.send(msg)
+
     @tasks.loop(seconds=60)
     async def channel_manager(self):
         client_user = self.bot.user
         guild_db = load_guild_db(active_only=True)
-        schedule_db = load_schedule_db()
+        schedule_db = load_schedule_db(active_only=True)
 
         for tz in guild_db['tz'].unique():
             now = get_current_time(tz=tz)
