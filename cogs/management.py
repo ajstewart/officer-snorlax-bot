@@ -1,4 +1,6 @@
 import os
+import logging
+
 from typing import Optional
 from discord import TextChannel
 from discord.ext import commands, tasks
@@ -9,15 +11,19 @@ from .utils.db import (
     add_guild_tz,
     add_guild_meowth_raid_category,
     toggle_any_raids_filter,
-    toggle_join_name_filter
+    toggle_join_name_filter,
+    set_guild_active,
+    add_guild,
+    set_guild_prefix
 )
 from .utils.utils import get_current_time, get_settings_embed
 from .utils.checks import (
-    check_admin_channel, check_admin, check_valid_timezone, check_bot
+    check_admin_channel, check_admin, check_valid_timezone, check_bot,
+    check_guild_exists
 )
 from dotenv import load_dotenv, find_dotenv
 
-
+logger = logging.getLogger()
 load_dotenv(find_dotenv())
 DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 
@@ -208,6 +214,7 @@ class Management(commands.Cog):
         brief="Set the log channel for the bot."
     )
     @commands.check(check_bot)
+    @commands.check(check_admin_channel)
     @commands.check(check_admin)
     async def setLogChannel(self, ctx, channel: TextChannel):
         """
@@ -236,6 +243,7 @@ class Management(commands.Cog):
         brief="Set the meowth raid categry for the bot."
     )
     @commands.check(check_bot)
+    @commands.check(check_admin_channel)
     @commands.check(check_admin)
     async def setMeowthRaidCategory(
         self, ctx, category_id: int=-1):
@@ -270,6 +278,7 @@ class Management(commands.Cog):
         brief="Reset the meowth raid categry for the bot (disables)."
     )
     @commands.check(check_bot)
+    @commands.check(check_admin_channel)
     @commands.check(check_admin)
     async def resetMeowthRaidCategory(self, ctx):
         """
@@ -319,6 +328,38 @@ class Management(commands.Cog):
 
     @commands.command(
         help=(
+            "Set the prefix for the server. Must be 3 characters or less"
+        ),
+        brief="Set the prefix for the bot."
+    )
+    @commands.check(check_bot)
+    @commands.check(check_admin_channel)
+    @commands.check(check_admin)
+    async def setPrefix(self, ctx, prefix: str):
+        """
+        Docstring goes here.
+        """
+        guild_id = ctx.guild.id
+
+        if len(prefix) > 3:
+            await ctx.send("Prefix must be 3 or less characters.")
+            return
+
+        ok = set_guild_prefix(guild_id, prefix)
+        if ok:
+            msg = (
+                "{} set as the prefix for Snorlax successfully.".format(
+                    prefix
+                )
+            )
+        else:
+            msg = (
+                "Error when setting the prefix."
+            )
+        await ctx.channel.send(msg)
+
+    @commands.command(
+        help=(
             "Show all the current settings for the bot"
             " and guild."
         ),
@@ -350,7 +391,7 @@ class Management(commands.Cog):
     )
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
-    @commands.check(check_admin)
+    @commands.is_owner()
     async def shutdown(self, ctx):
         """
         Function to force the bot to shutdown.
@@ -360,3 +401,28 @@ class Management(commands.Cog):
             "Snorlax is shutting down."
         )
         await ctx.bot.logout()
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        """
+        Process to complete when a guild is joined.
+        """
+        # check if the new guild is already in the database
+        if check_guild_exists(guild.id):
+            logger.info(f'Setting guild {guild.name} to active.')
+            ok = set_guild_active(guild.id, 1)
+        # if not then create the new entry in the db
+        else:
+            logger.info(f'Adding {guild.name} to database.')
+            ok = add_guild(guild)
+
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild):
+        """
+        Process to complete when a guild is removed.
+        """
+        # check if the new guild is already in the database
+        if check_guild_exists(guild.id):
+            logger.info(f'Setting guild {guild.name} to not active.')
+            ok = set_guild_active(guild.id, 0)

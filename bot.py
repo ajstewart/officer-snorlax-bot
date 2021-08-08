@@ -6,7 +6,7 @@ import logging
 from dotenv import load_dotenv
 from discord.ext import commands
 from cogs.utils.checks import check_admin
-from cogs.utils.utils import get_logger
+from cogs.utils.utils import get_logger, get_prefix
 from cogs import (
     initial, management, schedules, fc_filter, time_channel, join_name_filter
 )
@@ -17,6 +17,8 @@ load_dotenv()
 # GRAB THE API TOKEN FROM THE .ENV FILE.
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
+version = '0.1.0'
+
 intents = discord.Intents.default()
 intents.members = True
 
@@ -25,10 +27,10 @@ logger.info('Starting bot...')
 
 # GETS THE CLIENT OBJECT FROM DISCORD.PY. CLIENT IS SYNONYMOUS WITH BOT.
 bot = commands.Bot(
-    intents=intents, command_prefix=commands.when_mentioned_or('!'))
+    intents=intents, command_prefix=(get_prefix))
 bot.help_command.add_check(check_admin)
 
-bot.add_cog(initial.Initial(bot))
+bot.add_cog(initial.Initial(bot, version))
 bot.add_cog(management.Management(bot))
 bot.add_cog(fc_filter.FriendCodeFilter(bot))
 bot.add_cog(join_name_filter.JoinNameFilter(bot))

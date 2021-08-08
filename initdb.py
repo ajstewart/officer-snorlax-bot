@@ -23,7 +23,8 @@ SQL_STATEMENT = """CREATE TABLE schedules (
     dynamic_close CHAR(5),
     max_num_delays INTEGER,
     current_delay_num INTEGER,
-    silent BOOLEAN
+    silent BOOLEAN,
+    active BOOLEAN
 );
 """
 
@@ -37,7 +38,9 @@ SQL_STATEMENT = """CREATE TABLE guilds (
     any_raids_filter BOOLEAN,
     log_channel INTEGER,
     time_channel INTEGER,
-    join_name_filter BOOLEAN
+    join_name_filter BOOLEAN,
+    active BOOLEAN,
+    prefix CHAR(3)
 );
 """
 

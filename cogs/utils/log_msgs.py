@@ -70,7 +70,7 @@ def schedule_log_embed(
     if stype not in [
         'close', 'open', 'delay', 'close_skip', 'open_skip', 'warning'
     ]:
-        raise ValueError('The schedule type is not recongised!')
+        raise ValueError('The schedule type is not recognised!')
 
     titles = {
         'close': 'Channel Closed!',

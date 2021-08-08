@@ -1,6 +1,6 @@
 import pytz
 import time
-from .db import load_guild_db, load_schedule_db
+from .db import load_guild_db, load_schedule_db, set_guild_active
 import re
 from .utils import strip_url, strip_mentions, strip_punctuation
 from discord.utils import escape_mentions
@@ -119,3 +119,16 @@ def check_remove_schedule(ctx, sched_id: int):
     allowed = schedule_guild == ctx_guild_id
 
     return allowed
+
+
+def check_guild_exists(guild_id, check_active=False):
+    guilds = load_guild_db()
+
+    if guild_id in guilds.index.astype(int).tolist():
+        if check_active:
+            active = guilds.loc[guild_id]['active']
+            if not active:
+                set_guild_active(guild_id, 1)
+        return True
+    else:
+        return False
