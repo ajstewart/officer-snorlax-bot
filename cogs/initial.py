@@ -14,9 +14,10 @@ logger = logging.getLogger()
 
 class Initial(commands.Cog):
     """docstring for Initial"""
-    def __init__(self, bot):
+    def __init__(self, bot, version):
         super(Initial, self).__init__()
         self.bot = bot
+        self.version = version
 
     # EVENT LISTENER FOR WHEN THE BOT HAS SWITCHED FROM OFFLINE TO ONLINE.
     @commands.Cog.listener()
@@ -41,7 +42,7 @@ class Initial(commands.Cog):
         logger.info("Snorlax is in " + str(guild_count) + " guilds.")
 
         await self.bot.change_presence(
-            activity=discord.Game(name="Sleeping...")
+            activity=discord.Game(name=f"v{self.version} - sleeping...")
         )
 
     @commands.Cog.listener()
