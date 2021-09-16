@@ -482,6 +482,11 @@ class Schedules(commands.Cog):
                  await ctx.channel.send(msg)
                  return
 
+            elif column in to_update:
+                 msg = f"'{column}' has been entered multiple times!"
+                 await ctx.channel.send(msg)
+                 return
+
             elif column in ['open', 'close']:
                 time_ok, f_value = check_time_format(value)
                 if not time_ok:
@@ -556,7 +561,16 @@ class Schedules(commands.Cog):
                     log_channel_id = int(guild_db.loc[guild_id]['log_channel'])
                     if log_channel_id != -1:
                         log_channel = self.bot.get_channel(log_channel_id)
+
+                    time_channel_id = int(
+                        guild_db.loc[guild_id]['time_channel']
+                    )
+                    if time_channel_id != -1:
+                        time_format_fill = f"<#{time_channel_id}>"
+                    else:
+                        time_format_fill = "Unavailable"
                     last_guild_id = guild_id
+
 
                 channel = self.bot.get_channel(row.channel)
                 role = get(channel.guild.roles, id=row.role)
@@ -584,7 +598,10 @@ class Schedules(commands.Cog):
                     overwrites.send_messages = None
                     await channel.set_permissions(role, overwrite=overwrites)
                     open_message = DEFAULT_OPEN_MESSAGE.format(
-                        row.close, now.tzname()
+                        datetime.datetime.strptime(
+                            row.close, '%H:%M'
+                        ).strftime('%I:%M %p'),
+                        now.tzname()
                     )
                     if row['open_message'] != "None":
                         open_message += "\n\n" + row['open_message']
@@ -701,7 +718,11 @@ class Schedules(commands.Cog):
 
                     else:
                         close_message = DEFAULT_CLOSE_MESSAGE.format(
-                            row.open, now.tzname()
+                            datetime.datetime.strptime(
+                                row.open, '%H:%M'
+                            ).strftime('%I:%M %p'),
+                            now.tzname(),
+                            time_format_fill
                         )
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
@@ -790,7 +811,11 @@ class Schedules(commands.Cog):
                         update_dynamic_close(row.rowid)
                         update_current_delay_num(row.rowid)
                         close_message = DEFAULT_CLOSE_MESSAGE.format(
-                            row.open, now.tzname()
+                            datetime.datetime.strptime(
+                                row.open, '%H:%M'
+                            ).strftime('%I:%M %p'),
+                            now.tzname(),
+                            time_format_fill
                         )
                         if row['close_message'] != "None":
                             close_message += "\n\n" + row['close_message']
