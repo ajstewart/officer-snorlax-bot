@@ -17,7 +17,7 @@ load_dotenv()
 # GRAB THE API TOKEN FROM THE .ENV FILE.
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
-version = '0.1.2'
+version = '0.1.3'
 
 intents = discord.Intents.default()
 intents.members = True
