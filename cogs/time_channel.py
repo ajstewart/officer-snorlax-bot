@@ -89,16 +89,24 @@ class TimeChannel(commands.Cog):
                 now = get_current_time(tz=tz)
 
                 for i in guilds['time_channel']:
-                    time_channel_id = int(i)
-                    time_channel = self.bot.get_channel(time_channel_id)
+                    try:
+                        time_channel_id = int(i)
+                        time_channel = self.bot.get_channel(time_channel_id)
 
-                    new_name = now.strftime("%I:%M %p %Z")
-                    new_name = get_hour_emoji(new_name[:5]) + " " + new_name
+                        new_name = now.strftime("%I:%M %p %Z")
+                        new_name = get_hour_emoji(new_name[:5]) + " " + new_name
 
-                    await time_channel.edit(name=new_name)
+                        await time_channel.edit(name=new_name)
 
-                    logger.info(
-                        f'Updated time channel in {time_channel.guild.name}')
+                        logger.info(
+                            f'Updated time channel in {time_channel.guild.name}')
+                    except Exception as e:
+                        logger.error(
+                            'Updating the time channel for '
+                            f'{time_channel.guild.name} failed.'
+                            ' Are the permissions correct?'
+                        )
+                        logger.error(f'Error: {e}')
         else:
             logger.warning('No time channels set skipping loop.')
 
