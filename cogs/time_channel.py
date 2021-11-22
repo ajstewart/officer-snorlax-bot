@@ -20,8 +20,20 @@ logger = logging.getLogger()
 
 
 class TimeChannel(commands.Cog):
-    """docstring for Initial"""
-    def __init__(self, bot):
+    """
+    The cog that manages all aspects of the Time channel, for which there
+    can be one per server.
+    """
+    def __init__(self, bot: commands.bot) -> None:
+        """
+        The initialisation method.
+
+        Args:
+            bot: The discord.py bot representation.
+
+        Returns:
+            None
+        """
         super(TimeChannel, self).__init__()
         self.bot = bot
         self.time_channels_manager.add_exception_type(
@@ -41,9 +53,21 @@ class TimeChannel(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin)
     @commands.check(check_admin_channel)
-    async def setTimeChannel(self, ctx, channel: VoiceChannel):
+    async def setTimeChannel(
+        self,
+        ctx: commands.context,
+        channel: VoiceChannel
+    ) -> None:
         """
-        Docstring goes here.
+        Command to set the time channel for the server.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The voice channel to set as the time channel.
+
+        Returns:
+            None
         """
         guild = ctx.guild
         ok = add_guild_time_channel(guild, channel)
@@ -68,7 +92,19 @@ class TimeChannel(commands.Cog):
 
 
     @setTimeChannel.error
-    async def setTimeChannel_error(self, ctx, error):
+    async def setTimeChannel_error(self, ctx: commands.context, error) -> None:
+        """
+        Handles any error from setTimeChannel.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            error (Exception): The actual exception that could be a range of
+                error types.
+
+        Returns:
+            None
+        """
         if isinstance(error, commands.BadArgument):
             await ctx.send(
                 'Channel not found. Hint: It must be a voice channel!'
@@ -76,7 +112,14 @@ class TimeChannel(commands.Cog):
 
 
     @tasks.loop(minutes=10)
-    async def time_channels_manager(self):
+    async def time_channels_manager(self) -> None:
+        """
+        The main time channel loop to update the time of the channel by
+        updating the channel name.
+
+        Returns:
+            None
+        """
         client_user = self.bot.user
         guild_db = load_guild_db()
 
@@ -113,6 +156,15 @@ class TimeChannel(commands.Cog):
 
     @time_channels_manager.before_loop
     async def before_timer(self):
+        """
+        Method to process before the time channel manager loop is started.
+
+        The purpose is to make sure the loop is started at the top of an even
+        ten minutes.
+
+        Returns:
+            None
+        """
         await self.bot.wait_until_ready()
         # Make sure the loop starts at the top of a ten minute interval
         now = datetime.datetime.now()

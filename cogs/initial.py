@@ -1,11 +1,11 @@
-from discord.ext import commands, tasks
 import discord
 import traceback
 import sys
 import logging
-from .utils.checks import (
-    check_for_friend_code, check_admin, check_guild_exists
-)
+
+from discord.ext import commands, tasks
+
+from .utils.checks import check_guild_exists
 from .utils.db import add_guild
 
 
@@ -13,15 +13,31 @@ logger = logging.getLogger()
 
 
 class Initial(commands.Cog):
-    """docstring for Initial"""
-    def __init__(self, bot, version):
+    """Cog to run on initial startup."""
+    def __init__(self, bot: commands.bot, version: str) -> None:
+        """
+        The initialisation method of the cog.
+
+        Args:
+            bot: The discord.py bot representation.
+            version: The bot version string.
+
+        Returns:
+            None
+        """
         super(Initial, self).__init__()
         self.bot = bot
         self.version = version
 
     # EVENT LISTENER FOR WHEN THE BOT HAS SWITCHED FROM OFFLINE TO ONLINE.
     @commands.Cog.listener()
-    async def on_ready(self):
+    async def on_ready(self) -> None:
+        """
+        Method to run once the bot is ready.
+
+        Returns:
+            None
+        """
         guild_count = 0
 
         # LOOPS THROUGH ALL THE GUILD / SERVERS THAT THE BOT IS ASSOCIATED WITH.
@@ -46,9 +62,25 @@ class Initial(commands.Cog):
         )
 
     @commands.Cog.listener()
-    async def on_command_error(self, ctx, error):
+    async def on_command_error(self, ctx: commands.context, error) -> None:
+        """
+        Handles any error that occurs with a command that is not standard.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            error (Exception): The actual exception that could be a range of
+                error types.
+
+        Returns:
+            None
+        """
         if isinstance(error, commands.errors.CheckFailure):
             logger.warning('Check failure occurred.')
         else:
-            logger.warning('Ignoring exception in command {}:'.format(ctx.command))
-            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+            logger.warning(
+                'Ignoring exception in command {}:'.format(ctx.command)
+            )
+            traceback.print_exception(
+                type(error), error, error.__traceback__, file=sys.stderr
+            )
