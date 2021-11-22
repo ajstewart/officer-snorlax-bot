@@ -1,12 +1,14 @@
-from discord.ext import commands
-from discord import TextChannel
-from typing import Optional
 import discord
+
+from discord import TextChannel, Message
+from discord.abc import GuildChannel
+from discord.ext import commands
 from discord.utils import get
+from typing import Optional
+
 from .utils.checks import (
     check_admin,
     check_admin_channel,
-    check_time_format,
     check_for_friend_code,
     check_bot,
     check_for_any_raids
@@ -22,8 +24,17 @@ from .utils.utils import get_friend_channels_embed
 
 
 class FriendCodeFilter(commands.Cog):
-    """docstring for Initial"""
-    def __init__(self, bot):
+    """Cog for the FriendCode Filter feature."""
+    def __init__(self, bot: commands.bot) -> None:
+        """
+        Init method for the friend code filter.
+
+        Args:
+            bot: The discord.py bot representation.
+
+        Returns:
+            None.
+        """
         super(FriendCodeFilter, self).__init__()
         self.bot = bot
 
@@ -39,10 +50,23 @@ class FriendCodeFilter(commands.Cog):
     @commands.check(check_admin)
     @commands.check(check_admin_channel)
     async def addFriendChannel(
-        self, ctx, channel: TextChannel, secret: Optional[str] = "False"
-    ):
+        self,
+        ctx: commands.context,
+        channel: TextChannel,
+        secret: Optional[str] = "False"
+    ) -> None:
         """
-        Docstring goes here.
+        Method for the command to add a channel where friend codes are allowed.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The channel to be added.
+            secret: Whether the channel should be publicly stated to allow
+                friend codes.
+
+        Returns:
+            None
         """
         guild = ctx.guild
         ok = add_allowed_friend_code_channel(guild, channel, secret)
@@ -68,9 +92,17 @@ class FriendCodeFilter(commands.Cog):
         ),
         brief="Show a list of active schedules."
     )
-    async def listFriendChannels(self, ctx):
+    async def listFriendChannels(self, ctx: commands.context) -> None:
         """
-        Docstring goes here.
+        Method to send an embed to the request channel listing all the
+        friend code channels for that server.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         friend_db = load_friend_code_channels_db()
         if ctx.guild.id not in friend_db['guild'].values:
@@ -94,28 +126,51 @@ class FriendCodeFilter(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin)
     @commands.check(check_admin_channel)
-    async def removeFriendChannel(self, ctx, channel: TextChannel):
+    async def removeFriendChannel(
+        self,
+        ctx: commands.context,
+        channel: TextChannel
+    ) -> None:
         """
-        Docstring goes here.
+        Method for the command to remove a channel from the allowed friend
+        codes list.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The channel to be added.
+
+        Returns:
+            None
         """
         guild = ctx.guild
         ok = drop_allowed_friend_code_channel(guild, channel)
         if ok:
             msg = (
-                "{} removed from the friend code whitelist successfully.".format(
-                    channel.mention
-                )
+                f"{channel.mention} removed from the friend code"
+                " whitelist successfully."
             )
         else:
             msg = (
-                "Error when removing {} from the friend code whitelist.".format(
-                    channel.mention
-                )
+                f"Error when removing {channel.mention} from the friend code"
+                " whitelist."
             )
         await ctx.channel.send(msg)
 
     @commands.Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: Message) -> None:
+        """
+        Method run for each message received which checks for friend code
+        content and takes the appropriate action.
+
+        This is also where the any raids filter is performed.
+
+        Args:
+            message: The message object.
+
+        Returns:
+            None
+        """
         if check_bot(message):
             if not check_admin(message):
                 content = message.content.strip().lower()
@@ -134,13 +189,17 @@ class FriendCodeFilter(commands.Cog):
                             delete_after=30
                         )
                         await message.delete()
-                        log_channel_id = guild_db.loc[message.guild.id]['log_channel']
+                        log_channel_id = (
+                            guild_db.loc[message.guild.id]['log_channel']
+                        )
                         if log_channel_id != -1:
                             tz = guild_db.loc[message.guild.id]['tz']
                             log_channel = get(
                                 message.guild.channels, id=int(log_channel_id)
                             )
-                            embed = filter_delete_log_embed(message, tz, "Any raids filter.")
+                            embed = filter_delete_log_embed(
+                                message, tz, "Any raids filter."
+                            )
                             await log_channel.send(embed=embed)
                         return
 
@@ -163,46 +222,91 @@ class FriendCodeFilter(commands.Cog):
                             ]['channel']:
                                 msg += ' <#{}>'.format(c)
                             if guild_db.loc[message.guild.id]['meowth_raid_category'] != -1:
-                                msg += ' or any raid channel generated using the Pokenav bot.'
+                                msg += (
+                                    ' or any raid channel generated using'
+                                    ' the Pokenav bot.'
+                                )
                             await message.channel.send(
                                 msg,
                                 delete_after=30
                             )
                             await message.delete()
-                            log_channel_id = guild_db.loc[message.guild.id]['log_channel']
+                            log_channel_id = (
+                                guild_db.loc[message.guild.id]['log_channel']
+                            )
                             if log_channel_id != -1:
                                 tz = guild_db.loc[message.guild.id]['tz']
                                 log_channel = get(
-                                    message.guild.channels, id=int(log_channel_id)
+                                    message.guild.channels, id=int(
+                                        log_channel_id
+                                    )
                                 )
-                                embed = filter_delete_log_embed(message, tz, "Friend code filter.")
+                                embed = filter_delete_log_embed(
+                                    message, tz, "Friend code filter."
+                                )
                                 await log_channel.send(embed=embed)
 
-
     @commands.Cog.listener()
-    async def on_guild_channel_create(self, channel):
+    async def on_guild_channel_create(self, channel: GuildChannel) -> None:
+        """
+        Checks on a channel creation whether the channel has been created
+        under the category assigned as the meowth raid category.
+
+        If the channel is created under the category then the channel is
+        quietly added to the allowed list.
+
+        Args:
+            channel: The created channel object.
+
+        Returns:
+            None
+        """
         guild_db = load_guild_db()
-        guild_meowth_cat = guild_db.loc[channel.guild.id]['meowth_raid_category']
+        guild_meowth_cat = (
+            guild_db.loc[channel.guild.id]['meowth_raid_category']
+        )
         if guild_meowth_cat == -1:
             pass
         elif channel.category is not None:
             if channel.category.id == guild_meowth_cat:
                 # Add the newly created channel to allow fc
-                ok = add_allowed_friend_code_channel(channel.guild, channel, "True")
+                ok = add_allowed_friend_code_channel(
+                    channel.guild, channel, "True"
+                )
                 # TODO Add logging here.
             else:
                 pass
 
     @commands.Cog.listener()
-    async def on_guild_channel_delete(self, channel):
+    async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
+        """
+        Checks on a channel deletion whether the channel was under the category
+        assigned as the meowth raid category.
+
+        If the channel was under the category then the channel is removed from
+        the allowed list.
+
+        TODO: Need to support channel deletions of other channels otherwise
+              the database will get messy.
+
+        Args:
+            channel: The created channel object.
+
+        Returns:
+            None
+        """
         guild_db = load_guild_db()
-        guild_meowth_cat = guild_db.loc[channel.guild.id]['meowth_raid_category']
+        guild_meowth_cat = (
+            guild_db.loc[channel.guild.id]['meowth_raid_category']
+        )
         if guild_meowth_cat == -1:
             pass
         elif channel.category is not None:
             if channel.category.id == guild_meowth_cat:
                 # Add the newly created channel to allow fc
-                ok = drop_allowed_friend_code_channel(channel.guild, channel)
+                ok = drop_allowed_friend_code_channel(
+                    channel.guild, channel
+                )
                 # TODO Add logging here.
             else:
                 pass

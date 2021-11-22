@@ -1,12 +1,19 @@
+"""
+Misc. utility functions used throughout the bot.
+"""
+
 import pytz
 import datetime
 import os
 import re
 import logging
 import string
-from discord import Embed
-from discord.ext.commands import when_mentioned_or
+import pandas as pd
+
+from discord import Client, Embed, Message, User
+from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
+from typing import Callable, List, Optional
 
 
 load_dotenv(find_dotenv())
@@ -17,17 +24,36 @@ INACTIVE_TIME = os.getenv('INACTIVE_TIME')
 DELAY_TIME = os.getenv('DELAY_TIME')
 
 
-def get_current_time(tz):
+def get_current_time(tz: str) -> datetime.datetime:
     """
     Returns the current time in the selected time zone.
+
+    Args:
+        tz: The requested timezone.
+
+    Returns:
+        The current time as a datetime.datetime object.
     """
     tz = pytz.timezone(tz)
     return datetime.datetime.now(tz=tz)
 
 
-def get_schedule_embed(ctx, schedule_db, tz):
+def get_schedule_embed(
+    ctx: commands.context,
+    schedule_db: pd.DataFrame,
+    tz: str
+) -> Embed:
     """
-    Create an embed to show the schedules.
+    Create an embed to show the saved schedules.
+
+    Args:
+        ctx: The command context containing the message content and other
+            metadata.
+        schedule_db: The schedule database table as a pandas dataframe.
+        tz: The guild timezone, e.g., 'Australia/Sydney'.
+
+    Returns:
+        The embed containing the list of schedules.
     """
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
@@ -56,9 +82,21 @@ def get_schedule_embed(ctx, schedule_db, tz):
     return embed
 
 
-def get_friend_channels_embed(ctx, friend_db):
+def get_friend_channels_embed(
+    ctx: commands.context,
+    friend_db: pd.DataFrame
+) -> Embed:
     """
-    Create an embed to show the schedules.
+    Create an embed to show the allowed friend code channels.
+
+    Args:
+        ctx: The command context containing the message content and other
+            metadata.
+        friend_db: The friend channels database table as a pandas dataframe.
+
+    Returns:
+        The embed containing the list of friend channels.
+
     """
     embed = Embed(
         title='Friend Code Channels',
@@ -79,12 +117,26 @@ def get_friend_channels_embed(ctx, friend_db):
     return embed
 
 
-def get_settings_embed(ctx, guild_settings):
+def get_settings_embed(
+    ctx: commands.context,
+    guild_settings: pd.DataFrame
+) -> Embed:
     """
-    Create an embed to show the schedules.
+    Create an embed to show the settings of the bot on the guild the command
+    was used from.
+
+    Args:
+        ctx: The command context containing the message content and other
+            metadata.
+        guild_settings: The guild settings database table as a pandas dataframe.
+
+    Returns:
+        The embed containing the guild settings.
     """
     if guild_settings['meowth_raid_category'] != -1:
-        cat_name = ctx.guild.get_channel(guild_settings['meowth_raid_category']).name
+        cat_name = ctx.guild.get_channel(
+            guild_settings['meowth_raid_category']
+        ).name
     else:
         cat_name = 'Not set'
 
@@ -150,17 +202,16 @@ def get_settings_embed(ctx, guild_settings):
     return embed
 
 
-def get_logger(logfile=None):
+def get_logger(logfile: Optional[str] = None) -> logging.RootLogger:
     '''
-    Set up the logger
+    Set up the logger.
 
-    :param logfile: File to output log to
-    :type logfile: str
+    Args:
+        logfile: File to output log to.
 
-    :returns: Logger
-    :rtype: `logging.RootLogger`
+    Returns:
+        The root logger object.
     '''
-
     logger = logging.getLogger()
     s = logging.StreamHandler()
     if logfile is not None:
@@ -184,20 +235,55 @@ def get_logger(logfile=None):
     return logger
 
 
-def strip_url(content):
+def strip_url(content: str) -> str:
+    """
+    Strip URLs from message string content.
+
+    Args:
+        content: The message content.
+
+    Returns:
+        The message content with URLs removed.
+    """
     return re.sub(r'http\S+', '', content)
 
 
-def strip_mentions(content):
+def strip_mentions(content: str) -> str:
+    """
+    Strip discord mentions from message string content.
+
+    Args:
+        content: The message content.
+
+    Returns:
+        The message content with mentions removed.
+    """
     return re.sub(r'<(?:[^\d>]+|:[A-Za-z0-9]+:)\w+>', '', content)
 
 
-def strip_punctuation(content):
+def strip_punctuation(content: str) -> str:
+    """
+    Remove punctuation from the message content.
+
+    Args:
+        content: The message content.
+
+    Returns:
+        The message content with punctuation removed.
+    """
     return content.translate(str.maketrans('', '', string.punctuation))
 
 
-def get_hour_emoji(time: str):
+def get_hour_emoji(time: str) -> str:
+    """
+    Get the relevant emoji to represent the current time.
 
+    Args:
+        time: The time in 24h %H:%M format.
+
+    Returns:
+        The emoji for the current time.
+    """
     hour, minute = time.split(":")
 
     if minute[:1] in ["0", "1", "2"]:
@@ -237,11 +323,32 @@ def get_hour_emoji(time: str):
     return emojis[key]
 
 
-def get_prefix(client, message):
+def get_prefix(client: User, message: Message) -> Callable[[Client], List[str]]:
+    """
+    Fetch the current prefix of the guild and check whether it has been called.
+
+    Args:
+        client: The user that represents the bot.
+        message: The Message object that represents the message of the command.
+
+    Returns:
+        The callable to be passed to the bot initialisation.
+    """
     from .db import get_guild_prefix
     prefix = get_guild_prefix(int(message.guild.id))
-    return when_mentioned_or(*prefix)(client, message)
+
+    return commands.when_mentioned_or(*prefix)(client, message)
 
 
-def str2bool(v):
-  return v.lower() in ["yes", "true", "t", "1", "on"]
+def str2bool(v: str) -> bool:
+    """
+    Converts a string representation of True entry to a bool.
+
+    Args:
+        v: The string to convert. True will be recognised by: 'yes', 'true',
+            't', '1' or 'on'.
+
+    Returns:
+        Bool representation of the string.
+    """
+    return v.lower() in ["yes", "true", "t", "1", "on"]
