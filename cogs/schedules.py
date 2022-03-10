@@ -4,7 +4,7 @@ import datetime
 import os
 import logging
 
-from discord import TextChannel, Reaction, User
+from discord import TextChannel, Reaction, User, Role, PermissionOverwrite
 from discord.errors import (
     DiscordServerError, Forbidden,
 )
@@ -456,6 +456,208 @@ class Schedules(commands.Cog):
 
     @commands.command(
         help=(
+            "Provides the ability to manually close a channel at any time."
+            " Normal close settings will apply and the channel will open"
+            " again at the scheduled time (unless manually opened earlier)."
+            " Only works on channels with an active schedule."
+        ),
+        brief="Manually close a channel."
+    )
+    async def manualClose(
+        self,
+        ctx: commands.context,
+        channel: TextChannel,
+        silent: bool = False
+    ) -> None:
+        """
+        A command to manually close a channel.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The channel to be closed.
+            silent: Whether to close the channel silently.
+
+        Returns:
+            None
+        """
+        # check if in schedule
+        # check if already closed
+        # close
+        schedule_db = load_schedule_db(active_only=True)
+        if channel.id not in schedule_db['channel'].to_numpy():
+            await ctx.channel.send("That channel has no schedule set.")
+
+            return
+
+        # Grab the schedule row
+        row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
+
+        guild_db = load_guild_db()
+        guild_tz = guild_db.loc[ctx.guild.id]['tz']
+
+        log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
+        if log_channel_id != -1:
+            log_channel = self.bot.get_channel(log_channel_id)
+        else:
+            log_channel = None
+        time_channel_id = int(
+            guild_db.loc[ctx.guild.id]['time_channel']
+        )
+        if time_channel_id != -1:
+            time_format_fill = f"<#{time_channel_id}>"
+        else:
+            time_format_fill = "Unavailable"
+
+        role = get(channel.guild.roles, id=row.role)
+        # get current overwrites
+        overwrites = channel.overwrites_for(role)
+        allow, deny = overwrites.pair()
+
+        if deny.send_messages is True:
+            # this means the channel is already closed
+            await ctx.channel.send(f"{channel.mention} is already closed!")
+
+            return
+
+        await self.close_channel(
+            channel,
+            role,
+            overwrites,
+            row['open'],
+            row['close_message'],
+            silent,
+            log_channel,
+            guild_tz,
+            time_format_fill,
+            row['rowid']
+        )
+
+        await ctx.channel.send(f"Closed {channel.mention}!")
+
+    @manualClose.error
+    async def manualClose_error(self, ctx: commands.context, error):
+        """
+        Handles any errors from manualClose.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            error (Exception): The error passed from manualClose.
+
+        Returns:
+            None
+        """
+        if isinstance(error, commands.ChannelNotFound):
+            await ctx.channel.send(f"{error}")
+        else:
+            await ctx.channel.send(
+                f"Unknown error when processing command: {error}"
+            )
+
+    @commands.command(
+        help=(
+            "Provides the ability to manually open a channel at any time."
+            " Normal open settings will apply and the channel will close"
+            " at the scheduled time (unless manually closed earlier)."
+            " Only works on channels with an active schedule."
+        ),
+        brief="Manually open a channel."
+    )
+    async def manualOpen(
+        self,
+        ctx: commands.context,
+        channel: TextChannel,
+        silent: bool = False
+    ) -> None:
+        """
+        A command to manually close a channel.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The channel to be opened.
+            silent: Whether to open the channel silently.
+
+        Returns:
+            None
+        """
+        # check if in schedule
+        # check if already open
+        # open
+        schedule_db = load_schedule_db()
+        if channel.id not in schedule_db['channel'].to_numpy():
+            await ctx.channel.send("That channel has no schedule set.")
+
+            return
+
+        # Grab the schedule row
+        row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
+
+        guild_db = load_guild_db()
+        guild_tz = guild_db.loc[ctx.guild.id]['tz']
+
+        log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
+        if log_channel_id != -1:
+            log_channel = self.bot.get_channel(log_channel_id)
+        else:
+            log_channel = None
+
+        time_channel_id = int(
+            guild_db.loc[ctx.guild.id]['time_channel']
+        )
+        if time_channel_id != -1:
+            time_format_fill = f"<#{time_channel_id}>"
+        else:
+            time_format_fill = "Unavailable"
+
+        role = get(channel.guild.roles, id=row.role)
+        # get current overwrites
+        overwrites = channel.overwrites_for(role)
+        allow, deny = overwrites.pair()
+
+        if allow.send_messages == deny.send_messages == False:
+            # this means the channel is already open
+            await ctx.channel.send(f"{channel.mention} is already open!")
+
+            return
+
+        await self.open_channel(
+            channel,
+            role,
+            overwrites,
+            row['close'],
+            row['open_message'],
+            silent,
+            log_channel,
+            guild_tz,
+            time_format_fill
+        )
+
+        await ctx.channel.send(f"Opened {channel.mention}!")
+
+    @manualOpen.error
+    async def manualOpen_error(self, ctx: commands.context, error) -> None:
+        """
+        Handles any errors from manualOpen.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            error (Exception): The error passed from manualOpen.
+
+        Returns:
+            None
+        """
+        if isinstance(error, commands.ChannelNotFound):
+            await ctx.channel.send(f"{error}")
+        else:
+            await ctx.channel.send(
+                f"Unknown error when processing command: {error}"
+            )
+
+    @commands.command(
+        help=(
             "Remove a channel from the active schedules."
             " Use the 'id' to remove."
         ),
@@ -761,6 +963,130 @@ class Schedules(commands.Cog):
         )
         await ctx.send(msg)
 
+    async def close_channel(
+        self,
+        channel: TextChannel,
+        role: Role,
+        overwrites: PermissionOverwrite,
+        open: str,
+        custom_close_message: str,
+        silent: bool,
+        log_channel: Optional[TextChannel],
+        tz: str,
+        time_format_fill: str,
+        rowid: int,
+    ) -> None:
+        """
+        The opening channel process.
+
+        Args:
+            channel: The channel to be closed.
+            role: The role to apply the toggle to.
+            overwrites: The channel overwrites for the role.
+            open: The open time of the channel from its schedule.
+            custom_close_message: The custom close message to add to the
+                default message.
+            silent: Whether to close silently.
+            log_channel: The guild log channel.
+            tz: Guild timezone as a string.
+            time_format_fill: The string to fill in the opening time in the
+                open message.
+            rowid: The id of the schedule so the delay time can be reset.
+
+        Returns:
+            None
+        """
+        now = get_current_time(tz=tz)
+
+        close_message = DEFAULT_CLOSE_MESSAGE.format(
+            datetime.datetime.strptime(
+                open, '%H:%M'
+            ).strftime('%I:%M %p'),
+            now.tzname(),
+            time_format_fill
+        )
+        if custom_close_message != "None":
+            close_message += "\n\n" + custom_close_message
+        if not silent:
+            await channel.send(close_message)
+
+        overwrites.send_messages = False
+
+        await channel.set_permissions(role, overwrite=overwrites)
+
+        update_dynamic_close(rowid)
+        update_current_delay_num(rowid)
+
+        if log_channel is not None:
+            embed = schedule_log_embed(
+                channel,
+                tz,
+                'close'
+            )
+            await log_channel.send(embed=embed)
+
+        logger.info(
+            f'Channel {channel.name} closed in guild'
+            f' {channel.guild.name}.'
+        )
+
+    async def open_channel(
+        self,
+        channel: TextChannel,
+        role: Role,
+        overwrites: PermissionOverwrite,
+        close: str,
+        custom_open_message: str,
+        silent: bool,
+        log_channel: Optional[TextChannel],
+        tz: str,
+        time_format_fill: str,
+    ) -> None:
+        """
+        The opening channel process.
+
+        Args:
+            channel: The channel to be opened.
+            role: The role to apply the toggle to.
+            overwrites: The channel overwrites for the role.
+            close: The close time of the channel from its schedule.
+            custom_open_message: The custom open message to add to the
+                default message.
+            silent: Whether to open silently.
+            log_channel: The guild log channel.
+            tz: Guild timezone as a string.
+            time_format_fill: The string to fill in the closing time in the
+                open message.
+
+        Returns:
+            None
+        """
+        now = get_current_time(tz=tz)
+        overwrites.send_messages = None
+        await channel.set_permissions(role, overwrite=overwrites)
+        open_message = DEFAULT_OPEN_MESSAGE.format(
+            datetime.datetime.strptime(
+                close, '%H:%M'
+            ).strftime('%I:%M %p'),
+            now.tzname()
+        )
+        if custom_open_message != "None":
+            open_message += "\n\n" + custom_open_message
+        if not silent:
+            await channel.send(open_message)
+
+        logger.info(
+            f'Opened {channel.name} in {channel.guild.name}.'
+        )
+
+        if log_channel is not None:
+            embed = schedule_log_embed(
+                channel,
+                tz,
+                'open'
+            )
+            await log_channel.send(embed=embed)
+
     @tasks.loop(seconds=60)
     async def channel_manager(self) -> None:
         """
@@ -799,6 +1125,8 @@ class Schedules(commands.Cog):
                     log_channel_id = int(guild_db.loc[guild_id]['log_channel'])
                     if log_channel_id != -1:
                         log_channel = self.bot.get_channel(log_channel_id)
+                    else:
+                        log_channel = None
 
                     time_channel_id = int(
                         guild_db.loc[guild_id]['time_channel']
@@ -824,7 +1152,7 @@ class Schedules(commands.Cog):
                         logger.warning(
                             f'Channel {channel.name} already neutral, skipping opening.'
                         )
-                        if log_channel_id != -1:
+                        if log_channel is not None:
                             embed = schedule_log_embed(
                                 channel,
                                 tz,
@@ -833,30 +1161,17 @@ class Schedules(commands.Cog):
                             await log_channel.send(embed=embed)
                         continue
 
-                    overwrites.send_messages = None
-                    await channel.set_permissions(role, overwrite=overwrites)
-                    open_message = DEFAULT_OPEN_MESSAGE.format(
-                        datetime.datetime.strptime(
-                            row.close, '%H:%M'
-                        ).strftime('%I:%M %p'),
-                        now.tzname()
+                    await self.open_channel(
+                        channel,
+                        role,
+                        overwrites,
+                        row['close'],
+                        row['open_message'],
+                        row['silent'],
+                        log_channel,
+                        tz,
+                        time_format_fill
                     )
-                    if row['open_message'] != "None":
-                        open_message += "\n\n" + row['open_message']
-                    if not row.silent:
-                        await channel.send(open_message)
-
-                    logger.info(
-                        f'Opened {channel.name} in {channel.guild.name}.'
-                    )
-
-                    if log_channel_id != -1:
-                        embed = schedule_log_embed(
-                            channel,
-                            tz,
-                            'open'
-                        )
-                        await log_channel.send(embed=embed)
 
                     continue
 
@@ -890,7 +1205,7 @@ class Schedules(commands.Cog):
                                     " closing will be delayed."
                                 )
 
-                            if log_channel_id != -1:
+                            if log_channel is not None:
                                 embed = schedule_log_embed(
                                     channel,
                                     tz,
@@ -908,7 +1223,7 @@ class Schedules(commands.Cog):
                             f'Channel {channel.name} already closed, skipping closing.'
                         )
 
-                        if log_channel_id != -1:
+                        if log_channel is not None:
                             embed = schedule_log_embed(
                                 channel,
                                 tz,
@@ -936,7 +1251,7 @@ class Schedules(commands.Cog):
 
                         update_current_delay_num(row.rowid, row.current_delay_num + 1)
 
-                        if log_channel_id != -1:
+                        if log_channel is not None:
                             embed = schedule_log_embed(
                                 channel,
                                 tz,
@@ -955,33 +1270,17 @@ class Schedules(commands.Cog):
                         continue
 
                     else:
-                        close_message = DEFAULT_CLOSE_MESSAGE.format(
-                            datetime.datetime.strptime(
-                                row.open, '%H:%M'
-                            ).strftime('%I:%M %p'),
-                            now.tzname(),
-                            time_format_fill
-                        )
-                        if row['close_message'] != "None":
-                            close_message += "\n\n" + row['close_message']
-                        if not row.silent:
-                            await channel.send(close_message)
-                        overwrites.send_messages = False
-                        await channel.set_permissions(role, overwrite=overwrites)
-                        update_dynamic_close(row.rowid)
-                        update_current_delay_num(row.rowid)
-
-                        if log_channel_id != -1:
-                            embed = schedule_log_embed(
-                                channel,
-                                tz,
-                                'close'
-                            )
-                            await log_channel.send(embed=embed)
-
-                        logger.info(
-                            f'Channel {channel.name} closed in guild'
-                            f' {channel.guild.name}.'
+                        await self.close_channel(
+                            channel,
+                            role,
+                            overwrites,
+                            row['open'],
+                            row['close_message'],
+                            row['silent'],
+                            log_channel,
+                            tz,
+                            time_format_fill,
+                            row['rowid']
                         )
 
                 if row.dynamic_close == now_compare:
@@ -994,7 +1293,7 @@ class Schedules(commands.Cog):
                             f' {channel.guild.name}, skipping closing.'
                         )
 
-                        if log_channel_id != -1:
+                        if log_channel is not None:
                             embed = schedule_log_embed(
                                 channel,
                                 tz,
@@ -1018,7 +1317,7 @@ class Schedules(commands.Cog):
 
                         update_current_delay_num(row.rowid, row.current_delay_num + 1)
 
-                        if log_channel_id != -1:
+                        if log_channel is not None:
                             embed = schedule_log_embed(
                                 channel,
                                 tz,
@@ -1046,34 +1345,17 @@ class Schedules(commands.Cog):
                         continue
 
                     else:
-                        update_dynamic_close(row.rowid)
-                        update_current_delay_num(row.rowid)
-                        close_message = DEFAULT_CLOSE_MESSAGE.format(
-                            datetime.datetime.strptime(
-                                row.open, '%H:%M'
-                            ).strftime('%I:%M %p'),
-                            now.tzname(),
-                            time_format_fill
-                        )
-                        if row['close_message'] != "None":
-                            close_message += "\n\n" + row['close_message']
-
-                        if not row.silent:
-                            await channel.send(close_message)
-                        overwrites.send_messages = False
-                        await channel.set_permissions(role, overwrite=overwrites)
-
-                        if log_channel_id != -1:
-                            embed = schedule_log_embed(
-                                channel,
-                                tz,
-                                'close'
-                            )
-                            await log_channel.send(embed=embed)
-
-                        logger.info(
-                            f'Channel {channel.name} closed in guild'
-                            f' {channel.guild.name}.'
+                        await self.close_channel(
+                            channel,
+                            role,
+                            overwrites,
+                            row['open'],
+                            row['close_message'],
+                            row['silent'],
+                            log_channel,
+                            tz,
+                            time_format_fill,
+                            row['rowid']
                         )
 
     @channel_manager.before_loop
