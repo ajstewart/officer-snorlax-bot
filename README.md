@@ -268,7 +268,7 @@ Multiple schedules:
 
 All schedules:
 ```
-@Officer Snorlax deactivateAllSchedules 1 2 3 10
+@Officer Snorlax deactivateAllSchedules
 ```
 
 Similarly a schedule can be set to active again using the following:
@@ -282,7 +282,7 @@ Similarly a schedule can be set to active again using the following:
 ```
 
 ```
-@Officer Snorlax activateAllSchedules 1 2 3 10
+@Officer Snorlax activateAllSchedules
 ```
 
 ### Removing a Schedule
@@ -301,7 +301,7 @@ Multiple schedules:
 
 All schedules:
 ```
-@Officer Snorlax removeAllSchedules 1 2 3 10
+@Officer Snorlax removeAllSchedules
 ```
 
 The `removeAllSchedules` command will ask for confirmation before processing request:
@@ -309,6 +309,27 @@ The `removeAllSchedules` command will ask for confirmation before processing req
 ![removeAllSchedules](/screenshots/remove_all_confirmation.png)
 
 Click on the green tick emoji to confirm the deletion, or the red cross to cancel.
+
+### Manual Open and Closing
+
+Channels with active schedules can have the opening or closing triggered manually.
+This can be done with the commands:
+```
+@Officer Snorlax manualOpen <#channel-mention>
+```
+and
+```
+@Officer Snorlax manualClose <#channel-mention>
+```
+
+There is also an option to perform the action silently by entering:
+```
+@Officer Snorlax manualOpen <#channel-mention> True
+```
+
+By default silent mode is turned off when using the manual commands regardless of the schedule setting.
+
+**Manual opening and closing only works on channels with an active schedule!**
 
 ## Friend Code Filtering
 
