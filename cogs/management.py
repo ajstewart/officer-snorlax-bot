@@ -1,9 +1,16 @@
+"""
+The management cog which contains commands related to the management
+and set up of the bot.
+"""
+
 import os
 import logging
 
-from typing import Optional
-from discord import TextChannel
+from discord import Guild, TextChannel
 from discord.ext import commands, tasks
+from dotenv import load_dotenv, find_dotenv
+from typing import Optional
+
 from .utils.db import (
     load_guild_db,
     add_guild_admin_channel,
@@ -18,10 +25,13 @@ from .utils.db import (
 )
 from .utils.utils import get_current_time, get_settings_embed
 from .utils.checks import (
-    check_admin_channel, check_admin, check_valid_timezone, check_bot,
+    check_admin_channel,
+    check_admin,
+    check_valid_timezone,
+    check_bot,
     check_guild_exists
 )
-from dotenv import load_dotenv, find_dotenv
+
 
 logger = logging.getLogger()
 load_dotenv(find_dotenv())
@@ -29,8 +39,22 @@ DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 
 
 class Management(commands.Cog):
-    """docstring for Management"""
-    def __init__(self, bot):
+    """
+    Cog for the management commands.
+
+    All commands (apart from setting the admin channel) must be requested
+    from the designated guild admin channel.
+    """
+    def __init__(self, bot: commands.bot) -> None:
+        """
+        Init method for management.
+
+        Args:
+            bot: The discord.py bot representation.
+
+        Returns:
+            None.
+        """
         super(Management, self).__init__()
         self.bot = bot
 
@@ -44,9 +68,16 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def activateAnyRaidsFilter(self, ctx):
+    async def activateAnyRaidsFilter(self, ctx: commands.context) -> None:
         """
-        Docstring goes here.
+        Method to activate the any raids filter on the guild.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         guild_db = load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['any_raids_filter']
@@ -57,7 +88,9 @@ class Management(commands.Cog):
             if ok:
                 msg = ("'Any raids' filter activated.")
             else:
-                msg = ("Error when attempting to activate the 'Any raids' filter")
+                msg = (
+                    "Error when attempting to activate the 'Any raids' filter"
+                )
 
         await ctx.channel.send(msg)
 
@@ -70,9 +103,16 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def deactivateAnyRaidsFilter(self, ctx):
+    async def deactivateAnyRaidsFilter(self, ctx: commands.context):
         """
-        Docstring goes here.
+        Command to deactivate the any raids filter.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         guild_db = load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['any_raids_filter']
@@ -83,24 +123,33 @@ class Management(commands.Cog):
             if ok:
                 msg = ("'Any raids' filter deactivated.")
             else:
-                msg = ("Error when attempting to deactivate the 'Any raids' filter")
+                msg = (
+                    "Error when attempting to deactivate the 'Any raids' filter"
+                )
 
         await ctx.channel.send(msg)
 
 
     @commands.command(
         help=(
-            "Turn on the 'join name' filter. If a user joins a server with a name"
-            " that is on the ban list then Snorlax will ban them."
+            "Turn on the 'join name' filter. If a user joins a server with a "
+            "name that is on the ban list then Snorlax will ban them."
         ),
         brief="Turns on the 'join name' filter."
     )
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def activateJoinNameFilter(self, ctx):
+    async def activateJoinNameFilter(self, ctx: commands.context) -> None:
         """
-        Docstring goes here.
+        Command to activate the join name filter.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         guild_db = load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['join_name_filter']
@@ -124,9 +173,16 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def deactivateJoinNameFilter(self, ctx):
+    async def deactivateJoinNameFilter(self, ctx: commands.context) -> None:
         """
-        Docstring goes here.
+        Command to deactivate the join name filter.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         guild_db = load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['join_name_filter']
@@ -137,7 +193,9 @@ class Management(commands.Cog):
             if ok:
                 msg = ("'Join name' filter deactivated.")
             else:
-                msg = ("Error when attempting to deactivate the 'Join name' filter")
+                msg = (
+                    "Error when attempting to deactivate the 'Join name' filter"
+                )
 
         await ctx.channel.send(msg)
 
@@ -150,9 +208,16 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def currentTime(self, ctx):
+    async def currentTime(self, ctx: commands.context) -> None:
         """
-        Docstring goes here.
+        Command to ask the bot to send a message containing the current time.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         guild_db = load_guild_db()
         tz = guild_db.loc[ctx.guild.id]['tz']
@@ -174,7 +239,17 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def ping(self, ctx):
+    async def ping(self, ctx: commands.context) -> None:
+        """
+        Command to return a pong to a ping.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
+        """
         await ctx.channel.send("pong")
 
     @commands.command(
@@ -187,9 +262,21 @@ class Management(commands.Cog):
     )
     @commands.check(check_bot)
     @commands.check(check_admin)
-    async def setAdminChannel(self, ctx, channel: TextChannel, tz=DEFAULT_TZ):
+    async def setAdminChannel(
+        self,
+        ctx: commands.context,
+        channel: TextChannel
+    ) -> None:
         """
-        Docstring goes here.
+        Sets the admin channel for a guild.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The channel to be used as the admin channel.
+
+        Returns:
+            None
         """
         guild = ctx.guild
         ok = add_guild_admin_channel(guild, channel)
@@ -216,9 +303,21 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def setLogChannel(self, ctx, channel: TextChannel):
+    async def setLogChannel(
+        self,
+        ctx: commands.context,
+        channel: TextChannel
+    ) -> None:
         """
-        Docstring goes here.
+        Sets the log channel for a guild.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The channel to be used as the log channel.
+
+        Returns:
+            None
         """
         guild = ctx.guild
         ok = add_guild_log_channel(guild, channel)
@@ -246,9 +345,20 @@ class Management(commands.Cog):
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
     async def setMeowthRaidCategory(
-        self, ctx, category_id: int=-1):
+        self,
+        ctx: commands.context,
+        category_id: int = -1
+    ) -> None:
         """
-        Docstring goes here.
+        Sets the Meowth/Pokenav raid category for a guild.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            channel: The category to be set as the meowth category.
+
+        Returns:
+            None
         """
         guild = ctx.guild
         channel = guild.get_channel(category_id)
@@ -280,9 +390,16 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def resetMeowthRaidCategory(self, ctx):
+    async def resetMeowthRaidCategory(self, ctx: commands.context) -> None:
         """
-        Docstring goes here.
+        Resets the Meowth/Pokenav raid category for a guild.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         guild = ctx.guild
         ok = add_guild_meowth_raid_category(guild, -1)
@@ -304,9 +421,17 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def setTimezone(self, ctx, tz: str):
+    async def setTimezone(self, ctx: commands.context, tz: str) -> None:
         """
-        Docstring goes here.
+        Sets the timezone for a guild.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            tz: The timezone in string form, e.g. 'Australia/Sydney'.
+
+        Returns:
+            None
         """
         if not check_valid_timezone(tz):
             msg = '{} is not a valid timezone'.format(
@@ -335,9 +460,17 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def setPrefix(self, ctx, prefix: str):
+    async def setPrefix(self, ctx: commands.context, prefix: str) -> None:
         """
-        Docstring goes here.
+        Sets the command prefix for a guild.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+            prefix: The prefix to use. Must be 3 or less characters in length.
+
+        Returns:
+            None
         """
         guild_id = ctx.guild.id
 
@@ -368,9 +501,16 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.check(check_admin)
-    async def showSettings(self, ctx):
+    async def showSettings(self, ctx: commands.context) -> None:
         """
-        Docstring goes here.
+        Shows the bot settings for the guild using an embed.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
         guild_db = load_guild_db()
         if ctx.guild.id not in guild_db.index:
@@ -392,9 +532,16 @@ class Management(commands.Cog):
     @commands.check(check_bot)
     @commands.check(check_admin_channel)
     @commands.is_owner()
-    async def shutdown(self, ctx):
+    async def shutdown(self, ctx: commands.context) -> None:
         """
         Function to force the bot to shutdown.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            None
         """
 
         await ctx.channel.send(
@@ -403,9 +550,15 @@ class Management(commands.Cog):
         await ctx.bot.logout()
 
     @commands.Cog.listener()
-    async def on_guild_join(self, guild):
+    async def on_guild_join(self, guild: Guild) -> None:
         """
-        Process to complete when a guild is joined.
+        Process to complete when the bot joins a new guild.
+
+        Args:
+            guild: The guild object representing the new guild.
+
+        Returns:
+            None
         """
         # check if the new guild is already in the database
         if check_guild_exists(guild.id):
@@ -418,9 +571,15 @@ class Management(commands.Cog):
 
 
     @commands.Cog.listener()
-    async def on_guild_remove(self, guild):
+    async def on_guild_remove(self, guild: Guild) -> None:
         """
         Process to complete when a guild is removed.
+
+        Args:
+            guild: The guild object representing the removed guild.
+
+        Returns:
+            None
         """
         # check if the new guild is already in the database
         if check_guild_exists(guild.id):

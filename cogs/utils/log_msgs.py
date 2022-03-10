@@ -1,21 +1,42 @@
+"""
+Contains the embeds that are used as part of the logging.
+"""
 import datetime
 import pytz
-from discord import Embed
+
+from discord import TextChannel, Embed, Message, User
 from dotenv import load_dotenv, find_dotenv
+from typing import Optional
 
 
 load_dotenv(find_dotenv())
 
 
-def filter_delete_log_embed(message, tz, reason="None") -> Embed:
+def filter_delete_log_embed(
+    message: Message,
+    tz: str,
+    reason: Optional[str] = "None"
+) -> Embed:
     """
-    Create an embed to send to the logging channel
+    Create an embed to send to the logging channel upon a filter message
+    deletion.
+
+    Args:
+        message: The message that triggered the filter.
+        tz: The timezone of the guild.
+        reason: The reason of the deletion.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
     """
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
     user = message.author
     embed = Embed(
-        description=f'**Message from {user.mention} deleted in {message.channel.mention}**\n{message.content}',
+        description=(
+            f'**Message from {user.mention} deleted in '
+            f'{message.channel.mention}**\n{message.content}'
+        ),
         timestamp=now,
         color=2061822
     )
@@ -34,9 +55,22 @@ def filter_delete_log_embed(message, tz, reason="None") -> Embed:
     return embed
 
 
-def ban_log_embed(user, tz, reason="None") -> Embed:
+def ban_log_embed(
+    user: User,
+    tz: str,
+    reason: Optional[str] = "None"
+) -> Embed:
     """
-    Create an embed to send to the logging channel
+    Create an embed to send to the logging channel on the event of a member
+    being banned using the join name filter.
+
+    Args:
+        user: The user that triggered the filter.
+        tz: The timezone of the guild.
+        reason: The reason of the ban.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
     """
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
@@ -61,10 +95,27 @@ def ban_log_embed(user, tz, reason="None") -> Embed:
 
 
 def schedule_log_embed(
-    channel, tz, stype, delay_mins=-1, delay_num=-1, max_delay_num=-1,
+    channel: TextChannel,
+    tz: str,
+    stype: str,
+    delay_mins: int = -1,
+    delay_num: int = -1,
+    max_delay_num: int = -1
 ) -> Embed:
     """
-    Create an embed to send to the logging channel
+    Create an embed to send to the logging channel for channel schedule events.
+
+    Args:
+        channel: The channel for which the schedule is being applied to.
+        tz: The timezone of the guild.
+        stype: The schedule event type.
+        delay_mins: The number of mins to delay closing.
+        delay_num: The delay number of the schedule, i.e. how many times the
+            closing has been delayed.
+        max_delay_num: The maximum number of delays allowed.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
     """
 
     if stype not in [

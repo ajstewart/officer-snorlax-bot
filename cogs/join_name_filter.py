@@ -1,27 +1,20 @@
-from discord.ext import commands
-from discord import TextChannel, Forbidden
-from typing import Optional
+"""
+Cog for the join name filter.
+"""
+
 import os
 import discord
 import logging
+
+from discord.ext import commands
+from discord import Forbidden, Member
 from discord.utils import get
-from .utils.checks import (
-    check_admin,
-    check_admin_channel,
-    check_time_format,
-    check_for_friend_code,
-    check_bot,
-    check_for_any_raids
-)
+from dotenv import load_dotenv, find_dotenv
+
 from .utils.db import (
     load_guild_db,
-    load_friend_code_channels_db,
-    add_allowed_friend_code_channel,
-    drop_allowed_friend_code_channel
 )
 from .utils.log_msgs import ban_log_embed
-from .utils.utils import get_friend_channels_embed
-from dotenv import load_dotenv, find_dotenv
 
 
 load_dotenv(find_dotenv())
@@ -30,14 +23,38 @@ logger = logging.getLogger()
 
 
 class JoinNameFilter(commands.Cog):
-    """docstring for Initial"""
-    def __init__(self, bot):
+    """
+    Cog for immediately banning a user that joins the server that matches a
+    specified name.
+    """
+    def __init__(self, bot: commands.bot) -> None:
+        """
+        The initialisation method.
+
+        Args:
+            bot: The discord.py bot representation.
+
+        Returns:
+            None
+        """
         super(JoinNameFilter, self).__init__()
         self.bot = bot
 
     ## Handle new members
     @commands.Cog.listener()
-    async def on_member_join(self, member):
+    async def on_member_join(self, member: Member) -> None:
+        """
+        The main method that checks for and then bans any new members that
+        match a name provided.
+
+        Names are defined in the dotenv settings file.
+
+        Args:
+            member: The member object of the user who has joined.
+
+        Returns:
+            None
+        """
         member_guild_id = member.guild.id
         member_guild_name = member.guild.name
         guild_db = load_guild_db()
@@ -47,19 +64,29 @@ class JoinNameFilter(commands.Cog):
             for pattern in BAN_NAMES:
                 if pattern.lower() in member.name.lower():
                     try:
-                        await member.ban(reason="Triggered Snorlax name pattern detection.")
-                        logger.info(
-                            f'Banned member {member.name} from {member_guild_name}'
+                        await member.ban(
+                            reason="Triggered Snorlax name pattern detection."
                         )
-                        log_channel_id = guild_db.loc[member_guild_id]['log_channel']
+                        logger.info(
+                            f'Banned member {member.name}'
+                            f' from {member_guild_name}'
+                        )
+                        log_channel_id = (
+                            guild_db.loc[member_guild_id]['log_channel']
+                        )
                         if log_channel_id != -1:
                             tz = guild_db.loc[member_guild_id]['tz']
                             log_channel = get(
                                 member.guild.channels, id=int(log_channel_id)
                             )
-                            embed = ban_log_embed(member, tz, f"Name filter matched with '{pattern}'.")
+                            embed = ban_log_embed(
+                                member,
+                                tz,
+                                f"Name filter matched with '{pattern}'."
+                            )
                             await log_channel.send(embed=embed)
                     except Forbidden:
                         logger.error(
-                            f'Failed to ban member {member.name} from {member_guild_name}'
+                            f'Failed to ban member {member.name}'
+                            f' from {member_guild_name}'
                         )
