@@ -180,10 +180,10 @@ async def setup(bot: commands.bot) -> None:
     Args:
         bot: The bot for which the cog is to be added.
     """
-    if bot.guild_server is not None:
+    if bot.test_guild is not None:
         await bot.add_cog(
             TimeChannel(bot),
-            guild=discord.Object(id=bot.guild_server)
+            guild=discord.Object(id=bot.test_guild)
         )
     else:
         await bot.add_cog(TimeChannel(bot))

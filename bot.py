@@ -11,7 +11,7 @@ from cogs.utils.utils import get_logger, get_prefix
 class MyBot(commands.Bot):
     """Bot class.
     """
-    def __init__(self, command_prefix, intents, version, guild_server=None):
+    def __init__(self, command_prefix, intents, version, test_guild=None):
         super().__init__(
             command_prefix=command_prefix,
             intents=intents
@@ -26,16 +26,16 @@ class MyBot(commands.Bot):
         ]
         self.help_command.add_check(check_admin)
         self.my_version = version
-        self.guild_server = guild_server
+        self.test_guild = test_guild
 
     async def setup_hook(self):
         for ext in self.initial_extensions:
             await self.load_extension(ext)
 
-        if self.guild_server is None:
+        if self.test_guild is None:
             foo = await self.tree.sync()
         else:
-            foo = await self.tree.sync(guild=discord.Object(id=self.guild_server))
+            foo = await self.tree.sync(guild=discord.Object(id=self.test_guild))
         print(foo)
 
     async def on_ready(self):
@@ -47,13 +47,13 @@ load_dotenv()
 
 # GRAB THE API TOKEN FROM THE .ENV FILE.
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-# Set the GUILD_SERVER ID
+# Set the TEST_GUILD ID
 try:
-    GUILD_SERVER = int(os.getenv('GUILD_SERVER'))
-    if len(str(GUILD_SERVER)) < 17:
-        raise ValueError(f"{GUILD_SERVER} is not a valid guild ID!")
+    TEST_GUILD = int(os.getenv('TEST_GUILD'))
+    if len(str(TEST_GUILD)) < 17:
+        raise ValueError(f"{TEST_GUILD} is not a valid guild ID!")
 except Exception as e:
-    GUILD_SERVER = None
+    TEST_GUILD = None
 
 version = '1.0.0dev'
 
@@ -64,5 +64,5 @@ intents.message_content = True
 logger = get_logger(logfile='snorlax.log')
 logger.info('Starting bot...')
 
-bot = MyBot((get_prefix), intents, version, guild_server=GUILD_SERVER)
+bot = MyBot((get_prefix), intents, version, test_guild=TEST_GUILD)
 bot.run(DISCORD_TOKEN)
