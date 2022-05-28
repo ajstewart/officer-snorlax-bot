@@ -3,13 +3,13 @@ The management cog which contains commands related to the management
 and set up of the bot.
 """
 
+import discord
 import os
 import logging
 
 from discord import Guild, TextChannel
-from discord.ext import commands, tasks
+from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional
 
 from .utils.db import (
     load_guild_db,
@@ -591,4 +591,10 @@ async def setup(bot: commands.bot) -> None:
     Args:
         bot: The bot for which the cog is to be added.
     """
-    await bot.add_cog(Management(bot))
+    if bot.guild_server is not None:
+        await bot.add_cog(
+            Management(bot),
+            guild=discord.Object(id=bot.guild_server)
+        )
+    else:
+        await bot.add_cog(Management(bot))

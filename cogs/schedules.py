@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import discord
 import os
 import logging
 
@@ -1387,4 +1388,10 @@ async def setup(bot: commands.bot) -> None:
     Args:
         bot: The bot for which the cog is to be added.
     """
-    await bot.add_cog(Schedules(bot))
+    if bot.guild_server is not None:
+        await bot.add_cog(
+            Schedules(bot),
+            guild=discord.Object(id=bot.guild_server)
+        )
+    else:
+        await bot.add_cog(Schedules(bot))

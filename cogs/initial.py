@@ -92,4 +92,10 @@ async def setup(bot: commands.bot) -> None:
     Args:
         bot: The bot for which the cog is to be added.
     """
-    await bot.add_cog(Initial(bot))
+    if bot.guild_server is not None:
+        await bot.add_cog(
+            Initial(bot),
+            guild=discord.Object(id=bot.guild_server)
+        )
+    else:
+        await bot.add_cog(Initial(bot))

@@ -88,16 +88,16 @@ def load_guild_db(active_only: bool = False) -> pd.DataFrame:
 
     guilds = pd.read_sql_query(query, conn)
 
+    guilds['any_raids_filter'] = guilds['any_raids_filter'].astype(bool)
+    guilds['join_name_filter'] = guilds['join_name_filter'].astype(bool)
+    guilds['active'] = guilds['active'].astype(bool)
+
     if active_only:
         guilds = guilds.loc[guilds['active']]
 
     conn.close()
 
     guilds = guilds.set_index('id')
-
-    guilds['any_raids_filter'] = guilds['any_raids_filter'].astype(bool)
-    guilds['join_name_filter'] = guilds['join_name_filter'].astype(bool)
-    guilds['active'] = guilds['active'].astype(bool)
 
     return guilds
 

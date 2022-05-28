@@ -2,6 +2,7 @@ from discord.ext import commands, tasks
 from discord import VoiceChannel
 import logging
 import datetime
+import discord
 import asyncio
 from discord.utils import get
 from .utils.checks import (
@@ -179,4 +180,10 @@ async def setup(bot: commands.bot) -> None:
     Args:
         bot: The bot for which the cog is to be added.
     """
-    await bot.add_cog(TimeChannel(bot))
+    if bot.guild_server is not None:
+        await bot.add_cog(
+            TimeChannel(bot),
+            guild=discord.Object(id=bot.guild_server)
+        )
+    else:
+        await bot.add_cog(TimeChannel(bot))
