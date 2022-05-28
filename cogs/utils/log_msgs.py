@@ -40,9 +40,10 @@ def filter_delete_log_embed(
         timestamp=now,
         color=2061822
     )
+
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar
+        icon_url=user.display_avatar
     )
     embed.add_field(
         name="Reason",
@@ -81,7 +82,7 @@ def ban_log_embed(
     )
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar
+        icon_url=user.display_avatar
     )
     embed.add_field(
         name="Reason",
