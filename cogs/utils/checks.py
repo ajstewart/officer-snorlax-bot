@@ -2,7 +2,6 @@
 Contains all the various checks that the commands need to perform.
 """
 
-import datetime
 import pytz
 import re
 import time

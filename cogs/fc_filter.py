@@ -1,5 +1,3 @@
-import discord
-
 from discord import TextChannel, Message
 from discord.abc import GuildChannel
 from discord.ext import commands
@@ -175,7 +173,7 @@ class FriendCodeFilter(commands.Cog):
             if not check_admin(message):
                 content = message.content.strip().lower()
                 guild_db = load_guild_db()
-                if guild_db.loc[message.guild.id]['any_raids_filter'] == True:
+                if guild_db.loc[message.guild.id]['any_raids_filter']:
                     if check_for_any_raids(content):
                         msg = (
                             "{}, please don't spam this channel with"
@@ -218,7 +216,7 @@ class FriendCodeFilter(commands.Cog):
                                 "Friend codes are allowed in:"
                             ).format(message.author.mention)
                             for c in allowed_channels[
-                                allowed_channels['secret'] == False
+                                ~allowed_channels['secret']
                             ]['channel']:
                                 msg += ' <#{}>'.format(c)
                             if guild_db.loc[message.guild.id]['meowth_raid_category'] != -1:
@@ -310,3 +308,12 @@ class FriendCodeFilter(commands.Cog):
                 # TODO Add logging here.
             else:
                 pass
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    await bot.add_cog(FriendCodeFilter(bot))

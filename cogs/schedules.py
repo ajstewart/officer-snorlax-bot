@@ -1,5 +1,4 @@
 import asyncio
-import pytz
 import datetime
 import os
 import logging
@@ -616,7 +615,7 @@ class Schedules(commands.Cog):
         overwrites = channel.overwrites_for(role)
         allow, deny = overwrites.pair()
 
-        if allow.send_messages == deny.send_messages == False:
+        if allow.send_messages == deny.send_messages is False:
             # this means the channel is already open
             await ctx.channel.send(f"{channel.mention} is already open!")
 
@@ -893,19 +892,19 @@ class Schedules(commands.Cog):
             value = args[i+1]
 
             if column not in valid_columns:
-                 msg = (
-                     "'{}' is not a valid column to update."
-                     " Valid columns are: {}".format(
-                         column, ", ".join(valid_columns)
-                     )
-                 )
-                 await ctx.channel.send(msg)
-                 return
+                msg = (
+                    "'{}' is not a valid column to update."
+                    " Valid columns are: {}".format(
+                        column, ", ".join(valid_columns)
+                    )
+                )
+                await ctx.channel.send(msg)
+                return
 
             elif column in to_update:
-                 msg = f"'{column}' has been entered multiple times!"
-                 await ctx.channel.send(msg)
-                 return
+                msg = f"'{column}' has been entered multiple times!"
+                await ctx.channel.send(msg)
+                return
 
             elif column in ['open', 'close']:
                 time_ok, f_value = check_time_format(value)
@@ -1118,7 +1117,7 @@ class Schedules(commands.Cog):
 
             last_guild_id = -1
 
-            for i,row in scheds_to_check.iterrows():
+            for i, row in scheds_to_check.iterrows():
                 # Load the log channel for the guild
                 guild_id = row['guild']
                 if guild_id != last_guild_id:
@@ -1137,7 +1136,6 @@ class Schedules(commands.Cog):
                         time_format_fill = "Unavailable"
                     last_guild_id = guild_id
 
-
                 channel = self.bot.get_channel(row.channel)
                 role = get(channel.guild.roles, id=row.role)
                 # get current overwrites
@@ -1147,7 +1145,7 @@ class Schedules(commands.Cog):
                 if row.open == now_compare:
                     # update dynamic close in case channel never got to close
                     update_dynamic_close(row.rowid)
-                    if allow.send_messages == deny.send_messages == False:
+                    if allow.send_messages == deny.send_messages is False:
                         # this means the channel is already set to neutral
                         logger.warning(
                             f'Channel {channel.name} already neutral, skipping opening.'
@@ -1188,7 +1186,7 @@ class Schedules(commands.Cog):
                     ).strftime("%H:%M")
 
                     if warning == now_compare:
-                        messages = await channel.history(after=then).flatten()
+                        messages = [message async for message in channel.history(after=then)]
                         if check_if_channel_active(messages, client_user):
                             warning_msg = (
                                 "**Warning!** Snorlax is approaching! "
@@ -1196,9 +1194,9 @@ class Schedules(commands.Cog):
                                 " minute".format(WARNING_TIME)
                             )
                             if WARNING_TIME > 1:
-                                warning_msg+="s."
+                                warning_msg += "s."
                             else:
-                                warning_msg+="."
+                                warning_msg += "."
                             if row.dynamic:
                                 warning_msg += (
                                     "\n\nIf the channel is still active then"
@@ -1237,9 +1235,10 @@ class Schedules(commands.Cog):
 
                     then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
 
-                    messages = await channel.history(after=then).flatten()
+                    messages = [message async for message in channel.history(after=then)]
 
-                    if (check_if_channel_active(messages, client_user)
+                    if (
+                        check_if_channel_active(messages, client_user)
                         and row.dynamic
                         and row.current_delay_num < row.max_num_delays
                     ):
@@ -1305,10 +1304,12 @@ class Schedules(commands.Cog):
 
                     then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
 
-                    messages = await channel.history(after=then).flatten()
+                    messages = [message async for message in channel.history(after=then)]
 
-                    if (check_if_channel_active(messages, client_user)
-                        and row.current_delay_num < row.max_num_delays):
+                    if (
+                        check_if_channel_active(messages, client_user)
+                        and row.current_delay_num < row.max_num_delays
+                    ):
                         new_close_time = (
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
@@ -1378,3 +1379,12 @@ class Schedules(commands.Cog):
         )
 
         await asyncio.sleep(sleep_time)
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    await bot.add_cog(Schedules(bot))

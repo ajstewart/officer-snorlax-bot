@@ -1,7 +1,5 @@
 from discord.ext import commands, tasks
-from discord import TextChannel, VoiceChannel
-from typing import Optional
-import discord
+from discord import VoiceChannel
 import logging
 import datetime
 import asyncio
@@ -90,7 +88,6 @@ class TimeChannel(commands.Cog):
 
         await ctx.channel.send(msg)
 
-
     @setTimeChannel.error
     async def setTimeChannel_error(self, ctx: commands.context, error) -> None:
         """
@@ -109,7 +106,6 @@ class TimeChannel(commands.Cog):
             await ctx.send(
                 'Channel not found. Hint: It must be a voice channel!'
             )
-
 
     @tasks.loop(minutes=10)
     async def time_channels_manager(self) -> None:
@@ -153,7 +149,6 @@ class TimeChannel(commands.Cog):
         else:
             logger.warning('No time channels set skipping loop.')
 
-
     @time_channels_manager.before_loop
     async def before_timer(self):
         """
@@ -176,3 +171,12 @@ class TimeChannel(commands.Cog):
         )
 
         await asyncio.sleep(sleep_time)
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    await bot.add_cog(TimeChannel(bot))

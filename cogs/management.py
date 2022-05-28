@@ -129,7 +129,6 @@ class Management(commands.Cog):
 
         await ctx.channel.send(msg)
 
-
     @commands.command(
         help=(
             "Turn on the 'join name' filter. If a user joins a server with a "
@@ -362,7 +361,7 @@ class Management(commands.Cog):
         """
         guild = ctx.guild
         channel = guild.get_channel(category_id)
-        if channel == None:
+        if channel is None:
             ok = False
         else:
             cat_name = channel.name
@@ -569,7 +568,6 @@ class Management(commands.Cog):
             logger.info(f'Adding {guild.name} to database.')
             ok = add_guild(guild)
 
-
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: Guild) -> None:
         """
@@ -585,3 +583,12 @@ class Management(commands.Cog):
         if check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to not active.')
             ok = set_guild_active(guild.id, 0)
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    await bot.add_cog(Management(bot))

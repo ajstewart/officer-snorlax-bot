@@ -3,7 +3,6 @@ Cog for the join name filter.
 """
 
 import os
-import discord
 import logging
 
 from discord.ext import commands
@@ -40,7 +39,7 @@ class JoinNameFilter(commands.Cog):
         super(JoinNameFilter, self).__init__()
         self.bot = bot
 
-    ## Handle new members
+    # Handle new members
     @commands.Cog.listener()
     async def on_member_join(self, member: Member) -> None:
         """
@@ -59,7 +58,7 @@ class JoinNameFilter(commands.Cog):
         member_guild_name = member.guild.name
         guild_db = load_guild_db()
 
-        if guild_db.loc[member.guild.id]['join_name_filter'] == True:
+        if guild_db.loc[member.guild.id]['join_name_filter']:
 
             for pattern in BAN_NAMES:
                 if pattern.lower() in member.name.lower():
@@ -90,3 +89,12 @@ class JoinNameFilter(commands.Cog):
                             f'Failed to ban member {member.name}'
                             f' from {member_guild_name}'
                         )
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    await bot.add_cog(JoinNameFilter(bot))

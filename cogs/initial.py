@@ -3,7 +3,7 @@ import traceback
 import sys
 import logging
 
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 from .utils.checks import check_guild_exists
 from .utils.db import add_guild
@@ -14,7 +14,7 @@ logger = logging.getLogger()
 
 class Initial(commands.Cog):
     """Cog to run on initial startup."""
-    def __init__(self, bot: commands.bot, version: str) -> None:
+    def __init__(self, bot: commands.bot) -> None:
         """
         The initialisation method of the cog.
 
@@ -27,7 +27,7 @@ class Initial(commands.Cog):
         """
         super(Initial, self).__init__()
         self.bot = bot
-        self.version = version
+        self.version = bot.my_version
 
     # EVENT LISTENER FOR WHEN THE BOT HAS SWITCHED FROM OFFLINE TO ONLINE.
     @commands.Cog.listener()
@@ -84,3 +84,12 @@ class Initial(commands.Cog):
             traceback.print_exception(
                 type(error), error, error.__traceback__, file=sys.stderr
             )
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    await bot.add_cog(Initial(bot))

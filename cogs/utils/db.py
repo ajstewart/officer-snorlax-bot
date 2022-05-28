@@ -5,7 +5,6 @@ import pandas as pd
 import sqlite3
 
 from discord import Guild, TextChannel
-from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
 from typing import Optional, Union
 
@@ -49,7 +48,7 @@ def load_schedule_db(
         schedules = schedules.loc[schedules['guild'] == guild_id]
 
     if active_only:
-        schedules = schedules.loc[schedules['active'] == True]
+        schedules = schedules.loc[schedules['active']]
 
     return schedules
 
@@ -90,7 +89,7 @@ def load_guild_db(active_only: bool = False) -> pd.DataFrame:
     guilds = pd.read_sql_query(query, conn)
 
     if active_only:
-        guilds = guilds.loc[guilds['active']==True]
+        guilds = guilds.loc[guilds['active']]
 
     conn.close()
 

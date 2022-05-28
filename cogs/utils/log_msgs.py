@@ -42,7 +42,7 @@ def filter_delete_log_embed(
     )
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar_url
+        icon_url=user.avatar
     )
     embed.add_field(
         name="Reason",
@@ -81,7 +81,7 @@ def ban_log_embed(
     )
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar_url
+        icon_url=user.avatar
     )
     embed.add_field(
         name="Reason",
@@ -167,7 +167,7 @@ def schedule_log_embed(
 
     embed.set_author(
         name=f"{channel.guild.name}",
-        icon_url=channel.guild.icon_url
+        icon_url=channel.guild.icon
     )
 
     return embed
