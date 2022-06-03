@@ -1,6 +1,6 @@
 import discord
 
-from discord import TextChannel, Message
+from discord import TextChannel, Message, Thread
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.utils import get
@@ -211,7 +211,11 @@ class FriendCodeFilter(commands.Cog):
                     if allowed_channels.empty:
                         return
                     else:
-                        if message.channel.id not in allowed_channels['channel'].values:
+                        if isinstance(message.channel, Thread):
+                            origin_channel_id = message.channel.parent_id
+                        else:
+                            origin_channel_id = message.channel.id
+                        if origin_channel_id not in allowed_channels['channel'].values:
                             msg = (
                                 "{}, that looks like a friend code so"
                                 " Snorlax ate it!\n\n"

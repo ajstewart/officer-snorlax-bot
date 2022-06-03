@@ -1011,6 +1011,7 @@ class Schedules(commands.Cog):
             await channel.send(close_message)
 
         overwrites.send_messages = False
+        overwrites.send_messages_in_threads = False
 
         await channel.set_permissions(role, overwrite=overwrites)
 
@@ -1063,6 +1064,7 @@ class Schedules(commands.Cog):
         """
         now = get_current_time(tz=tz)
         overwrites.send_messages = None
+        overwrites.send_messages_in_threads = None
         await channel.set_permissions(role, overwrite=overwrites)
         open_message = DEFAULT_OPEN_MESSAGE.format(
             datetime.datetime.strptime(
@@ -1104,7 +1106,7 @@ class Schedules(commands.Cog):
 
         for tz in guild_db['tz'].unique():
             now = get_current_time(tz=tz)
-            now_utc = datetime.datetime.utcnow()
+            now_utc = discord.utils.utcnow()
             now_compare = now.strftime(
                 "%H:%M"
             )
