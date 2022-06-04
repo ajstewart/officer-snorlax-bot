@@ -4,7 +4,7 @@ import discord
 import os
 import logging
 
-from discord import TextChannel, Reaction, User, Role, PermissionOverwrite
+from discord import TextChannel, User, Role, PermissionOverwrite, Interaction
 from discord.errors import (
     DiscordServerError, Forbidden,
 )
@@ -47,6 +47,102 @@ INACTIVE_TIME = int(os.getenv('INACTIVE_TIME'))
 DELAY_TIME = int(os.getenv('DELAY_TIME'))
 
 logger = logging.getLogger()
+
+
+# Define a simple View that gives us a confirmation menu
+class RemoveAllConfirm(discord.ui.View):
+    """This View is used for the confirmation of the removeAllSchedules command.
+
+    Users will confirm or cancel the command. Only responds to the original author.
+    Note that the initial response message should be attached to the class when used!
+
+    Attributes:
+        value (Optional[bool]): Whether the interaction is complete (True) or not (False).
+            None indicates a timeout.
+        user (Discord.User): The original author of the command who the view will only respond to.
+    """
+    def __init__(self, user: User, timeout: int = 60) -> None:
+        """Init function of the view.
+
+        Args:
+            user: The original author of the command who the view will only respond to.
+            timeout: How long, in seconds, the view will remain active for.
+        """
+        super().__init__(timeout=timeout)
+        self.value = None
+        self.user = user
+
+    # When the confirm button is pressed, set the inner value to `True` and
+    # stop the View from listening to more input.
+    # We also send the user an ephemeral message that we're confirming their choice.
+    @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """The confirm button of the view.
+
+        The value attribute is set to True when used and the view is stopped.
+
+        Args:
+            interaction: The interaction instance.
+            button: The button instance.
+        """
+        await interaction.response.send_message('Confirmed!', ephemeral=True)
+        self.value = True
+        await self.disable_children()
+        self.stop()
+
+    # This one is similar to the confirmation button except sets the inner value to `False`
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.grey)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """The cancel button of the view.
+
+        The value attribute is set to False when used and the view is stopped.
+
+        Args:
+            interaction: The interaction instance.
+            button: The button instance.
+        """
+        await interaction.response.send_message('Cancelled!', ephemeral=True)
+        self.value = False
+        await self.disable_children()
+        self.stop()
+
+    async def disable_children(self, timeout_label: bool = False) -> None:
+        """Loops through the view children and disables the components.
+
+        The response must have been attached to the view!
+
+        Args:
+            timeout_label: If True, the label of button components will be replaced with 'Timeout!'.
+        """
+        for child in self.children:
+            child.disabled = True
+            if timeout_label:
+                child.label = "Timeout!"
+
+        await self.response.edit(view=self)
+
+    async def on_timeout(self) -> None:
+        """Disable the buttons of the view in the event of a timeout.
+        """
+        await self.disable_children(timeout_label=True)
+
+    async def interaction_check(self, interaction: Interaction) -> bool:
+        """The interaction check for the view.
+
+        Checks whether the interaction user is the initial command user. A response is sent if this is not the case.
+
+        Args:
+            interaction: The interaction instance.
+
+        Returns:
+            Whether the check has passed (True) or not (False).
+        """
+        check_pass = self.user.id == interaction.user.id
+
+        if not check_pass:
+            await interaction.response.send_message("You do not have permission to do that!", ephemeral=True)
+
+        return check_pass
 
 
 class Schedules(commands.Cog):
@@ -743,7 +839,7 @@ class Schedules(commands.Cog):
         Attempts to delete all schedules from the command origin server from
         the database.
 
-        A confirmation message is sent to the user before performing the
+        A confirmation interaction is sent to the user before performing the
         deletion.
 
         Args:
@@ -759,54 +855,28 @@ class Schedules(commands.Cog):
             await ctx.send("There are no schedules to delete!")
             return
 
-        requester = ctx.author.id
+        view = RemoveAllConfirm(ctx.author, timeout=30)
 
-        message = await ctx.send(
+        out = await ctx.send(
             "Are you sure you want to remove all "
-            f"{schedules.shape[0]} schedules?"
+            f"{schedules.shape[0]} schedules?",
+            view=view
         )
 
-        emojis = ['✅', '❌']
+        view.response = out
 
-        for emoji in (emojis):
-            await message.add_reaction(emoji)
+        await view.wait()
 
-        def check(reaction: Reaction, user: User) -> Tuple[bool, bool]:
-            """
-            Internal method to perform the user confirmation.
-
-            Checks that the emoji reacted with is either confirm or deny and
-            that the user is the original command request user.
-
-            Args:
-                reaction: The discord reaction object.
-                user: The discord user object.
-
-            Returns:
-                A tuple of bools representing the pass (True) or fail (False)
-                of the two checks.
-            """
-            reacted = reaction.emoji
-            return user.id == requester and str(reaction.emoji) in emojis
-
-        try:
-            reaction, user = await self.bot.wait_for(
-                'reaction_add', timeout=10, check=check
-            )
-        except asyncio.TimeoutError:
-            await ctx.send("Command timeout, cancelling.", delete_after=5)
-            await message.delete()
+        if view.value is None:
+            logger.info("removeAllSchedules command timeout.")
+        elif view.value:
+            for id in schedules['rowid'].tolist():
+                try:
+                    await self.removeSchedule(ctx, int(id))
+                except Exception as e:
+                    pass
         else:
-            if reaction.emoji == '✅':
-                for id in schedules['rowid'].tolist():
-                    try:
-                        await self.removeSchedule(ctx, int(id))
-                    except Exception as e:
-                        pass
-                await message.delete()
-            elif reaction.emoji == '❌':
-                await ctx.send("Remove all schedules cancelled!")
-                await message.delete()
+            logger.info("removeAllSchedules command cancelled.")
 
     @commands.command(
         help=(
