@@ -480,7 +480,7 @@ class Management(commands.Cog):
         ok = await set_guild_prefix(guild_id, prefix)
         if ok:
             msg = (
-                "{} set as the prefix for Snorlax successfully.".format(
+                "`{}` set as the prefix for Snorlax successfully.".format(
                     prefix
                 )
             )

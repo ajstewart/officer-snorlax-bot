@@ -249,7 +249,7 @@ async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
         if check_active:
             active = guilds.loc[guild_id]['active']
             if not active:
-                set_guild_active(guild_id, 1)
+                await set_guild_active(guild_id, 1)
         return True
     else:
         return False
