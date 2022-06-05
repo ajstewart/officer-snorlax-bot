@@ -180,7 +180,7 @@ class Schedules(commands.Cog):
                 respectively.
         """
         admin_check = check_admin(ctx)
-        channel_check = check_admin_channel(
+        channel_check = await check_admin_channel(
             ctx
         )
         bot_check = check_bot(
@@ -211,7 +211,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = check_schedule_exists(id)
+        exists = await check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -222,7 +222,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = await check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to activate schedule {id}.'
@@ -277,7 +277,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        schedules = load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await load_schedule_db(guild_id=ctx.guild.id)
 
         if schedules.empty:
             await ctx.send("There are no schedules to delete!")
@@ -432,7 +432,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = check_schedule_exists(id)
+        exists = await check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -443,7 +443,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = await check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to deactivate schedule {id}.'
@@ -496,7 +496,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        schedules = load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await load_schedule_db(guild_id=ctx.guild.id)
 
         if schedules.empty:
             await ctx.send("There are no schedules to delete!")
@@ -531,7 +531,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        schedule_db = load_schedule_db()
+        schedule_db = await load_schedule_db()
         if ctx.guild.id not in schedule_db['guild'].values:
             await ctx.channel.send("There are no schedules set.")
         else:
@@ -542,7 +542,7 @@ class Schedules(commands.Cog):
                 guild_schedules = guild_schedules.loc[
                     guild_schedules['rowid'] == schedule_id
                 ]
-            guild_db = load_guild_db()
+            guild_db = await load_guild_db()
             guild_tz = guild_db.loc[ctx.guild.id]['tz']
             embed = get_schedule_embed(
                 ctx, guild_schedules, guild_tz
@@ -580,7 +580,7 @@ class Schedules(commands.Cog):
         # check if in schedule
         # check if already closed
         # close
-        schedule_db = load_schedule_db(active_only=True)
+        schedule_db = await load_schedule_db(active_only=True)
         if channel.id not in schedule_db['channel'].to_numpy():
             await ctx.channel.send("That channel has no schedule set.")
 
@@ -589,7 +589,7 @@ class Schedules(commands.Cog):
         # Grab the schedule row
         row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
 
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         guild_tz = guild_db.loc[ctx.guild.id]['tz']
 
         log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
@@ -681,7 +681,7 @@ class Schedules(commands.Cog):
         # check if in schedule
         # check if already open
         # open
-        schedule_db = load_schedule_db()
+        schedule_db = await load_schedule_db()
         if channel.id not in schedule_db['channel'].to_numpy():
             await ctx.channel.send("That channel has no schedule set.")
 
@@ -690,7 +690,7 @@ class Schedules(commands.Cog):
         # Grab the schedule row
         row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
 
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         guild_tz = guild_db.loc[ctx.guild.id]['tz']
 
         log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
@@ -771,7 +771,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = check_schedule_exists(id)
+        exists = await check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -782,7 +782,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = await check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to remove schedule {id}.'
@@ -849,7 +849,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        schedules = load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await load_schedule_db(guild_id=ctx.guild.id)
 
         if schedules.empty:
             await ctx.send("There are no schedules to delete!")
@@ -917,7 +917,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = check_schedule_exists(id)
+        exists = await check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -928,7 +928,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = await check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = 'You do not have permission to update this schedule'
@@ -1171,8 +1171,8 @@ class Schedules(commands.Cog):
             None
         """
         client_user = self.bot.user
-        guild_db = load_guild_db(active_only=True)
-        schedule_db = load_schedule_db(active_only=True)
+        guild_db = await load_guild_db(active_only=True)
+        schedule_db = await load_schedule_db(active_only=True)
 
         for tz in guild_db['tz'].unique():
             now = get_current_time(tz=tz)

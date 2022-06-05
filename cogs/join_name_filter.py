@@ -57,7 +57,7 @@ class JoinNameFilter(commands.Cog):
         """
         member_guild_id = member.guild.id
         member_guild_name = member.guild.name
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
 
         if guild_db.loc[member.guild.id]['join_name_filter']:
 

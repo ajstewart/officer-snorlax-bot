@@ -69,7 +69,7 @@ class FriendCodeFilter(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = add_allowed_friend_code_channel(guild, channel, secret)
+        ok = await add_allowed_friend_code_channel(guild, channel, secret)
         if ok:
             msg = (
                 "{} added to the friend code whitelist successfully.".format(
@@ -104,7 +104,7 @@ class FriendCodeFilter(commands.Cog):
         Returns:
             None
         """
-        friend_db = load_friend_code_channels_db()
+        friend_db = await load_friend_code_channels_db()
         if ctx.guild.id not in friend_db['guild'].values:
             await ctx.channel.send(
                 "No channels have been set, the filter is not active."
@@ -174,7 +174,7 @@ class FriendCodeFilter(commands.Cog):
         if check_bot(message):
             if not check_admin(message):
                 content = message.content.strip().lower()
-                guild_db = load_guild_db()
+                guild_db = await load_guild_db()
                 if guild_db.loc[message.guild.id]['any_raids_filter']:
                     if check_for_any_raids(content):
                         msg = (
@@ -204,7 +204,7 @@ class FriendCodeFilter(commands.Cog):
                         return
 
                 if check_for_friend_code(content):
-                    allowed_channels = load_friend_code_channels_db()
+                    allowed_channels = await load_friend_code_channels_db()
                     allowed_channels = allowed_channels.loc[
                         allowed_channels['guild'] == message.guild.id
                     ]
@@ -265,7 +265,7 @@ class FriendCodeFilter(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         guild_meowth_cat = (
             guild_db.loc[channel.guild.id]['meowth_raid_category']
         )
@@ -274,7 +274,7 @@ class FriendCodeFilter(commands.Cog):
         elif channel.category is not None:
             if channel.category.id == guild_meowth_cat:
                 # Add the newly created channel to allow fc
-                ok = add_allowed_friend_code_channel(
+                ok = await add_allowed_friend_code_channel(
                     channel.guild, channel, "True"
                 )
                 # TODO Add logging here.
@@ -299,7 +299,7 @@ class FriendCodeFilter(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         guild_meowth_cat = (
             guild_db.loc[channel.guild.id]['meowth_raid_category']
         )

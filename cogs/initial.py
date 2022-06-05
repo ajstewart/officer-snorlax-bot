@@ -49,7 +49,7 @@ class Initial(commands.Cog):
             guild_count = guild_count + 1
 
             # CHECK THAT THE GUILD IS IN THE DB
-            if not check_guild_exists(guild.id, check_active=True):
+            if not await check_guild_exists(guild.id, check_active=True):
                 # ADD TO DB IF DOES NOT EXIST
                 logger.info(f'Adding {guild.name} to database.')
                 ok = add_guild(guild)

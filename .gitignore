@@ -3,3 +3,4 @@
 *.db
 *.log
 .DS_Store
+alembic.ini
