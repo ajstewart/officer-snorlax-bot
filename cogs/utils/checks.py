@@ -217,7 +217,8 @@ async def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
         'True' when the schedule id is from the same guild as the command.
         'False' if not.
     """
-    schedules = await load_schedule_db().set_index('rowid')
+    schedules = await load_schedule_db()
+    schedules = schedules.set_index('rowid')
 
     schedule_guild = schedules.loc[sched_id]['guild']
     ctx_guild_id = ctx.guild.id

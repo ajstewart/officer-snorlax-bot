@@ -371,7 +371,7 @@ class Schedules(commands.Cog):
         # Could support different roles in future.
         role = ctx.guild.default_role
 
-        ok, rowid = create_schedule(
+        ok, rowid = await create_schedule(
             ctx.guild.id, channel.id, channel.name, role.id, role.name,
             open_time, close_time, open_message, close_message, warning,
             dynamic, max_num_delays, silent
@@ -791,7 +791,7 @@ class Schedules(commands.Cog):
 
             return
 
-        ok = drop_schedule(ctx, id)
+        ok = await drop_schedule(ctx, id)
 
         if ok:
             msg = 'Schedule ID {} removed successfully.'.format(
@@ -996,7 +996,7 @@ class Schedules(commands.Cog):
         errored = False
 
         for column in to_update:
-            ok = update_schedule(id, column, to_update[column])
+            ok = await update_schedule(id, column, to_update[column])
             if not ok:
                 errored = True
                 msg = (
@@ -1085,8 +1085,8 @@ class Schedules(commands.Cog):
 
         await channel.set_permissions(role, overwrite=overwrites)
 
-        update_dynamic_close(rowid)
-        update_current_delay_num(rowid)
+        await update_dynamic_close(rowid)
+        await update_current_delay_num(rowid)
 
         if log_channel is not None:
             embed = schedule_log_embed(
@@ -1217,7 +1217,7 @@ class Schedules(commands.Cog):
 
                 if row.open == now_compare:
                     # update dynamic close in case channel never got to close
-                    update_dynamic_close(row.rowid)
+                    await update_dynamic_close(row.rowid)
                     if allow.send_messages == deny.send_messages is False:
                         # this means the channel is already set to neutral
                         logger.warning(
@@ -1319,9 +1319,8 @@ class Schedules(commands.Cog):
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
 
-                        update_dynamic_close(row.rowid, new_close_time=new_close_time)
-
-                        update_current_delay_num(row.rowid, row.current_delay_num + 1)
+                        await update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        await update_current_delay_num(row.rowid, row.current_delay_num + 1)
 
                         if log_channel is not None:
                             embed = schedule_log_embed(
@@ -1359,7 +1358,7 @@ class Schedules(commands.Cog):
 
                     if deny.send_messages is True:
                         # Channel already closed so skip
-                        update_dynamic_close(row.rowid)
+                        await update_dynamic_close(row.rowid)
                         logger.warning(
                             f'Channel {channel.name} already closed in guild'
                             f' {channel.guild.name}, skipping closing.'
@@ -1387,9 +1386,8 @@ class Schedules(commands.Cog):
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
 
-                        update_dynamic_close(row.rowid, new_close_time=new_close_time)
-
-                        update_current_delay_num(row.rowid, row.current_delay_num + 1)
+                        await update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        await update_current_delay_num(row.rowid, row.current_delay_num + 1)
 
                         if log_channel is not None:
                             embed = schedule_log_embed(

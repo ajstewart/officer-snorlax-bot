@@ -155,7 +155,7 @@ class Management(commands.Cog):
         if any_filter:
             msg = ("The 'join name' filter is already activated.")
         else:
-            ok = toggle_join_name_filter(ctx.guild, True)
+            ok = await toggle_join_name_filter(ctx.guild, True)
             if ok:
                 msg = ("'Join name' filter activated.")
             else:
@@ -188,7 +188,7 @@ class Management(commands.Cog):
         if not any_filter:
             msg = ("The 'join name' filter is already deactivated.")
         else:
-            ok = toggle_join_name_filter(ctx.guild, False)
+            ok = await toggle_join_name_filter(ctx.guild, False)
             if ok:
                 msg = ("'Join name' filter deactivated.")
             else:
@@ -477,7 +477,7 @@ class Management(commands.Cog):
             await ctx.send("Prefix must be 3 or less characters.")
             return
 
-        ok = set_guild_prefix(guild_id, prefix)
+        ok = await set_guild_prefix(guild_id, prefix)
         if ok:
             msg = (
                 "{} set as the prefix for Snorlax successfully.".format(
@@ -562,11 +562,11 @@ class Management(commands.Cog):
         # check if the new guild is already in the database
         if await check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to active.')
-            ok = set_guild_active(guild.id, 1)
+            ok = await set_guild_active(guild.id, 1)
         # if not then create the new entry in the db
         else:
             logger.info(f'Adding {guild.name} to database.')
-            ok = add_guild(guild)
+            ok = await add_guild(guild)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: Guild) -> None:
@@ -582,7 +582,7 @@ class Management(commands.Cog):
         # check if the new guild is already in the database
         if await check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to not active.')
-            ok = set_guild_active(guild.id, 0)
+            ok = await set_guild_active(guild.id, 0)
 
 
 async def setup(bot: commands.bot) -> None:

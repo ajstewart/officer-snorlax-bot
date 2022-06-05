@@ -176,7 +176,9 @@ async def add_allowed_friend_code_channel(
                     insert_cmd = "INSERT INTO fc_channels VALUES (?, ?, ?, ?);"
                     await cursor.execute(insert_cmd, (guild.id, channel.id, channel.name, secret))
 
-                return True
+            await db.commit()
+
+        return True
 
     except Exception as e:
         return False
@@ -305,7 +307,7 @@ async def add_guild_meowth_raid_category(guild: Guild, channel: TextChannel) -> 
         return False
 
 
-def create_schedule(
+async def create_schedule(
     guild_id: int,
     channel_id: int,
     channel_name: str,
@@ -351,13 +353,9 @@ def create_schedule(
         dynamic = str2bool(dynamic)
         silent = str2bool(silent)
 
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-
-        sql_command = (
-            "INSERT INTO schedules VALUES"
-            """ ({}, {}, {}, "{}", "{}", "{}", """
-            """"{}", "{}", "{}", {}, {}, "99:99", {}, 0, {}, True);""".format(
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "INSERT INTO schedules VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            params = (
                 guild_id,
                 channel_id,
                 role_id,
@@ -369,25 +367,24 @@ def create_schedule(
                 close_message,
                 warning,
                 dynamic,
+                "99:99",
                 max_num_delays,
-                silent
+                0,
+                silent,
+                True
             )
-        )
+            async with db.execute(sql_command, params) as cursor:
+                rowid = cursor.lastrowid
 
-        c.execute(sql_command)
-        rowid = int(c.lastrowid)
-
-        conn.commit()
-        conn.close()
+            await db.commit()
 
         return True, rowid
 
     except Exception as e:
-        conn.close()
         return False, 0
 
 
-def update_schedule(
+async def update_schedule(
     schedule_id: int,
     column: str,
     value: Union[str, bool, int]
@@ -408,41 +405,18 @@ def update_schedule(
         ('True') or not ('False').
     """
     try:
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-
-        if column in [
-            "open",
-            "close",
-            "open_message",
-            "close_message",
-        ]:
-            sql_command = (
-                "UPDATE schedules SET {}"
-                " = '{}' WHERE rowid = {};".format(
-                    column, value, schedule_id
-                )
-            )
-        else:
-            sql_command = (
-                "UPDATE schedules SET {}"
-                " = {} WHERE rowid = {};".format(
-                    column, value, schedule_id
-                )
-            )
-
-        c.execute(sql_command)
-
-        conn.commit()
-        conn.close()
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = f"UPDATE schedules SET {column} = ? WHERE rowid = ?"
+            await db.execute(sql_command, (value, schedule_id))
+            await db.commit()
 
         return True
+
     except Exception as e:
-        conn.close()
         return False
 
 
-def drop_allowed_friend_code_channel(
+async def drop_allowed_friend_code_channel(
     guild: Guild,
     channel: TextChannel
 ) -> bool:
@@ -458,32 +432,22 @@ def drop_allowed_friend_code_channel(
         ('True') or not ('False').
     """
     try:
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-        for row in c.execute(
-            "SELECT rowid FROM fc_channels WHERE guild = {} "
-            "AND channel = {};".format(guild.id, channel.id)
-        ):
-            id_to_drop = row[0]
-            sql_command = (
-                "DELETE FROM fc_channels WHERE rowid = {};".format(
-                    id_to_drop
-                )
-            )
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_query = "SELECT rowid FROM fc_channels WHERE guild = ? AND channel = ?"
+            async with db.execute(sql_query, (guild.id, channel.id)) as cursor:
+                async for row in cursor:
+                    # row is a tuple of the row id only, e.g. (2,)
+                    await cursor.execute("DELETE FROM fc_channels WHERE rowid = ?", row)
 
-            c.execute(sql_command)
-
-        conn.commit()
-        conn.close()
+            await db.commit()
 
         return True
 
     except Exception as e:
-        conn.close()
         return False
 
 
-def drop_schedule(ctx: TextChannel, id_to_drop: int) -> bool:
+async def drop_schedule(ctx: TextChannel, id_to_drop: int) -> bool:
     """
     Remove a channel from the schedule table.
 
@@ -497,28 +461,18 @@ def drop_schedule(ctx: TextChannel, id_to_drop: int) -> bool:
         ('True') or not ('False').
     """
     try:
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-
-        sql_command = (
-            "DELETE FROM schedules WHERE rowid = {};".format(
-                id_to_drop
-            )
-        )
-
-        c.execute(sql_command)
-
-        conn.commit()
-        conn.close()
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "DELETE FROM schedules WHERE rowid = ?"
+            await db.execute(sql_command, (id_to_drop,))
+            await db.commit()
 
         return True
 
     except Exception as e:
-        conn.close()
         return False
 
 
-def update_dynamic_close(
+async def update_dynamic_close(
     schedule_id: int,
     new_close_time: str = "99:99"
 ) -> None:
@@ -533,22 +487,13 @@ def update_dynamic_close(
     Returns:
         None
     """
-    conn = sqlite3.connect(DATABASE)
-    c = conn.cursor()
-
-    sql_command = (
-        "UPDATE schedules SET dynamic_close = '{}' WHERE rowid = {};".format(
-            new_close_time, schedule_id
-        )
-    )
-
-    c.execute(sql_command)
-
-    conn.commit()
-    conn.close()
+    async with aiosqlite.connect(DATABASE) as db:
+        sql_command = "UPDATE schedules SET dynamic_close = ? WHERE rowid = ?"
+        await db.execute(sql_command, (new_close_time, schedule_id))
+        await db.commit()
 
 
-def update_current_delay_num(schedule_id: int, new_delay_num: int = 0) -> None:
+async def update_current_delay_num(schedule_id: int, new_delay_num: int = 0) -> None:
     """
     Update the current delay number of a schedule in the database.
 
@@ -559,20 +504,10 @@ def update_current_delay_num(schedule_id: int, new_delay_num: int = 0) -> None:
     Returns:
         None
     """
-    conn = sqlite3.connect(DATABASE)
-    c = conn.cursor()
-
-    sql_command = (
-        "UPDATE schedules SET current_delay_num"
-        " = {} WHERE rowid = {};".format(
-            new_delay_num, schedule_id
-        )
-    )
-
-    c.execute(sql_command)
-
-    conn.commit()
-    conn.close()
+    async with aiosqlite.connect(DATABASE) as db:
+        sql_command = "UPDATE schedules SET current_delay_num = ? WHERE rowid = ?"
+        await db.execute(sql_command, (new_delay_num, schedule_id))
+        await db.commit()
 
 
 async def toggle_any_raids_filter(guild: Guild, any_raids: Union[str, bool]) -> bool:
@@ -589,7 +524,7 @@ async def toggle_any_raids_filter(guild: Guild, any_raids: Union[str, bool]) -> 
     """
     try:
         async with aiosqlite.connect(DATABASE) as db:
-            sql_command = "UPDATE guilds SET any_raids_filter = ? WHERE id = ?;"
+            sql_command = "UPDATE guilds SET any_raids_filter = ? WHERE id = ?"
             await db.execute(sql_command, (any_raids, guild.id))
             await db.commit()
 
@@ -599,7 +534,7 @@ async def toggle_any_raids_filter(guild: Guild, any_raids: Union[str, bool]) -> 
         return False
 
 
-def toggle_join_name_filter(guild: Guild, join_name: str) -> bool:
+async def toggle_join_name_filter(guild: Guild, join_name: str) -> bool:
     """
     Toggles the join name filter on and off.
 
@@ -612,26 +547,18 @@ def toggle_join_name_filter(guild: Guild, join_name: str) -> bool:
         ('True') or not ('False').
     """
     try:
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-
-        sql_command = (
-            "UPDATE guilds SET join_name_filter"
-            " = {} WHERE id = {};".format(join_name, guild.id)
-        )
-        c.execute(sql_command)
-
-        conn.commit()
-        conn.close()
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "UPDATE guilds SET join_name_filter = ? WHERE id = ?"
+            await db.execute(sql_command, (join_name, guild.id))
+            await db.commit()
 
         return True
 
     except Exception as e:
-        conn.close()
         return False
 
 
-def set_guild_active(guild_id: int, value: Union[str, bool]) -> bool:
+async def set_guild_active(guild_id: int, value: Union[str, bool]) -> bool:
     """
     Toggles the guild active status on and off.
 
@@ -644,28 +571,16 @@ def set_guild_active(guild_id: int, value: Union[str, bool]) -> bool:
         ('True') or not ('False').
     """
     try:
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-
-        sql_command = (
-            "UPDATE guilds SET active = {} WHERE id = {};".format(
-                value, guild_id
-            )
-        )
-
-        c.execute(sql_command)
-
-        conn.commit()
-        conn.close()
-
-        return True
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "UPDATE guilds SET active = ? WHERE id = ?"
+            await db.execute(sql_command, (value, guild_id))
+            await db.commit()
 
     except Exception as e:
-        conn.close()
         return False
 
 
-def add_guild(guild: Guild) -> bool:
+async def add_guild(guild: Guild) -> bool:
     """
     Adds a guild to the database.
 
@@ -677,27 +592,30 @@ def add_guild(guild: Guild) -> bool:
         ('True') or not ('False').
     """
     try:
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-        sql_command = (
-            """INSERT INTO guilds VALUES ({}, "{}", -1, -1, """
-            """False, -1, -1, False, True, '{}');""".format(
-                guild.id, DEFAULT_TZ, DEFAULT_PREFIX
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "INSERT INTO guilds VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            params = (
+                guild.id,
+                DEFAULT_TZ,
+                -1,
+                -1,
+                False,
+                -1,
+                -1,
+                False,
+                True,
+                DEFAULT_PREFIX
             )
-        )
-        c.execute(sql_command)
-
-        conn.commit()
-        conn.close()
+            await db.execute(sql_command, params)
+            await db.commit()
 
         return True
 
     except Exception as e:
-        conn.close()
         return False
 
 
-def set_guild_prefix(guild_id: int, value: str) -> bool:
+async def set_guild_prefix(guild_id: int, value: str) -> bool:
     """
     Sets the guild prefix.
 
@@ -710,22 +628,12 @@ def set_guild_prefix(guild_id: int, value: str) -> bool:
         ('True') or not ('False').
     """
     try:
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-
-        sql_command = (
-            "UPDATE guilds SET prefix = '{}' WHERE id = {};".format(
-                value, guild_id
-            )
-        )
-
-        c.execute(sql_command)
-
-        conn.commit()
-        conn.close()
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "UPDATE guilds SET prefix = ? WHERE id = ?"
+            await db.execute(sql_command, (value, guild_id))
+            await db.commit()
 
         return True
 
     except Exception as e:
-        conn.close()
         return False

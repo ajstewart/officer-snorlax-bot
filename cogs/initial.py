@@ -52,7 +52,7 @@ class Initial(commands.Cog):
             if not await check_guild_exists(guild.id, check_active=True):
                 # ADD TO DB IF DOES NOT EXIST
                 logger.info(f'Adding {guild.name} to database.')
-                ok = add_guild(guild)
+                ok = await add_guild(guild)
 
         # PRINTS HOW MANY GUILDS / SERVERS THE BOT IS IN.
         logger.info("Snorlax is in " + str(guild_count) + " guilds.")

@@ -144,7 +144,7 @@ class FriendCodeFilter(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = drop_allowed_friend_code_channel(guild, channel)
+        ok = await drop_allowed_friend_code_channel(guild, channel)
         if ok:
             msg = (
                 f"{channel.mention} removed from the friend code"
@@ -308,7 +308,7 @@ class FriendCodeFilter(commands.Cog):
         elif channel.category is not None:
             if channel.category.id == guild_meowth_cat:
                 # Add the newly created channel to allow fc
-                ok = drop_allowed_friend_code_channel(
+                ok = await drop_allowed_friend_code_channel(
                     channel.guild, channel
                 )
                 # TODO Add logging here.
