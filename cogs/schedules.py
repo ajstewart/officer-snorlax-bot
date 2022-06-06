@@ -28,13 +28,15 @@ from .utils.db import (
     drop_schedule,
     update_dynamic_close,
     update_current_delay_num,
-    update_schedule
+    update_schedule,
 )
 from .utils.log_msgs import schedule_log_embed
 from .utils.utils import (
     get_current_time,
+    get_open_embed,
     get_schedule_embed,
-    str2bool
+    str2bool,
+    get_open_embed
 )
 
 
@@ -409,6 +411,8 @@ class Schedules(commands.Cog):
                 f"\n```{error}```\n"
             )
             await ctx.send(msg)
+        elif isinstance(error, commands.CheckFailure):
+            pass
         else:
             msg = (
                 "Unknown error in setting schedule."
@@ -646,6 +650,8 @@ class Schedules(commands.Cog):
         """
         if isinstance(error, commands.ChannelNotFound):
             await ctx.channel.send(f"{error}")
+        elif isinstance(error, commands.CheckFailure):
+            pass
         else:
             await ctx.channel.send(
                 f"Unknown error when processing command: {error}"
@@ -727,7 +733,8 @@ class Schedules(commands.Cog):
             silent,
             log_channel,
             guild_tz,
-            time_format_fill
+            time_format_fill,
+            self.bot.user
         )
 
         await ctx.channel.send(f"Opened {channel.mention}!")
@@ -747,6 +754,8 @@ class Schedules(commands.Cog):
         """
         if isinstance(error, commands.ChannelNotFound):
             await ctx.channel.send(f"{error}")
+        elif isinstance(error, commands.CheckFailure):
+            pass
         else:
             await ctx.channel.send(
                 f"Unknown error when processing command: {error}"
@@ -1027,11 +1036,14 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        msg = (
-            "Unknown error in updating schedule."
-            f"\n```{error}```\n"
-        )
-        await ctx.send(msg)
+        if isinstance(error, commands.CheckFailure):
+            pass
+        else:
+            msg = (
+                "Unknown error in updating schedule."
+                f"\n```{error}```\n"
+            )
+            await ctx.send(msg)
 
     async def close_channel(
         self,
@@ -1112,6 +1124,7 @@ class Schedules(commands.Cog):
         log_channel: Optional[TextChannel],
         tz: str,
         time_format_fill: str,
+        client_user: User
     ) -> None:
         """
         The opening channel process.
@@ -1136,16 +1149,16 @@ class Schedules(commands.Cog):
         overwrites.send_messages = None
         overwrites.send_messages_in_threads = None
         await channel.set_permissions(role, overwrite=overwrites)
-        open_message = DEFAULT_OPEN_MESSAGE.format(
-            datetime.datetime.strptime(
-                close, '%H:%M'
-            ).strftime('%I:%M %p'),
-            now.tzname()
+
+        open_embed = get_open_embed(
+            close,
+            now,
+            custom_open_message,
+            client_user
         )
-        if custom_open_message != "None":
-            open_message += "\n\n" + custom_open_message
+
         if not silent:
-            await channel.send(open_message)
+            await channel.send(embed=open_embed)
 
         logger.info(
             f'Opened {channel.name} in {channel.guild.name}.'
@@ -1241,7 +1254,8 @@ class Schedules(commands.Cog):
                         row['silent'],
                         log_channel,
                         tz,
-                        time_format_fill
+                        time_format_fill,
+                        client_user
                     )
 
                     continue

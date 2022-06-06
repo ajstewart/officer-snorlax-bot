@@ -352,3 +352,32 @@ def str2bool(v: str) -> bool:
         Bool representation of the string.
     """
     return v.lower() in ["yes", "true", "t", "1", "on"]
+
+
+def get_open_embed(close, now, custom_open_message, client_user) -> Embed:
+    """Get the open embed"""
+
+    open_message = DEFAULT_OPEN_MESSAGE.format(
+
+        )
+
+    if custom_open_message != "None":
+        open_message += f"\n\n{custom_open_message}"
+
+    embed = Embed(
+        title="✅  Channel Open!",
+        description=open_message,
+        timestamp=now,
+        color=3066993
+    )
+
+    close_time_str = datetime.datetime.strptime(close, '%H:%M').strftime('%I:%M %p')
+
+    embed.add_field(
+        name="Scheduled Close Time",
+        value=f"{close_time_str} {now.tzname()}"
+    )
+
+    embed.set_footer(text=client_user.display_name, icon_url=client_user.display_avatar)
+
+    return embed
