@@ -11,7 +11,7 @@ from discord.errors import (
 from discord.ext import commands, tasks
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional, Tuple
+from typing import Optional
 from .utils.checks import (
     check_admin,
     check_admin_channel,
@@ -36,7 +36,9 @@ from .utils.utils import (
     get_open_embed,
     get_schedule_embed,
     str2bool,
-    get_open_embed
+    get_open_embed,
+    get_close_embed,
+    get_warning_embed
 )
 
 
@@ -630,7 +632,8 @@ class Schedules(commands.Cog):
             log_channel,
             guild_tz,
             time_format_fill,
-            row['rowid']
+            row['rowid'],
+            self.bot.user
         )
 
         await ctx.channel.send(f"Closed {channel.mention}!")
@@ -1057,6 +1060,7 @@ class Schedules(commands.Cog):
         tz: str,
         time_format_fill: str,
         rowid: int,
+        client_user: User
     ) -> None:
         """
         The opening channel process.
@@ -1080,20 +1084,19 @@ class Schedules(commands.Cog):
         """
         now = get_current_time(tz=tz)
 
-        close_message = DEFAULT_CLOSE_MESSAGE.format(
-            datetime.datetime.strptime(
-                open, '%H:%M'
-            ).strftime('%I:%M %p'),
-            now.tzname(),
-            time_format_fill
-        )
-        if custom_close_message != "None":
-            close_message += "\n\n" + custom_close_message
-        if not silent:
-            await channel.send(close_message)
-
         overwrites.send_messages = False
         overwrites.send_messages_in_threads = False
+
+        close_embed = get_close_embed(
+            open,
+            now,
+            custom_close_message,
+            client_user,
+            time_format_fill
+        )
+
+        if not silent:
+            await channel.send(embed=close_embed)
 
         await channel.set_permissions(role, overwrite=overwrites)
 
@@ -1154,7 +1157,8 @@ class Schedules(commands.Cog):
             close,
             now,
             custom_open_message,
-            client_user
+            client_user,
+            time_format_fill
         )
 
         if not silent:
@@ -1275,20 +1279,16 @@ class Schedules(commands.Cog):
                     if warning == now_compare:
                         messages = [message async for message in channel.history(after=then)]
                         if check_if_channel_active(messages, client_user):
-                            warning_msg = (
-                                "**Warning!** Snorlax is approaching! "
-                                "This channel is scheduled to close in {}"
-                                " minute".format(WARNING_TIME)
+                            warning_embed = get_warning_embed(
+                                row['close'],
+                                now_utc,
+                                client_user,
+                                time_format_fill,
+                                row['dynamic'],
+                                False
                             )
-                            if WARNING_TIME > 1:
-                                warning_msg += "s."
-                            else:
-                                warning_msg += "."
-                            if row.dynamic:
-                                warning_msg += (
-                                    "\n\nIf the channel is still active then"
-                                    " closing will be delayed."
-                                )
+
+                            await channel.send(embed=warning_embed)
 
                             if log_channel is not None:
                                 embed = schedule_log_embed(
@@ -1298,7 +1298,6 @@ class Schedules(commands.Cog):
                                 )
                                 await log_channel.send(embed=embed)
 
-                            await channel.send(warning_msg)
                             continue
 
                 if row.close == now_compare:
@@ -1366,7 +1365,8 @@ class Schedules(commands.Cog):
                             log_channel,
                             tz,
                             time_format_fill,
-                            row['rowid']
+                            row['rowid'],
+                            client_user
                         )
 
                 if row.dynamic_close == now_compare:
@@ -1422,13 +1422,16 @@ class Schedules(commands.Cog):
                         )
 
                         if row.current_delay_num + 1 == row.max_num_delays:
-                            warning_msg = (
-                                "**Warning!** Snorlax is approaching! "
-                                "This channel will close in {}"
-                                " minutes.".format(DELAY_TIME)
+                            warning_embed = get_warning_embed(
+                                row['dynamic_close'],
+                                now_utc,
+                                client_user,
+                                time_format_fill,
+                                False,
+                                True
                             )
 
-                            await channel.send(warning_msg)
+                            await channel.send(embed=warning_embed)
 
                         continue
 
@@ -1443,7 +1446,8 @@ class Schedules(commands.Cog):
                             log_channel,
                             tz,
                             time_format_fill,
-                            row['rowid']
+                            row['rowid'],
+                            client_user
                         )
 
     @channel_manager.before_loop

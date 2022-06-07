@@ -354,12 +354,10 @@ def str2bool(v: str) -> bool:
     return v.lower() in ["yes", "true", "t", "1", "on"]
 
 
-def get_open_embed(close, now, custom_open_message, client_user) -> Embed:
+def get_open_embed(close, now, custom_open_message, client_user, time_format_fill) -> Embed:
     """Get the open embed"""
 
-    open_message = DEFAULT_OPEN_MESSAGE.format(
-
-        )
+    open_message = DEFAULT_OPEN_MESSAGE
 
     if custom_open_message != "None":
         open_message += f"\n\n{custom_open_message}"
@@ -377,6 +375,90 @@ def get_open_embed(close, now, custom_open_message, client_user) -> Embed:
         name="Scheduled Close Time",
         value=f"{close_time_str} {now.tzname()}"
     )
+
+    embed.add_field(
+        name="Current Time",
+        value=time_format_fill,
+        inline=False
+    )
+
+    embed.set_footer(text=client_user.display_name, icon_url=client_user.display_avatar)
+
+    return embed
+
+
+def get_close_embed(open, now, custom_close_message, client_user, time_format_fill) -> Embed:
+    """Get the close embed"""
+
+    close_message = DEFAULT_CLOSE_MESSAGE
+
+    if custom_close_message != "None":
+        close_message += f"\n\n{custom_close_message}"
+
+    embed = Embed(
+        title="️⛔  Channel Closed!",
+        description=close_message,
+        timestamp=now,
+        color=15158332
+    )
+
+    open_time_str = datetime.datetime.strptime(open, '%H:%M').strftime('%I:%M %p')
+
+    embed.add_field(
+        name="Scheduled Open Time",
+        value=f"{open_time_str} {now.tzname()}"
+    )
+
+    embed.add_field(
+        name="Current Time",
+        value=time_format_fill,
+        inline=False
+    )
+
+    embed.set_footer(text=client_user.display_name, icon_url=client_user.display_avatar)
+
+    return embed
+
+
+def get_warning_embed(close, now, client_user, time_format_fill, dynamic, delay) -> Embed:
+    """Get the warning embed"""
+
+    warning_message = "Snorlax is approaching!"
+
+    embed = Embed(
+        title="️⚠️  Snorlax is approaching!",
+        timestamp=now,
+        color=15105570
+    )
+
+    close_time_str = datetime.datetime.strptime(close, '%H:%M').strftime('%I:%M %p')
+
+    buffer_time = DELAY_TIME if delay else WARNING_TIME
+
+    warning_string = f"Channel is due to close in {buffer_time} minute"
+
+    if int(buffer_time) > 1:
+        warning_string += "s at"
+    else:
+        warning_string += " at"
+
+    embed.add_field(
+        name=warning_string,
+        value=f"{close_time_str} {now.tzname()}"
+    )
+
+    embed.add_field(
+        name="Current Time",
+        value=time_format_fill,
+        inline=False
+    )
+
+    if dynamic:
+        embed.add_field(
+            name="Delay Active",
+            value="Closing will be delayed by a short time if the channel is active.",
+            inline=False
+        )
 
     embed.set_footer(text=client_user.display_name, icon_url=client_user.display_avatar)
 
