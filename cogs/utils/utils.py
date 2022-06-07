@@ -382,7 +382,7 @@ def get_open_embed(close, now, custom_open_message, client_user, time_format_fil
         inline=False
     )
 
-    embed.set_footer(text=client_user.display_name, icon_url=client_user.display_avatar)
+    embed.set_footer(text="Current time updates every 10 min.", icon_url=client_user.display_avatar)
 
     return embed
 
@@ -415,7 +415,7 @@ def get_close_embed(open, now, custom_close_message, client_user, time_format_fi
         inline=False
     )
 
-    embed.set_footer(text=client_user.display_name, icon_url=client_user.display_avatar)
+    embed.set_footer(text="Current time updates every 10 min.", icon_url=client_user.display_avatar)
 
     return embed
 
@@ -460,6 +460,6 @@ def get_warning_embed(close, now, client_user, time_format_fill, dynamic, delay)
             inline=False
         )
 
-    embed.set_footer(text=client_user.display_name, icon_url=client_user.display_avatar)
+    embed.set_footer(text="Current time updates every 10 min.", icon_url=client_user.display_avatar)
 
     return embed
