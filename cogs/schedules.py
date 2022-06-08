@@ -14,6 +14,7 @@ from dotenv import load_dotenv, find_dotenv
 from typing import Optional
 
 from .utils import checks as snorlax_checks
+from .utils import db as snorlax_db
 from .utils import embeds as snorlax_embeds
 from .utils.db import (
     load_guild_db,
@@ -349,6 +350,11 @@ class Schedules(commands.Cog):
             await ctx.channel.send(msg)
             return
         close_time = f_close_time
+
+        if close_time == open_time:
+            msg = "The open and close time cannot be the same!"
+            await ctx.channel.send(msg)
+            return
 
         # Replace empty strings
         if open_message == "":
@@ -978,6 +984,21 @@ class Schedules(commands.Cog):
                     msg = "{} is not a valid time.".format(value)
                     await ctx.channel.send(msg)
                     return
+
+                if column == 'open':
+                    if 'close' in to_update:
+                        if f_value == to_update['close']:
+                            msg = "The open and close time cannot be the same!"
+                            await ctx.channel.send(msg)
+                            return
+
+                elif column == 'close':
+                    if 'open' in to_update:
+                        if f_value == to_update['open']:
+                            msg = "The open and close time cannot be the same!"
+                            await ctx.channel.send(msg)
+                            return
+
                 value = f_value
 
             elif column == 'max_num_delays':
@@ -987,6 +1008,22 @@ class Schedules(commands.Cog):
                 value = str2bool(value)
 
             to_update[column] = value
+
+        # Check if one or the other is in to_update, already checked the case
+        # where both are to be updated above
+        if sum(('open' in to_update, 'close' in to_update)) == 1:
+            if 'open' in to_update:
+                curr_close = await snorlax_db.get_schedule_close(id)
+                the_same = curr_close == to_update['open']
+
+            elif 'close' in to_update:
+                curr_open = await snorlax_db.get_schedule_open(id)
+                the_same = curr_open == to_update['close']
+
+            if the_same:
+                msg = "The open and close time cannot be the same!"
+                await ctx.channel.send(msg)
+                return
 
         errored = False
 

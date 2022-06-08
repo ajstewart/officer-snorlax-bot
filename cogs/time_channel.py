@@ -78,6 +78,10 @@ class TimeChannel(commands.Cog):
                 )
             )
             # Make sure the channel permissions are set
+            bot_role = channel.guild.self_role
+            overwrites = channel.overwrites_for(bot_role)
+            overwrites.connect = True
+            await channel.set_permissions(bot_role, overwrite=overwrites)
             role = ctx.guild.default_role
             overwrites = channel.overwrites_for(role)
             overwrites.connect = False

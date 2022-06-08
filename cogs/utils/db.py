@@ -3,7 +3,6 @@
 import aiosqlite
 import os
 import pandas as pd
-import sqlite3
 
 from discord import Guild, TextChannel
 from dotenv import load_dotenv, find_dotenv
@@ -637,3 +636,39 @@ async def set_guild_prefix(guild_id: int, value: str) -> bool:
 
     except Exception as e:
         return False
+
+
+async def get_schedule_open(schedule_id: int) -> str:
+    """
+    Fetches the open time of the requested schedule.
+
+    Args:
+        schedule_id: The id of the schedule to obtain the open time for.
+
+    Returns:
+        The schedule open time.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT open FROM schedules WHERE rowid = ?;"
+        async with db.execute(query, (schedule_id,)) as cursor:
+            open = await cursor.fetchone()
+
+    return open[0]
+
+
+async def get_schedule_close(schedule_id: int) -> str:
+    """
+    Fetches the close time of the requested schedule.
+
+    Args:
+        schedule_id: The id of the schedule to obtain the close time for.
+
+    Returns:
+        The schedule close time.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT close FROM schedules WHERE rowid = ?;"
+        async with db.execute(query, (schedule_id,)) as cursor:
+            close = await cursor.fetchone()
+
+    return close[0]
