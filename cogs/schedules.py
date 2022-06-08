@@ -11,16 +11,10 @@ from discord.errors import (
 from discord.ext import commands, tasks
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional, Tuple
-from .utils.checks import (
-    check_admin,
-    check_admin_channel,
-    check_time_format,
-    check_bot,
-    check_if_channel_active,
-    check_remove_schedule,
-    check_schedule_exists
-)
+from typing import Optional
+
+from .utils import checks as snorlax_checks
+from .utils import embeds as snorlax_embeds
 from .utils.db import (
     load_guild_db,
     load_schedule_db,
@@ -28,13 +22,12 @@ from .utils.db import (
     drop_schedule,
     update_dynamic_close,
     update_current_delay_num,
-    update_schedule
+    update_schedule,
 )
 from .utils.log_msgs import schedule_log_embed
 from .utils.utils import (
     get_current_time,
-    get_schedule_embed,
-    str2bool
+    str2bool,
 )
 
 
@@ -179,11 +172,11 @@ class Schedules(commands.Cog):
             bool: True of False for whether the checks pass or fail,
                 respectively.
         """
-        admin_check = check_admin(ctx)
-        channel_check = check_admin_channel(
+        admin_check = snorlax_checks.check_admin(ctx)
+        channel_check = snorlax_checks.check_admin_channel(
             ctx
         )
-        bot_check = check_bot(
+        bot_check = snorlax_checks.check_bot(
             ctx
         )
 
@@ -211,7 +204,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -222,7 +215,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to activate schedule {id}.'
@@ -338,7 +331,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        time_ok, f_open_time = check_time_format(open_time)
+        time_ok, f_open_time = snorlax_checks.check_time_format(open_time)
         if not time_ok:
             msg = (
                 "{} is not a valid time.".format(
@@ -350,7 +343,7 @@ class Schedules(commands.Cog):
         # this just checks for single hour inputs, e.g. 6:00
         open_time = f_open_time
 
-        time_ok, f_close_time = check_time_format(close_time)
+        time_ok, f_close_time = snorlax_checks.check_time_format(close_time)
         if not time_ok:
             msg = (
                 "{} is not a valid time.".format(
@@ -409,6 +402,8 @@ class Schedules(commands.Cog):
                 f"\n```{error}```\n"
             )
             await ctx.send(msg)
+        elif isinstance(error, commands.CheckFailure):
+            pass
         else:
             msg = (
                 "Unknown error in setting schedule."
@@ -432,7 +427,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -443,7 +438,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to deactivate schedule {id}.'
@@ -544,9 +539,7 @@ class Schedules(commands.Cog):
                 ]
             guild_db = load_guild_db()
             guild_tz = guild_db.loc[ctx.guild.id]['tz']
-            embed = get_schedule_embed(
-                ctx, guild_schedules, guild_tz
-            )
+            embed = snorlax_embeds.get_schedule_embed(guild_schedules, guild_tz)
 
             await ctx.channel.send(embed=embed)
 
@@ -626,7 +619,8 @@ class Schedules(commands.Cog):
             log_channel,
             guild_tz,
             time_format_fill,
-            row['rowid']
+            row['rowid'],
+            self.bot.user
         )
 
         await ctx.channel.send(f"Closed {channel.mention}!")
@@ -646,6 +640,8 @@ class Schedules(commands.Cog):
         """
         if isinstance(error, commands.ChannelNotFound):
             await ctx.channel.send(f"{error}")
+        elif isinstance(error, commands.CheckFailure):
+            pass
         else:
             await ctx.channel.send(
                 f"Unknown error when processing command: {error}"
@@ -727,7 +723,8 @@ class Schedules(commands.Cog):
             silent,
             log_channel,
             guild_tz,
-            time_format_fill
+            time_format_fill,
+            self.bot.user
         )
 
         await ctx.channel.send(f"Opened {channel.mention}!")
@@ -747,6 +744,8 @@ class Schedules(commands.Cog):
         """
         if isinstance(error, commands.ChannelNotFound):
             await ctx.channel.send(f"{error}")
+        elif isinstance(error, commands.CheckFailure):
+            pass
         else:
             await ctx.channel.send(
                 f"Unknown error when processing command: {error}"
@@ -771,7 +770,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -782,7 +781,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to remove schedule {id}.'
@@ -917,7 +916,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -928,7 +927,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = 'You do not have permission to update this schedule'
@@ -978,7 +977,7 @@ class Schedules(commands.Cog):
                 return
 
             elif column in ['open', 'close']:
-                time_ok, f_value = check_time_format(value)
+                time_ok, f_value = snorlax_checks.check_time_format(value)
                 if not time_ok:
                     msg = "{} is not a valid time.".format(value)
                     await ctx.channel.send(msg)
@@ -1027,11 +1026,14 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        msg = (
-            "Unknown error in updating schedule."
-            f"\n```{error}```\n"
-        )
-        await ctx.send(msg)
+        if isinstance(error, commands.CheckFailure):
+            pass
+        else:
+            msg = (
+                "Unknown error in updating schedule."
+                f"\n```{error}```\n"
+            )
+            await ctx.send(msg)
 
     async def close_channel(
         self,
@@ -1045,6 +1047,7 @@ class Schedules(commands.Cog):
         tz: str,
         time_format_fill: str,
         rowid: int,
+        client_user: User
     ) -> None:
         """
         The opening channel process.
@@ -1062,23 +1065,23 @@ class Schedules(commands.Cog):
             time_format_fill: The string to fill in the opening time in the
                 open message.
             rowid: The id of the schedule so the delay time can be reset.
+            client_user: The bot user instance.
 
         Returns:
             None
         """
         now = get_current_time(tz=tz)
 
-        close_message = DEFAULT_CLOSE_MESSAGE.format(
-            datetime.datetime.strptime(
-                open, '%H:%M'
-            ).strftime('%I:%M %p'),
-            now.tzname(),
+        close_embed = snorlax_embeds.get_close_embed(
+            open,
+            now,
+            custom_close_message,
+            client_user,
             time_format_fill
         )
-        if custom_close_message != "None":
-            close_message += "\n\n" + custom_close_message
+
         if not silent:
-            await channel.send(close_message)
+            await channel.send(embed=close_embed)
 
         overwrites.send_messages = False
         overwrites.send_messages_in_threads = False
@@ -1112,6 +1115,7 @@ class Schedules(commands.Cog):
         log_channel: Optional[TextChannel],
         tz: str,
         time_format_fill: str,
+        client_user: User
     ) -> None:
         """
         The opening channel process.
@@ -1128,6 +1132,7 @@ class Schedules(commands.Cog):
             tz: Guild timezone as a string.
             time_format_fill: The string to fill in the closing time in the
                 open message.
+            client_user: The bot user instance.
 
         Returns:
             None
@@ -1136,16 +1141,17 @@ class Schedules(commands.Cog):
         overwrites.send_messages = None
         overwrites.send_messages_in_threads = None
         await channel.set_permissions(role, overwrite=overwrites)
-        open_message = DEFAULT_OPEN_MESSAGE.format(
-            datetime.datetime.strptime(
-                close, '%H:%M'
-            ).strftime('%I:%M %p'),
-            now.tzname()
+
+        open_embed = snorlax_embeds.get_open_embed(
+            close,
+            now,
+            custom_open_message,
+            client_user,
+            time_format_fill
         )
-        if custom_open_message != "None":
-            open_message += "\n\n" + custom_open_message
+
         if not silent:
-            await channel.send(open_message)
+            await channel.send(embed=open_embed)
 
         logger.info(
             f'Opened {channel.name} in {channel.guild.name}.'
@@ -1190,7 +1196,7 @@ class Schedules(commands.Cog):
 
             last_guild_id = -1
 
-            for i, row in scheds_to_check.iterrows():
+            for _, row in scheds_to_check.iterrows():
                 # Load the log channel for the guild
                 guild_id = row['guild']
                 if guild_id != last_guild_id:
@@ -1241,7 +1247,8 @@ class Schedules(commands.Cog):
                         row['silent'],
                         log_channel,
                         tz,
-                        time_format_fill
+                        time_format_fill,
+                        client_user
                     )
 
                     continue
@@ -1260,21 +1267,17 @@ class Schedules(commands.Cog):
 
                     if warning == now_compare:
                         messages = [message async for message in channel.history(after=then)]
-                        if check_if_channel_active(messages, client_user):
-                            warning_msg = (
-                                "**Warning!** Snorlax is approaching! "
-                                "This channel is scheduled to close in {}"
-                                " minute".format(WARNING_TIME)
+                        if snorlax_checks.check_if_channel_active(messages, client_user):
+                            warning_embed = snorlax_embeds.get_warning_embed(
+                                row['close'],
+                                now_utc,
+                                client_user,
+                                time_format_fill,
+                                row['dynamic'],
+                                False
                             )
-                            if WARNING_TIME > 1:
-                                warning_msg += "s."
-                            else:
-                                warning_msg += "."
-                            if row.dynamic:
-                                warning_msg += (
-                                    "\n\nIf the channel is still active then"
-                                    " closing will be delayed."
-                                )
+
+                            await channel.send(embed=warning_embed)
 
                             if log_channel is not None:
                                 embed = schedule_log_embed(
@@ -1284,7 +1287,6 @@ class Schedules(commands.Cog):
                                 )
                                 await log_channel.send(embed=embed)
 
-                            await channel.send(warning_msg)
                             continue
 
                 if row.close == now_compare:
@@ -1311,7 +1313,7 @@ class Schedules(commands.Cog):
                     messages = [message async for message in channel.history(after=then)]
 
                     if (
-                        check_if_channel_active(messages, client_user)
+                        snorlax_checks.check_if_channel_active(messages, client_user)
                         and row.dynamic
                         and row.current_delay_num < row.max_num_delays
                     ):
@@ -1352,7 +1354,8 @@ class Schedules(commands.Cog):
                             log_channel,
                             tz,
                             time_format_fill,
-                            row['rowid']
+                            row['rowid'],
+                            client_user
                         )
 
                 if row.dynamic_close == now_compare:
@@ -1380,7 +1383,7 @@ class Schedules(commands.Cog):
                     messages = [message async for message in channel.history(after=then)]
 
                     if (
-                        check_if_channel_active(messages, client_user)
+                        snorlax_checks.check_if_channel_active(messages, client_user)
                         and row.current_delay_num < row.max_num_delays
                     ):
                         new_close_time = (
@@ -1408,13 +1411,16 @@ class Schedules(commands.Cog):
                         )
 
                         if row.current_delay_num + 1 == row.max_num_delays:
-                            warning_msg = (
-                                "**Warning!** Snorlax is approaching! "
-                                "This channel will close in {}"
-                                " minutes.".format(DELAY_TIME)
+                            warning_embed = snorlax_embeds.get_warning_embed(
+                                row['dynamic_close'],
+                                now_utc,
+                                client_user,
+                                time_format_fill,
+                                False,
+                                True
                             )
 
-                            await channel.send(warning_msg)
+                            await channel.send(embed=warning_embed)
 
                         continue
 
@@ -1429,7 +1435,8 @@ class Schedules(commands.Cog):
                             log_channel,
                             tz,
                             time_format_fill,
-                            row['rowid']
+                            row['rowid'],
+                            client_user
                         )
 
     @channel_manager.before_loop
