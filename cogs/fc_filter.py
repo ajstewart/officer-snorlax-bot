@@ -19,8 +19,8 @@ from .utils.db import (
     add_allowed_friend_code_channel,
     drop_allowed_friend_code_channel
 )
+from .utils.embeds import get_friend_channels_embed
 from .utils.log_msgs import filter_delete_log_embed
-from .utils.utils import get_friend_channels_embed
 
 
 class FriendCodeFilter(commands.Cog):
@@ -113,7 +113,7 @@ class FriendCodeFilter(commands.Cog):
             guild_friend_channels = friend_db.loc[
                 friend_db['guild'] == ctx.guild.id
             ]
-            embed = get_friend_channels_embed(ctx, guild_friend_channels)
+            embed = get_friend_channels_embed(guild_friend_channels)
 
             await ctx.channel.send(embed=embed)
 

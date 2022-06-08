@@ -12,15 +12,9 @@ from discord.ext import commands, tasks
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
 from typing import Optional
-from .utils.checks import (
-    check_admin,
-    check_admin_channel,
-    check_time_format,
-    check_bot,
-    check_if_channel_active,
-    check_remove_schedule,
-    check_schedule_exists
-)
+
+from .utils import checks as snorlax_checks
+from .utils import embeds as snorlax_embeds
 from .utils.db import (
     load_guild_db,
     load_schedule_db,
@@ -33,12 +27,7 @@ from .utils.db import (
 from .utils.log_msgs import schedule_log_embed
 from .utils.utils import (
     get_current_time,
-    get_open_embed,
-    get_schedule_embed,
     str2bool,
-    get_open_embed,
-    get_close_embed,
-    get_warning_embed
 )
 
 
@@ -183,11 +172,11 @@ class Schedules(commands.Cog):
             bool: True of False for whether the checks pass or fail,
                 respectively.
         """
-        admin_check = check_admin(ctx)
-        channel_check = check_admin_channel(
+        admin_check = snorlax_checks.check_admin(ctx)
+        channel_check = snorlax_checks.check_admin_channel(
             ctx
         )
-        bot_check = check_bot(
+        bot_check = snorlax_checks.check_bot(
             ctx
         )
 
@@ -215,7 +204,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -226,7 +215,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to activate schedule {id}.'
@@ -342,7 +331,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        time_ok, f_open_time = check_time_format(open_time)
+        time_ok, f_open_time = snorlax_checks.check_time_format(open_time)
         if not time_ok:
             msg = (
                 "{} is not a valid time.".format(
@@ -354,7 +343,7 @@ class Schedules(commands.Cog):
         # this just checks for single hour inputs, e.g. 6:00
         open_time = f_open_time
 
-        time_ok, f_close_time = check_time_format(close_time)
+        time_ok, f_close_time = snorlax_checks.check_time_format(close_time)
         if not time_ok:
             msg = (
                 "{} is not a valid time.".format(
@@ -438,7 +427,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -449,7 +438,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to deactivate schedule {id}.'
@@ -550,9 +539,7 @@ class Schedules(commands.Cog):
                 ]
             guild_db = load_guild_db()
             guild_tz = guild_db.loc[ctx.guild.id]['tz']
-            embed = get_schedule_embed(
-                ctx, guild_schedules, guild_tz
-            )
+            embed = snorlax_embeds.get_schedule_embed(guild_schedules, guild_tz)
 
             await ctx.channel.send(embed=embed)
 
@@ -783,7 +770,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -794,7 +781,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to remove schedule {id}.'
@@ -929,7 +916,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = check_schedule_exists(id)
+        exists = snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -940,7 +927,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = check_remove_schedule(ctx, id)
+        allowed = snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = 'You do not have permission to update this schedule'
@@ -990,7 +977,7 @@ class Schedules(commands.Cog):
                 return
 
             elif column in ['open', 'close']:
-                time_ok, f_value = check_time_format(value)
+                time_ok, f_value = snorlax_checks.check_time_format(value)
                 if not time_ok:
                     msg = "{} is not a valid time.".format(value)
                     await ctx.channel.send(msg)
@@ -1084,10 +1071,7 @@ class Schedules(commands.Cog):
         """
         now = get_current_time(tz=tz)
 
-        overwrites.send_messages = False
-        overwrites.send_messages_in_threads = False
-
-        close_embed = get_close_embed(
+        close_embed = snorlax_embeds.get_close_embed(
             open,
             now,
             custom_close_message,
@@ -1097,6 +1081,9 @@ class Schedules(commands.Cog):
 
         if not silent:
             await channel.send(embed=close_embed)
+
+        overwrites.send_messages = False
+        overwrites.send_messages_in_threads = False
 
         await channel.set_permissions(role, overwrite=overwrites)
 
@@ -1153,7 +1140,7 @@ class Schedules(commands.Cog):
         overwrites.send_messages_in_threads = None
         await channel.set_permissions(role, overwrite=overwrites)
 
-        open_embed = get_open_embed(
+        open_embed = snorlax_embeds.get_open_embed(
             close,
             now,
             custom_open_message,
@@ -1278,8 +1265,8 @@ class Schedules(commands.Cog):
 
                     if warning == now_compare:
                         messages = [message async for message in channel.history(after=then)]
-                        if check_if_channel_active(messages, client_user):
-                            warning_embed = get_warning_embed(
+                        if snorlax_checks.check_if_channel_active(messages, client_user):
+                            warning_embed = snorlax_embeds.get_warning_embed(
                                 row['close'],
                                 now_utc,
                                 client_user,
@@ -1324,7 +1311,7 @@ class Schedules(commands.Cog):
                     messages = [message async for message in channel.history(after=then)]
 
                     if (
-                        check_if_channel_active(messages, client_user)
+                        snorlax_checks.check_if_channel_active(messages, client_user)
                         and row.dynamic
                         and row.current_delay_num < row.max_num_delays
                     ):
@@ -1394,7 +1381,7 @@ class Schedules(commands.Cog):
                     messages = [message async for message in channel.history(after=then)]
 
                     if (
-                        check_if_channel_active(messages, client_user)
+                        snorlax_checks.check_if_channel_active(messages, client_user)
                         and row.current_delay_num < row.max_num_delays
                     ):
                         new_close_time = (
@@ -1422,7 +1409,7 @@ class Schedules(commands.Cog):
                         )
 
                         if row.current_delay_num + 1 == row.max_num_delays:
-                            warning_embed = get_warning_embed(
+                            warning_embed = snorlax_embeds.get_warning_embed(
                                 row['dynamic_close'],
                                 now_utc,
                                 client_user,
