@@ -11,8 +11,7 @@ from .utils.checks import (
     check_admin,
     check_admin_channel,
     check_for_friend_code,
-    check_bot,
-    check_for_any_raids
+    check_bot
 )
 from .utils.db import (
     load_guild_db,
@@ -168,8 +167,6 @@ class FriendCodeFilter(commands.Cog):
         Method run for each message received which checks for friend code
         content and takes the appropriate action.
 
-        This is also where the any raids filter is performed.
-
         Args:
             message: The message object.
 
@@ -180,33 +177,6 @@ class FriendCodeFilter(commands.Cog):
             if not check_admin(message):
                 content = message.content.strip().lower()
                 guild_db = await load_guild_db()
-                if guild_db.loc[message.guild.id]['any_raids_filter']:
-                    if check_for_any_raids(content):
-                        msg = (
-                            "{}, please don't spam this channel with"
-                            " 'any raids?'. Check to see if there is a raid"
-                            " being hosted or post your raid if you'd like to"
-                            " host one yourself. See the relevant rules"
-                            " channel for rules and instructions."
-                        ).format(message.author.mention)
-                        await message.channel.send(
-                            msg,
-                            delete_after=30
-                        )
-                        await message.delete()
-                        log_channel_id = (
-                            guild_db.loc[message.guild.id]['log_channel']
-                        )
-                        if log_channel_id != -1:
-                            tz = guild_db.loc[message.guild.id]['tz']
-                            log_channel = get(
-                                message.guild.channels, id=int(log_channel_id)
-                            )
-                            embed = filter_delete_log_embed(
-                                message, tz, "Any raids filter."
-                            )
-                            await log_channel.send(embed=embed)
-                        return
 
                 if check_for_friend_code(content):
                     allowed_channels = await load_friend_code_channels_db()
@@ -226,9 +196,7 @@ class FriendCodeFilter(commands.Cog):
                                 " Snorlax ate it!\n\n"
                                 "Friend codes are allowed in:"
                             ).format(message.author.mention)
-                            for c in allowed_channels[
-                                ~allowed_channels['secret']
-                            ]['channel']:
+                            for c in allowed_channels[~allowed_channels['secret']]['channel']:
                                 msg += ' <#{}>'.format(c)
                             if guild_db.loc[message.guild.id]['meowth_raid_category'] != -1:
                                 msg += (
@@ -244,14 +212,13 @@ class FriendCodeFilter(commands.Cog):
                                 guild_db.loc[message.guild.id]['log_channel']
                             )
                             if log_channel_id != -1:
-                                tz = guild_db.loc[message.guild.id]['tz']
                                 log_channel = get(
                                     message.guild.channels, id=int(
                                         log_channel_id
                                     )
                                 )
                                 embed = filter_delete_log_embed(
-                                    message, tz, "Friend code filter."
+                                    message, "Friend code filter."
                                 )
                                 await log_channel.send(embed=embed)
 
