@@ -1,4 +1,5 @@
 import discord
+import logging
 
 from discord import TextChannel, Message, Thread
 from discord.abc import GuildChannel
@@ -17,10 +18,14 @@ from .utils.db import (
     load_guild_db,
     load_friend_code_channels_db,
     add_allowed_friend_code_channel,
-    drop_allowed_friend_code_channel
+    drop_allowed_friend_code_channel,
+    get_guild_log_channel
 )
 from .utils.embeds import get_friend_channels_embed
-from .utils.log_msgs import filter_delete_log_embed
+from .utils.log_msgs import filter_delete_log_embed, fc_channel_removed_log_embed
+
+
+logger = logging.getLogger()
 
 
 class FriendCodeFilter(commands.Cog):
@@ -290,30 +295,23 @@ class FriendCodeFilter(commands.Cog):
         If the channel was under the category then the channel is removed from
         the allowed list.
 
-        TODO: Need to support channel deletions of other channels otherwise
-              the database will get messy.
-
         Args:
-            channel: The created channel object.
+            channel: The deleted channel object.
 
         Returns:
             None
         """
-        guild_db = await load_guild_db()
-        guild_meowth_cat = (
-            guild_db.loc[channel.guild.id]['meowth_raid_category']
-        )
-        if guild_meowth_cat == -1:
-            pass
-        elif channel.category is not None:
-            if channel.category.id == guild_meowth_cat:
-                # Add the newly created channel to allow fc
-                ok = await drop_allowed_friend_code_channel(
-                    channel.guild, channel
-                )
-                # TODO Add logging here.
-            else:
-                pass
+        fc_channels = await load_friend_code_channels_db()
+
+        if channel.id in fc_channels['channel'].tolist():
+            ok = await drop_allowed_friend_code_channel(channel.guild, channel)
+            if ok:
+                log_channel = await get_guild_log_channel(channel.guild.id)
+                if log_channel != -1:
+                    log_channel = get(channel.guild.channels, id=int(log_channel))
+                    log_embed = fc_channel_removed_log_embed(channel)
+                    await log_channel.send(embed=log_embed)
+                logger.info(f'Channel {channel.name} removed from {channel.guild.name} allowed friend code list.')
 
 
 async def setup(bot: commands.bot) -> None:
