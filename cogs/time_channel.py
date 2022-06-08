@@ -1,17 +1,22 @@
-from discord.ext import commands, tasks
-from discord import VoiceChannel
+
 import logging
 import datetime
 import discord
 import asyncio
+
+from discord.ext import commands, tasks
+from discord import VoiceChannel
+from discord.abc import GuildChannel
 from discord.utils import get
+
 from .utils.checks import (
     check_admin,
     check_admin_channel,
     check_bot,
 )
 from .utils.utils import get_current_time, get_hour_emoji
-from .utils.db import add_guild_time_channel, load_guild_db
+from .utils.db import add_guild_time_channel, load_guild_db, get_guild_time_channel, get_guild_log_channel
+from .utils.log_msgs import time_channel_reset_log_embed
 from discord.errors import DiscordServerError, Forbidden
 
 
@@ -112,6 +117,30 @@ class TimeChannel(commands.Cog):
                 'Channel not found. Hint: It must be a voice channel!'
             )
 
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
+        """
+        Checks on a channel deletion whether the channel was the time channel.
+
+        Args:
+            channel: The created channel object.
+
+        Returns:
+            None
+        """
+        guild_id = channel.guild.id
+
+        if channel.id == await get_guild_time_channel(guild_id):
+            # No channel entry resets the time channel.
+            ok = await add_guild_time_channel(channel.guild)
+            if ok:
+                log_channel = await get_guild_log_channel(channel.guild.id)
+                if log_channel != -1:
+                    log_channel = get(channel.guild.channels, id=int(log_channel))
+                    log_embed = time_channel_reset_log_embed(channel)
+                    await log_channel.send(embed=log_embed)
+                logger.info(f'Time channel reset for guild {channel.guild.name}.')
+
     @tasks.loop(minutes=10)
     async def time_channels_manager(self) -> None:
         """
@@ -121,7 +150,6 @@ class TimeChannel(commands.Cog):
         Returns:
             None
         """
-        client_user = self.bot.user
         guild_db = await load_guild_db()
 
         # check if there are actually any time channels set
