@@ -1065,6 +1065,7 @@ class Schedules(commands.Cog):
             time_format_fill: The string to fill in the opening time in the
                 open message.
             rowid: The id of the schedule so the delay time can be reset.
+            client_user: The bot user instance.
 
         Returns:
             None
@@ -1131,6 +1132,7 @@ class Schedules(commands.Cog):
             tz: Guild timezone as a string.
             time_format_fill: The string to fill in the closing time in the
                 open message.
+            client_user: The bot user instance.
 
         Returns:
             None
@@ -1194,7 +1196,7 @@ class Schedules(commands.Cog):
 
             last_guild_id = -1
 
-            for i, row in scheds_to_check.iterrows():
+            for _, row in scheds_to_check.iterrows():
                 # Load the log channel for the guild
                 guild_id = row['guild']
                 if guild_id != last_guild_id:

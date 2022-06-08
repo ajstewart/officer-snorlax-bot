@@ -1,10 +1,12 @@
+"""Contains all the non-log embed messages used by the bot.
+"""
 
 import datetime
 import os
 import pandas as pd
 import pytz
 
-from discord import Embed
+from discord import Embed, User
 from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
 
@@ -17,16 +19,11 @@ INACTIVE_TIME = os.getenv('INACTIVE_TIME')
 DELAY_TIME = os.getenv('DELAY_TIME')
 
 
-def get_schedule_embed(
-    schedule_db: pd.DataFrame,
-    tz: str
-) -> Embed:
+def get_schedule_embed(schedule_db: pd.DataFrame, tz: str) -> Embed:
     """
     Create an embed to show the saved schedules.
 
     Args:
-        ctx: The command context containing the message content and other
-            metadata.
         schedule_db: The schedule database table as a pandas dataframe.
         tz: The guild timezone, e.g., 'Australia/Sydney'.
 
@@ -60,9 +57,7 @@ def get_schedule_embed(
     return embed
 
 
-def get_friend_channels_embed(
-    friend_db: pd.DataFrame
-) -> Embed:
+def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
     """
     Create an embed to show the allowed friend code channels.
 
@@ -177,9 +172,26 @@ def get_settings_embed(
     return embed
 
 
-def get_open_embed(close, now, custom_open_message, client_user, time_format_fill) -> Embed:
-    """Get the open embed"""
+def get_open_embed(
+    close: str,
+    now: datetime.datetime,
+    custom_open_message: str,
+    client_user: User,
+    time_format_fill: str
+) -> Embed:
+    """Produces the open embed that is sent when a channel opens.
 
+    Args:
+        close: The string representation of the future closing time, e.g. '12:00'.
+        now: The datetime object of the opening time.
+        custom_open_message: The custom open message of the schedule.
+        client_user: The bot user object.
+        time_format_fill: The string time channel mention, or 'Unavailable' if the time channel
+            is not configured.
+
+    Returns:
+        The open channel embed containing the next close time and the current time.
+    """
     open_message = DEFAULT_OPEN_MESSAGE
 
     if custom_open_message != "None":
@@ -204,14 +216,32 @@ def get_open_embed(close, now, custom_open_message, client_user, time_format_fil
         inline=False
     )
 
-    embed.set_footer(text="Current time updates every 10 min.", icon_url=client_user.display_avatar)
+    embed.set_footer(text="Current time updates every 10 min.")
+    embed.set_thumbnail(url=client_user.display_avatar)
 
     return embed
 
 
-def get_close_embed(open, now, custom_close_message, client_user, time_format_fill) -> Embed:
-    """Get the close embed"""
+def get_close_embed(
+    open: str,
+    now: datetime.datetime,
+    custom_close_message: str,
+    client_user: User,
+    time_format_fill: str
+) -> Embed:
+    """Produces the open embed that is sent when a channel opens.
 
+    Args:
+        open: The string representation of the future opening time, e.g. '12:00'.
+        now: The datetime object of the closing time.
+        custom_close_message: The custom close message of the schedule.
+        client_user: The bot user object.
+        time_format_fill: The string time channel mention, or 'Unavailable' if the time channel
+            is not configured.
+
+    Returns:
+        The close channel embed containing the next open time and the current time.
+    """
     close_message = DEFAULT_CLOSE_MESSAGE
 
     if custom_close_message != "None":
@@ -236,14 +266,35 @@ def get_close_embed(open, now, custom_close_message, client_user, time_format_fi
         inline=False
     )
 
-    embed.set_footer(text="Current time updates every 10 min.", icon_url=client_user.display_avatar)
+    embed.set_footer(text="Current time updates every 10 min.")
+    embed.set_thumbnail(url=client_user.display_avatar)
 
     return embed
 
 
-def get_warning_embed(close, now, client_user, time_format_fill, dynamic, delay) -> Embed:
-    """Get the warning embed"""
+def get_warning_embed(
+    close: str,
+    now: datetime.datetime,
+    client_user: User,
+    time_format_fill: str,
+    dynamic: bool,
+    delay: bool
+) -> Embed:
+    """Produces the warning embed that is sent when a is to close and warnings are enabled.
 
+    Args:
+        close: The string representation of the future closing time, e.g. '12:00'.
+        now: The datetime object of the warning time.
+        client_user: The bot user object.
+        time_format_fill: The string time channel mention, or 'Unavailable' if the time channel
+            is not configured.
+        dynamic: Whether dynamic mode is activated on the schedule (True) or not (False).
+        delay: Whether the warning is because of a previous delay. No dynamic addition
+            will be made if True.
+
+    Returns:
+        The warning embed containing the next close time and the current time.
+    """
     embed = Embed(
         title="️⚠️  Snorlax is approaching!",
         color=15105570
