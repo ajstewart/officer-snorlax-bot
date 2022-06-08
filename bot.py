@@ -22,7 +22,8 @@ class MyBot(commands.Bot):
             'cogs.fc_filter',
             'cogs.join_name_filter',
             'cogs.time_channel',
-            'cogs.schedules'
+            'cogs.schedules',
+            'cogs.any_raids_filter'
         ]
         self.help_command.add_check(check_admin)
         self.my_version = version

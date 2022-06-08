@@ -43,7 +43,7 @@ class Initial(commands.Cog):
         # LOOPS THROUGH ALL THE GUILD / SERVERS THAT THE BOT IS ASSOCIATED WITH.
         for guild in self.bot.guilds:
             # PRINT THE SERVER'S ID AND NAME.
-            logger.info(f"- {guild.id} (name: {guild.name})")
+            logger.info(f"{guild.id} (name: {guild.name})")
 
             # INCREMENTS THE GUILD COUNTER.
             guild_count = guild_count + 1

@@ -716,3 +716,21 @@ async def get_guild_time_channel(guild_id: int) -> str:
             time_channel = await cursor.fetchone()
 
     return time_channel[0]
+
+
+async def get_guild_any_raids_active(guild_id: int) -> bool:
+    """
+    Fetches the any raids filter value of the requested guild.
+
+    Args:
+        guild_id: The id of the guild to obtain the any raids value.
+
+    Returns:
+        The guild time channel.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT any_raids_filter FROM guilds WHERE id = ?;"
+        async with db.execute(query, (guild_id,)) as cursor:
+            any_raids = await cursor.fetchone()
+
+    return bool(any_raids[0])

@@ -15,7 +15,6 @@ load_dotenv(find_dotenv())
 
 def filter_delete_log_embed(
     message: Message,
-    tz: str,
     reason: Optional[str] = "None"
 ) -> Embed:
     """
@@ -24,14 +23,12 @@ def filter_delete_log_embed(
 
     Args:
         message: The message that triggered the filter.
-        tz: The timezone of the guild.
         reason: The reason of the deletion.
 
     Returns:
         The Discord Embed object to send to the log channel.
     """
-    tz = pytz.timezone(tz)
-    now = datetime.datetime.now(tz=tz)
+    now = utcnow()
     user = message.author
     embed = Embed(
         description=(
