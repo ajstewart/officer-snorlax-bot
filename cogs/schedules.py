@@ -14,6 +14,7 @@ from dotenv import load_dotenv, find_dotenv
 from typing import Optional
 
 from .utils import checks as snorlax_checks
+from .utils import db as snorlax_db
 from .utils import embeds as snorlax_embeds
 from .utils.db import (
     load_guild_db,
@@ -173,12 +174,8 @@ class Schedules(commands.Cog):
                 respectively.
         """
         admin_check = snorlax_checks.check_admin(ctx)
-        channel_check = snorlax_checks.check_admin_channel(
-            ctx
-        )
-        bot_check = snorlax_checks.check_bot(
-            ctx
-        )
+        channel_check = await snorlax_checks.check_admin_channel(ctx)
+        bot_check = snorlax_checks.check_bot(ctx)
 
         if not bot_check:
             return False
@@ -204,7 +201,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = snorlax_checks.check_schedule_exists(id)
+        exists = await snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -215,7 +212,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to activate schedule {id}.'
@@ -270,7 +267,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        schedules = load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await load_schedule_db(guild_id=ctx.guild.id)
 
         if schedules.empty:
             await ctx.send("There are no schedules to delete!")
@@ -354,6 +351,11 @@ class Schedules(commands.Cog):
             return
         close_time = f_close_time
 
+        if close_time == open_time:
+            msg = "The open and close time cannot be the same!"
+            await ctx.channel.send(msg)
+            return
+
         # Replace empty strings
         if open_message == "":
             open_message = "None"
@@ -364,7 +366,7 @@ class Schedules(commands.Cog):
         # Could support different roles in future.
         role = ctx.guild.default_role
 
-        ok, rowid = create_schedule(
+        ok, rowid = await create_schedule(
             ctx.guild.id, channel.id, channel.name, role.id, role.name,
             open_time, close_time, open_message, close_message, warning,
             dynamic, max_num_delays, silent
@@ -427,7 +429,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        exists = snorlax_checks.check_schedule_exists(id)
+        exists = await snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -438,7 +440,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to deactivate schedule {id}.'
@@ -491,7 +493,7 @@ class Schedules(commands.Cog):
         Returns:
             None.
         """
-        schedules = load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await load_schedule_db(guild_id=ctx.guild.id)
 
         if schedules.empty:
             await ctx.send("There are no schedules to delete!")
@@ -526,7 +528,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        schedule_db = load_schedule_db()
+        schedule_db = await load_schedule_db()
         if ctx.guild.id not in schedule_db['guild'].values:
             await ctx.channel.send("There are no schedules set.")
         else:
@@ -537,7 +539,7 @@ class Schedules(commands.Cog):
                 guild_schedules = guild_schedules.loc[
                     guild_schedules['rowid'] == schedule_id
                 ]
-            guild_db = load_guild_db()
+            guild_db = await load_guild_db()
             guild_tz = guild_db.loc[ctx.guild.id]['tz']
             embed = snorlax_embeds.get_schedule_embed(guild_schedules, guild_tz)
 
@@ -573,7 +575,7 @@ class Schedules(commands.Cog):
         # check if in schedule
         # check if already closed
         # close
-        schedule_db = load_schedule_db(active_only=True)
+        schedule_db = await load_schedule_db(active_only=True)
         if channel.id not in schedule_db['channel'].to_numpy():
             await ctx.channel.send("That channel has no schedule set.")
 
@@ -582,7 +584,7 @@ class Schedules(commands.Cog):
         # Grab the schedule row
         row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
 
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         guild_tz = guild_db.loc[ctx.guild.id]['tz']
 
         log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
@@ -677,7 +679,7 @@ class Schedules(commands.Cog):
         # check if in schedule
         # check if already open
         # open
-        schedule_db = load_schedule_db()
+        schedule_db = await load_schedule_db()
         if channel.id not in schedule_db['channel'].to_numpy():
             await ctx.channel.send("That channel has no schedule set.")
 
@@ -686,7 +688,7 @@ class Schedules(commands.Cog):
         # Grab the schedule row
         row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
 
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         guild_tz = guild_db.loc[ctx.guild.id]['tz']
 
         log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
@@ -770,7 +772,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = snorlax_checks.check_schedule_exists(id)
+        exists = await snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -781,7 +783,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = f'You do not have permission to remove schedule {id}.'
@@ -790,7 +792,7 @@ class Schedules(commands.Cog):
 
             return
 
-        ok = drop_schedule(ctx, id)
+        ok = await drop_schedule(ctx, id)
 
         if ok:
             msg = 'Schedule ID {} removed successfully.'.format(
@@ -848,7 +850,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        schedules = load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await load_schedule_db(guild_id=ctx.guild.id)
 
         if schedules.empty:
             await ctx.send("There are no schedules to delete!")
@@ -916,7 +918,7 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        exists = snorlax_checks.check_schedule_exists(id)
+        exists = await snorlax_checks.check_schedule_exists(id)
 
         if not exists:
             msg = 'Schedule ID {} does not exist!'.format(
@@ -927,7 +929,7 @@ class Schedules(commands.Cog):
 
             return
 
-        allowed = snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
 
         if not allowed:
             msg = 'You do not have permission to update this schedule'
@@ -982,6 +984,21 @@ class Schedules(commands.Cog):
                     msg = "{} is not a valid time.".format(value)
                     await ctx.channel.send(msg)
                     return
+
+                if column == 'open':
+                    if 'close' in to_update:
+                        if f_value == to_update['close']:
+                            msg = "The open and close time cannot be the same!"
+                            await ctx.channel.send(msg)
+                            return
+
+                elif column == 'close':
+                    if 'open' in to_update:
+                        if f_value == to_update['open']:
+                            msg = "The open and close time cannot be the same!"
+                            await ctx.channel.send(msg)
+                            return
+
                 value = f_value
 
             elif column == 'max_num_delays':
@@ -992,10 +1009,26 @@ class Schedules(commands.Cog):
 
             to_update[column] = value
 
+        # Check if one or the other is in to_update, already checked the case
+        # where both are to be updated above
+        if sum(('open' in to_update, 'close' in to_update)) == 1:
+            if 'open' in to_update:
+                curr_close = await snorlax_db.get_schedule_close(id)
+                the_same = curr_close == to_update['open']
+
+            elif 'close' in to_update:
+                curr_open = await snorlax_db.get_schedule_open(id)
+                the_same = curr_open == to_update['close']
+
+            if the_same:
+                msg = "The open and close time cannot be the same!"
+                await ctx.channel.send(msg)
+                return
+
         errored = False
 
         for column in to_update:
-            ok = update_schedule(id, column, to_update[column])
+            ok = await update_schedule(id, column, to_update[column])
             if not ok:
                 errored = True
                 msg = (
@@ -1088,8 +1121,8 @@ class Schedules(commands.Cog):
 
         await channel.set_permissions(role, overwrite=overwrites)
 
-        update_dynamic_close(rowid)
-        update_current_delay_num(rowid)
+        await update_dynamic_close(rowid)
+        await update_current_delay_num(rowid)
 
         if log_channel is not None:
             embed = schedule_log_embed(
@@ -1177,8 +1210,8 @@ class Schedules(commands.Cog):
             None
         """
         client_user = self.bot.user
-        guild_db = load_guild_db(active_only=True)
-        schedule_db = load_schedule_db(active_only=True)
+        guild_db = await load_guild_db(active_only=True)
+        schedule_db = await load_schedule_db(active_only=True)
 
         for tz in guild_db['tz'].unique():
             now = get_current_time(tz=tz)
@@ -1223,7 +1256,7 @@ class Schedules(commands.Cog):
 
                 if row.open == now_compare:
                     # update dynamic close in case channel never got to close
-                    update_dynamic_close(row.rowid)
+                    await update_dynamic_close(row.rowid)
                     if allow.send_messages == deny.send_messages is False:
                         # this means the channel is already set to neutral
                         logger.warning(
@@ -1321,9 +1354,8 @@ class Schedules(commands.Cog):
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
 
-                        update_dynamic_close(row.rowid, new_close_time=new_close_time)
-
-                        update_current_delay_num(row.rowid, row.current_delay_num + 1)
+                        await update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        await update_current_delay_num(row.rowid, row.current_delay_num + 1)
 
                         if log_channel is not None:
                             embed = schedule_log_embed(
@@ -1362,7 +1394,7 @@ class Schedules(commands.Cog):
 
                     if deny.send_messages is True:
                         # Channel already closed so skip
-                        update_dynamic_close(row.rowid)
+                        await update_dynamic_close(row.rowid)
                         logger.warning(
                             f'Channel {channel.name} already closed in guild'
                             f' {channel.guild.name}, skipping closing.'
@@ -1390,9 +1422,8 @@ class Schedules(commands.Cog):
                             now + datetime.timedelta(minutes=DELAY_TIME)
                         ).strftime("%H:%M")
 
-                        update_dynamic_close(row.rowid, new_close_time=new_close_time)
-
-                        update_current_delay_num(row.rowid, row.current_delay_num + 1)
+                        await update_dynamic_close(row.rowid, new_close_time=new_close_time)
+                        await update_current_delay_num(row.rowid, row.current_delay_num + 1)
 
                         if log_channel is not None:
                             embed = schedule_log_embed(

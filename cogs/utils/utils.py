@@ -159,7 +159,7 @@ def get_hour_emoji(time: str) -> str:
     return emojis[key]
 
 
-def get_prefix(client: User, message: Message) -> Callable[[Client], List[str]]:
+async def get_prefix(client: User, message: Message) -> Callable[[Client], List[str]]:
     """
     Fetch the current prefix of the guild and check whether it has been called.
 
@@ -171,7 +171,7 @@ def get_prefix(client: User, message: Message) -> Callable[[Client], List[str]]:
         The callable to be passed to the bot initialisation.
     """
     from .db import get_guild_prefix
-    prefix = get_guild_prefix(int(message.guild.id))
+    prefix = await get_guild_prefix(message.guild.id)
 
     return commands.when_mentioned_or(*prefix)(client, message)
 

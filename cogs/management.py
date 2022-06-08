@@ -80,12 +80,12 @@ class Management(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['any_raids_filter']
         if any_filter:
             msg = ("The 'any raids' filter is already activated.")
         else:
-            ok = toggle_any_raids_filter(ctx.guild, True)
+            ok = await toggle_any_raids_filter(ctx.guild, True)
             if ok:
                 msg = ("'Any raids' filter activated.")
             else:
@@ -115,12 +115,12 @@ class Management(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['any_raids_filter']
         if not any_filter:
             msg = ("The 'any raids' filter is already deactivated.")
         else:
-            ok = toggle_any_raids_filter(ctx.guild, False)
+            ok = await toggle_any_raids_filter(ctx.guild, False)
             if ok:
                 msg = ("'Any raids' filter deactivated.")
             else:
@@ -151,12 +151,12 @@ class Management(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['join_name_filter']
         if any_filter:
             msg = ("The 'join name' filter is already activated.")
         else:
-            ok = toggle_join_name_filter(ctx.guild, True)
+            ok = await toggle_join_name_filter(ctx.guild, True)
             if ok:
                 msg = ("'Join name' filter activated.")
             else:
@@ -184,12 +184,12 @@ class Management(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         any_filter = guild_db.loc[ctx.guild.id]['join_name_filter']
         if not any_filter:
             msg = ("The 'join name' filter is already deactivated.")
         else:
-            ok = toggle_join_name_filter(ctx.guild, False)
+            ok = await toggle_join_name_filter(ctx.guild, False)
             if ok:
                 msg = ("'Join name' filter deactivated.")
             else:
@@ -219,7 +219,7 @@ class Management(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         tz = guild_db.loc[ctx.guild.id]['tz']
         the_time = get_current_time(tz)
         msg = (
@@ -279,7 +279,7 @@ class Management(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = add_guild_admin_channel(guild, channel)
+        ok = await add_guild_admin_channel(guild, channel)
         if ok:
             msg = (
                 "{} set as the Snorlax admin channel successfully."
@@ -320,7 +320,7 @@ class Management(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = add_guild_log_channel(guild, channel)
+        ok = await add_guild_log_channel(guild, channel)
         if ok:
             msg = (
                 "{} set as the Snorlax log channel successfully.".format(
@@ -366,7 +366,7 @@ class Management(commands.Cog):
             ok = False
         else:
             cat_name = channel.name
-            ok = add_guild_meowth_raid_category(guild, channel)
+            ok = await add_guild_meowth_raid_category(guild, channel)
         if ok:
             msg = (
                 "**{}** set as the Meowth raid category successfully."
@@ -402,7 +402,7 @@ class Management(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = add_guild_meowth_raid_category(guild, -1)
+        ok = await add_guild_meowth_raid_category(guild, -1)
         if ok:
             msg = ("Meowth raid category has been reset.")
         else:
@@ -438,7 +438,7 @@ class Management(commands.Cog):
                 tz
             )
         else:
-            ok = add_guild_tz(ctx.guild, tz)
+            ok = await add_guild_tz(ctx.guild, tz)
             if ok:
                 msg = (
                     "{} set as the timezone successfully.".format(
@@ -478,10 +478,10 @@ class Management(commands.Cog):
             await ctx.send("Prefix must be 3 or less characters.")
             return
 
-        ok = set_guild_prefix(guild_id, prefix)
+        ok = await set_guild_prefix(guild_id, prefix)
         if ok:
             msg = (
-                "{} set as the prefix for Snorlax successfully.".format(
+                "`{}` set as the prefix for Snorlax successfully.".format(
                     prefix
                 )
             )
@@ -512,7 +512,7 @@ class Management(commands.Cog):
         Returns:
             None
         """
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
         if ctx.guild.id not in guild_db.index:
             await ctx.channel.send(
                 "Settings have not been configured for this guild."
@@ -561,13 +561,13 @@ class Management(commands.Cog):
             None
         """
         # check if the new guild is already in the database
-        if check_guild_exists(guild.id):
+        if await check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to active.')
-            ok = set_guild_active(guild.id, 1)
+            ok = await set_guild_active(guild.id, 1)
         # if not then create the new entry in the db
         else:
             logger.info(f'Adding {guild.name} to database.')
-            ok = add_guild(guild)
+            ok = await add_guild(guild)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: Guild) -> None:
@@ -581,9 +581,9 @@ class Management(commands.Cog):
             None
         """
         # check if the new guild is already in the database
-        if check_guild_exists(guild.id):
+        if await check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to not active.')
-            ok = set_guild_active(guild.id, 0)
+            ok = await set_guild_active(guild.id, 0)
 
 
 async def setup(bot: commands.bot) -> None:

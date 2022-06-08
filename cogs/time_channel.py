@@ -69,7 +69,7 @@ class TimeChannel(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = add_guild_time_channel(guild, channel)
+        ok = await add_guild_time_channel(guild, channel)
         if ok:
             msg = (
                 "{} set as the Snorlax time channel successfully."
@@ -78,6 +78,10 @@ class TimeChannel(commands.Cog):
                 )
             )
             # Make sure the channel permissions are set
+            bot_role = channel.guild.self_role
+            overwrites = channel.overwrites_for(bot_role)
+            overwrites.connect = True
+            await channel.set_permissions(bot_role, overwrite=overwrites)
             role = ctx.guild.default_role
             overwrites = channel.overwrites_for(role)
             overwrites.connect = False
@@ -118,7 +122,7 @@ class TimeChannel(commands.Cog):
             None
         """
         client_user = self.bot.user
-        guild_db = load_guild_db()
+        guild_db = await load_guild_db()
 
         # check if there are actually any time channels set
         guild_db = guild_db.loc[guild_db['time_channel'] != -1]
