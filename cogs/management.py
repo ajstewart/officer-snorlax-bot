@@ -23,7 +23,8 @@ from .utils.db import (
     add_guild,
     set_guild_prefix
 )
-from .utils.utils import get_current_time, get_settings_embed
+from .utils.embeds import get_settings_embed
+from .utils.utils import get_current_time
 from .utils.checks import (
     check_admin_channel,
     check_admin,
