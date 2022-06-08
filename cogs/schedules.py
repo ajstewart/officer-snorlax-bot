@@ -8,6 +8,7 @@ from discord import TextChannel, User, Role, PermissionOverwrite, Interaction
 from discord.errors import (
     DiscordServerError, Forbidden,
 )
+from discord.abc import GuildChannel
 from discord.ext import commands, tasks
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
@@ -24,8 +25,9 @@ from .utils.db import (
     update_dynamic_close,
     update_current_delay_num,
     update_schedule,
+    get_guild_log_channel
 )
-from .utils.log_msgs import schedule_log_embed
+from .utils.log_msgs import schedule_log_embed, schedules_deleted_log_embed
 from .utils.utils import (
     get_current_time,
     str2bool,
@@ -792,7 +794,7 @@ class Schedules(commands.Cog):
 
             return
 
-        ok = await drop_schedule(ctx, id)
+        ok = await drop_schedule(id)
 
         if ok:
             msg = 'Schedule ID {} removed successfully.'.format(
@@ -1197,6 +1199,35 @@ class Schedules(commands.Cog):
                 'open'
             )
             await log_channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
+        """
+        Checks on a channel deletion whether the channel had a schedule.
+
+        Args:
+            channel: The deleted channel object.
+
+        Returns:
+            None
+        """
+        schedules = await load_schedule_db()
+
+        schedules = schedules.loc[schedules['channel'] == channel.id]
+
+        if not schedules.empty:
+            for id in schedules['rowid']:
+                ok = await drop_schedule(id)
+                if ok:
+                    log_channel = await get_guild_log_channel(channel.guild.id)
+                    if log_channel != -1:
+                        log_channel = get(channel.guild.channels, id=int(log_channel))
+                        log_embed = schedules_deleted_log_embed(channel, id)
+                        await log_channel.send(embed=log_embed)
+                    logger.info(
+                        f'Schedule ID {id} has been deleted for guild {channel.guild.name}'
+                        ' (channel deletion).'
+                    )
 
     @tasks.loop(seconds=60)
     async def channel_manager(self) -> None:

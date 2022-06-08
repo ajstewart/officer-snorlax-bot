@@ -296,7 +296,7 @@ class FriendCodeFilter(commands.Cog):
         the allowed list.
 
         Args:
-            channel: The created channel object.
+            channel: The deleted channel object.
 
         Returns:
             None

@@ -207,7 +207,7 @@ async def add_guild_admin_channel(guild: Guild, channel: TextChannel) -> bool:
         return False
 
 
-async def add_guild_log_channel(guild: Guild, channel: TextChannel) -> bool:
+async def add_guild_log_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
     """
     Records the log channel for the guild to the database.
 
@@ -219,10 +219,15 @@ async def add_guild_log_channel(guild: Guild, channel: TextChannel) -> bool:
         A bool to signify that the database transaction was successful
         ('True') or not ('False').
     """
+    if channel is None:
+        channel_id = -1
+    else:
+        channel_id = channel.id
+
     try:
         async with aiosqlite.connect(DATABASE) as db:
             sql_command = "UPDATE guilds SET log_channel = ? WHERE id = ?"
-            await db.execute(sql_command, (channel.id, guild.id))
+            await db.execute(sql_command, (channel_id, guild.id))
             await db.commit()
 
         return True
@@ -451,13 +456,11 @@ async def drop_allowed_friend_code_channel(
         return False
 
 
-async def drop_schedule(ctx: TextChannel, id_to_drop: int) -> bool:
+async def drop_schedule(id_to_drop: int) -> bool:
     """
     Remove a channel from the schedule table.
 
     Args:
-        ctx: The command context containing the message content and other
-            metadata.
         id_to_drop: The database id of the schedule to drop.
 
     Returns:

@@ -8,6 +8,7 @@ import os
 import logging
 
 from discord import Guild, TextChannel
+from discord.abc import GuildChannel
 from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
 
@@ -21,7 +22,8 @@ from .utils.db import (
     toggle_join_name_filter,
     set_guild_active,
     add_guild,
-    set_guild_prefix
+    set_guild_prefix,
+    get_guild_log_channel
 )
 from .utils.embeds import get_settings_embed
 from .utils.utils import get_current_time
@@ -584,6 +586,23 @@ class Management(commands.Cog):
         if await check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to not active.')
             ok = await set_guild_active(guild.id, 0)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
+        """
+        Checks on a channel deletion whether the channel was the log channel.
+
+        Args:
+            channel: The deleted channel object.
+
+        Returns:
+            None
+        """
+        log_channel = await get_guild_log_channel(channel.guild.id)
+
+        if log_channel == channel.id:
+            await add_guild_log_channel(channel.guild)
+            logger.info(f'Log channel reset for guild {channel.guild.name}.')
 
 
 async def setup(bot: commands.bot) -> None:

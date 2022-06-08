@@ -123,7 +123,7 @@ class TimeChannel(commands.Cog):
         Checks on a channel deletion whether the channel was the time channel.
 
         Args:
-            channel: The created channel object.
+            channel: The deleted channel object.
 
         Returns:
             None
