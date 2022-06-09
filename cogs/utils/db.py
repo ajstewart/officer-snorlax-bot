@@ -777,4 +777,4 @@ async def get_guild_raid_category(guild_id: int) -> bool:
         async with db.execute(query, (guild_id,)) as cursor:
             raid_category = await cursor.fetchone()
 
-    return bool(raid_category[0])
+    return raid_category[0]
