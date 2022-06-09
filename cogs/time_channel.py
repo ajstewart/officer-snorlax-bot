@@ -150,7 +150,7 @@ class TimeChannel(commands.Cog):
         Returns:
             None
         """
-        guild_db = await load_guild_db()
+        guild_db = await load_guild_db(active_only=True)
 
         # check if there are actually any time channels set
         guild_db = guild_db.loc[guild_db['time_channel'] != -1]

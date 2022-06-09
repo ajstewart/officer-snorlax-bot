@@ -3,6 +3,7 @@ The management cog which contains commands related to the management
 and set up of the bot.
 """
 
+from webbrowser import get
 import discord
 import os
 import logging
@@ -10,20 +11,28 @@ import logging
 from discord import Guild, TextChannel
 from discord.abc import GuildChannel
 from discord.ext import commands
+from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
 
 from .utils.db import (
     load_guild_db,
     add_guild_admin_channel,
     add_guild_log_channel,
+    add_guild_time_channel,
     add_guild_tz,
     add_guild_meowth_raid_category,
+    load_schedule_db,
     toggle_any_raids_filter,
     toggle_join_name_filter,
     set_guild_active,
     add_guild,
     set_guild_prefix,
-    get_guild_log_channel
+    get_guild_log_channel,
+    get_guild_time_channel,
+    get_guild_admin_channel,
+    get_guild_raid_category,
+    update_schedule,
+    drop_schedule
 )
 from .utils.embeds import get_settings_embed
 from .utils.utils import get_current_time
@@ -566,6 +575,45 @@ class Management(commands.Cog):
         if await check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to active.')
             ok = await set_guild_active(guild.id, 1)
+            # Then go through admin_channel, log_channel, time_channel, schedules
+            # and raid category to see if the channels still exist. Reset or drop if they don't.
+            admin_channel_id = await get_guild_admin_channel(guild.id)
+            if admin_channel_id != -1:
+                admin_channel = get(guild.channels, id=int(admin_channel_id))
+                if admin_channel is None:
+                    logger.warning(f'Admin channel not found for {guild.name}, resetting.')
+                    await add_guild_admin_channel(guild)
+
+            log_channel_id = await get_guild_log_channel(guild.id)
+            if log_channel_id != -1:
+                log_channel = get(guild.channels, id=int(log_channel_id))
+                if log_channel is None:
+                    logger.warning(f'Log channel not found for {guild.name}, resetting.')
+                    await add_guild_log_channel(guild)
+
+            time_channel_id = await get_guild_time_channel(guild.id)
+            if time_channel_id != -1:
+                time_channel = get(guild.channels, id=int(time_channel_id))
+                if time_channel is None:
+                    logger.warning(f'Time channel not found for {guild.name}, resetting.')
+                    await add_guild_time_channel(guild)
+
+            raid_category_id = await get_guild_raid_category(guild.id)
+            if raid_category_id != -1:
+                raid_category = get(guild.categories, id=int(raid_category_id))
+                if raid_category is None:
+                    logger.warning(f'Raid category not found for {guild.name}, resetting.')
+                    await add_guild_meowth_raid_category(guild)
+
+            schedules = await load_schedule_db(guild_id=guild.id)
+            if not schedules.empty:
+                for _, row in schedules.iterrows():
+                    sched_channel_id = row['channel']
+                    sched_channel = get(guild.channels, id=int(sched_channel_id))
+                    if sched_channel is None:
+                        logger.warning(f"Dropping schedule {row['rowid']} in {guild.name} as channel not found.")
+                        ok = await drop_schedule(row['rowid'])
+
         # if not then create the new entry in the db
         else:
             logger.info(f'Adding {guild.name} to database.')
@@ -585,7 +633,14 @@ class Management(commands.Cog):
         # check if the new guild is already in the database
         if await check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to not active.')
+            # Set guild to inactive
             ok = await set_guild_active(guild.id, 0)
+            # Check for schedules and deactivate them all
+            schedules = await load_schedule_db(guild_id=guild.id)
+            if not schedules.empty:
+                logger.info(f'Deactivating all schedules for {guild.name}.')
+                for rowid in schedules['rowid']:
+                    ok = await update_schedule(schedule_id=rowid, column='active', value=False)
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
