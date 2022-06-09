@@ -183,7 +183,7 @@ async def add_allowed_friend_code_channel(
         return False
 
 
-async def add_guild_admin_channel(guild: Guild, channel: TextChannel) -> bool:
+async def add_guild_admin_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
     """
     Records the admin channel for the guild to the database.
 
@@ -195,10 +195,15 @@ async def add_guild_admin_channel(guild: Guild, channel: TextChannel) -> bool:
         A bool to signify that the database transaction was successful
         ('True') or not ('False').
     """
+    if channel is None:
+        channel_id = -1
+    else:
+        channel_id = channel.id
+
     try:
         async with aiosqlite.connect(DATABASE) as db:
             sql_command = "UPDATE guilds SET admin_channel = ? WHERE id = ?"
-            await db.execute(sql_command, (channel.id, guild.id))
+            await db.execute(sql_command, (channel_id, guild.id))
             await db.commit()
 
         return True
@@ -289,7 +294,7 @@ async def add_guild_tz(guild: Guild, tz: str) -> bool:
         return False
 
 
-async def add_guild_meowth_raid_category(guild: Guild, channel: TextChannel) -> bool:
+async def add_guild_meowth_raid_category(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
     """
     Sets the Meowth/Pokenav raid category for the guild and writes it to the
     database.
@@ -302,7 +307,10 @@ async def add_guild_meowth_raid_category(guild: Guild, channel: TextChannel) -> 
         A bool to signify that the database transaction was successful
         ('True') or not ('False').
     """
-    channel_id = channel if channel == -1 else channel.id
+    if channel is None:
+        channel_id = -1
+    else:
+        channel_id = channel.id
 
     try:
         async with aiosqlite.connect(DATABASE) as db:
@@ -682,6 +690,24 @@ async def get_schedule_close(schedule_id: int) -> str:
     return close[0]
 
 
+async def get_guild_admin_channel(guild_id: int) -> str:
+    """
+    Fetches the admin channel of the requested guild.
+
+    Args:
+        guild_id: The id of the guild to obtain the admin channel for.
+
+    Returns:
+        The guild admin channel.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT admin_channel FROM guilds WHERE id = ?;"
+        async with db.execute(query, (guild_id,)) as cursor:
+            admin_channel = await cursor.fetchone()
+
+    return admin_channel[0]
+
+
 async def get_guild_log_channel(guild_id: int) -> str:
     """
     Fetches the log channel of the requested guild.
@@ -734,3 +760,21 @@ async def get_guild_any_raids_active(guild_id: int) -> bool:
             any_raids = await cursor.fetchone()
 
     return bool(any_raids[0])
+
+
+async def get_guild_raid_category(guild_id: int) -> bool:
+    """
+    Fetches the Meowth raid category value of the requested guild.
+
+    Args:
+        guild_id: The id of the guild to obtain the raid category.
+
+    Returns:
+        The guild raid category.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT meowth_raid_category FROM guilds WHERE id = ?;"
+        async with db.execute(query, (guild_id,)) as cursor:
+            raid_category = await cursor.fetchone()
+
+    return raid_category[0]
