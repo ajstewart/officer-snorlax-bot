@@ -8,16 +8,12 @@ from discord.ext import commands, tasks
 from discord import VoiceChannel
 from discord.abc import GuildChannel
 from discord.utils import get
-
-from .utils.checks import (
-    check_admin,
-    check_admin_channel,
-    check_bot,
-)
-from .utils.utils import get_current_time, get_hour_emoji
-from .utils.db import add_guild_time_channel, load_guild_db, get_guild_time_channel, get_guild_log_channel
-from .utils.log_msgs import time_channel_reset_log_embed
 from discord.errors import DiscordServerError, Forbidden
+
+from .utils import checks as snorlax_checks
+from .utils import utils as snorlax_utils
+from .utils import db as snorlax_db
+from .utils.log_msgs import time_channel_reset_log_embed
 
 
 logger = logging.getLogger()
@@ -54,9 +50,9 @@ class TimeChannel(commands.Cog):
         ),
         brief="Set a channel as the time channel."
     )
-    @commands.check(check_bot)
-    @commands.check(check_admin)
-    @commands.check(check_admin_channel)
+    @commands.check(snorlax_checks.check_bot)
+    @commands.check(snorlax_checks.check_admin)
+    @commands.check(snorlax_checks.check_admin_channel)
     async def setTimeChannel(
         self,
         ctx: commands.context,
@@ -74,7 +70,7 @@ class TimeChannel(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = await add_guild_time_channel(guild, channel)
+        ok = await snorlax_db.add_guild_time_channel(guild, channel)
         if ok:
             msg = (
                 "{} set as the Snorlax time channel successfully."
@@ -130,11 +126,11 @@ class TimeChannel(commands.Cog):
         """
         guild_id = channel.guild.id
 
-        if channel.id == await get_guild_time_channel(guild_id):
+        if channel.id == await snorlax_db.get_guild_time_channel(guild_id):
             # No channel entry resets the time channel.
-            ok = await add_guild_time_channel(channel.guild)
+            ok = await snorlax_db.add_guild_time_channel(channel.guild)
             if ok:
-                log_channel = await get_guild_log_channel(channel.guild.id)
+                log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
                 if log_channel != -1:
                     log_channel = get(channel.guild.channels, id=int(log_channel))
                     log_embed = time_channel_reset_log_embed(channel)
@@ -150,7 +146,7 @@ class TimeChannel(commands.Cog):
         Returns:
             None
         """
-        guild_db = await load_guild_db(active_only=True)
+        guild_db = await snorlax_db.load_guild_db(active_only=True)
 
         # check if there are actually any time channels set
         guild_db = guild_db.loc[guild_db['time_channel'] != -1]
@@ -158,7 +154,7 @@ class TimeChannel(commands.Cog):
             for tz in guild_db['tz'].unique():
                 guilds = guild_db.loc[guild_db['tz'] == tz]
 
-                now = get_current_time(tz=tz)
+                now = snorlax_utils.get_current_time(tz=tz)
 
                 for i in guilds['time_channel']:
                     try:
@@ -166,7 +162,7 @@ class TimeChannel(commands.Cog):
                         time_channel = self.bot.get_channel(time_channel_id)
 
                         new_name = now.strftime("%I:%M %p %Z")
-                        new_name = get_hour_emoji(new_name[:5]) + " " + new_name
+                        new_name = snorlax_utils.get_hour_emoji(new_name[:5]) + " " + new_name
 
                         await time_channel.edit(name=new_name)
 

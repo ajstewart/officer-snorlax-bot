@@ -11,8 +11,8 @@ from discord.abc import User
 from discord.ext import commands
 from typing import Iterable, Tuple
 
-from .db import load_guild_db, load_schedule_db, set_guild_active
-from .utils import strip_url, strip_mentions, strip_punctuation
+from . import db as snorlax_db
+from . import utils as snorlax_utils
 
 
 def check_bot(ctx: commands.context) -> bool:
@@ -62,7 +62,7 @@ async def check_admin_channel(ctx: commands.context) -> bool:
         'True' when the context originated from the set admin channel.
         'False' if not.
     """
-    guild_db = await load_guild_db()
+    guild_db = await snorlax_db.load_guild_db()
     if ctx.guild.id in guild_db.index:
         admin_channel = guild_db.loc[
             ctx.guild.id, 'admin_channel'
@@ -118,8 +118,8 @@ def check_for_friend_code(content: str) -> bool:
         'True' when the message contains a friend code. 'False' if not.
     """
     pattern = re.compile(r"\d{4}.*\d{4}.*\d{4}(?!(\d*\>))")
-    content = strip_mentions(content)
-    content = strip_url(content)
+    content = snorlax_utils.strip_mentions(content)
+    content = snorlax_utils.strip_url(content)
     match = re.search(pattern, content)
 
     if match:
@@ -178,7 +178,7 @@ def check_for_any_raids(content: str) -> bool:
     Returns:
         'True' if the content contains an any raids question. 'False' if not.
     """
-    content = strip_punctuation(content)
+    content = snorlax_utils.strip_punctuation(content)
     content_strip = content.strip().split(" ")
 
     if content_strip[0] == 'any' and content_strip[-1] in ['raid', 'raids']:
@@ -197,7 +197,7 @@ async def check_schedule_exists(sched_id: int) -> bool:
     Returns:
         'True' when the content contains a match. 'False' if not.
     """
-    schedules = await load_schedule_db()
+    schedules = await snorlax_db.load_schedule_db()
     exists = sched_id in schedules['rowid'].astype(int).tolist()
 
     return exists
@@ -217,7 +217,7 @@ async def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
         'True' when the schedule id is from the same guild as the command.
         'False' if not.
     """
-    schedules = await load_schedule_db()
+    schedules = await snorlax_db.load_schedule_db()
     schedules = schedules.set_index('rowid')
 
     schedule_guild = schedules.loc[sched_id]['guild']
@@ -243,13 +243,13 @@ async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
     Returns:
         'True' when the guild is contained in the database. 'False' if not.
     """
-    guilds = await load_guild_db()
+    guilds = await snorlax_db.load_guild_db()
 
     if guild_id in guilds.index.astype(int).tolist():
         if check_active:
             active = guilds.loc[guild_id]['active']
             if not active:
-                await set_guild_active(guild_id, 1)
+                await snorlax_db.set_guild_active(guild_id, 1)
         return True
     else:
         return False

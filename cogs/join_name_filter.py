@@ -11,9 +11,7 @@ from discord import Forbidden, Member
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
 
-from .utils.db import (
-    load_guild_db,
-)
+from .utils.db import load_guild_db
 from .utils.log_msgs import ban_log_embed
 
 
