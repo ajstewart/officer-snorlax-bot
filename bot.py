@@ -66,4 +66,4 @@ logger = get_logger(logfile='snorlax.log')
 logger.info('Starting bot...')
 
 bot = MyBot((get_prefix), intents, version, test_guild=TEST_GUILD)
-bot.run(DISCORD_TOKEN)
+bot.run(DISCORD_TOKEN, log_handler=None)
