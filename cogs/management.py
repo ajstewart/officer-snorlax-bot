@@ -387,7 +387,7 @@ class Management(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = await snorlax_db.add_guild_meowth_raid_category(guild, -1)
+        ok = await snorlax_db.add_guild_meowth_raid_category(guild)
         if ok:
             msg = ("Meowth raid category has been reset.")
         else:
@@ -632,6 +632,12 @@ class Management(commands.Cog):
         if log_channel == channel.id:
             await snorlax_db.add_guild_log_channel(channel.guild)
             logger.info(f'Log channel reset for guild {channel.guild.name}.')
+
+        admin_channel = await snorlax_db.get_guild_admin_channel(channel.guild.id)
+
+        if admin_channel == channel.id:
+            await snorlax_db.add_guild_admin_channel(channel.guild)
+            logger.info(f'Admin channel reset for guild {channel.guild.name}.')
 
 
 async def setup(bot: commands.bot) -> None:
