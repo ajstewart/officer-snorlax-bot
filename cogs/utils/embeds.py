@@ -6,9 +6,11 @@ import os
 import pandas as pd
 import pytz
 
-from discord import Embed, User
+from discord import Embed, User, Member, Role
 from discord.ext import commands
+from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
+from typing import List, Union
 
 
 load_dotenv(find_dotenv())
@@ -330,5 +332,57 @@ def get_warning_embed(
         )
 
     embed.set_footer(text="Current time updates every 10 min.", icon_url=client_user.display_avatar)
+
+    return embed
+
+
+def get_schedule_overwrites_embed(
+    roles_allow: List[Union[Role, Member]],
+    roles_deny: List[Union[Role, Member]]
+) -> Embed:
+    """Produces the warning embed of roles that will not be affected by a schedule.
+
+    Args:
+        roles_allow: List or roles or members with explicit 'True' send_messages.
+        roles_deny: List or roles or members with explicit 'False' send_messages.
+
+    Returns:
+        The warning embed containing the roles.
+    """
+    embed = Embed(
+        title="️⚠️  Roles Will Ignore Schedule",
+        description=(
+            "The following roles will not respect the created schedule due to their 'send messages' permission."
+        ),
+        color=15105570,
+        timestamp=utcnow(),
+    )
+
+    if len(roles_allow) > 0:
+        allow_value = ""
+        for role in roles_allow:
+            allow_value += f"\n{role.mention}"
+
+        embed.add_field(
+            name="✅ Roles always able to send messages:",
+            value=allow_value,
+            inline=False
+        )
+
+    if len(roles_deny) > 0:
+        deny_value = ""
+        for role in roles_deny:
+            deny_value += f"\n{role.mention}"
+
+        embed.add_field(
+            name="❌ Roles never able to send messages:",
+            value=deny_value,
+            inline=False
+        )
+
+    embed.add_field(
+        name="How to fix?",
+        value="Change the 'send messages' permission to neutral so it follows the @everybody role."
+    )
 
     return embed

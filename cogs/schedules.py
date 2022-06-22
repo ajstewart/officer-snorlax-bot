@@ -5,9 +5,7 @@ import os
 import logging
 
 from discord import TextChannel, User, Role, PermissionOverwrite, Interaction
-from discord.errors import (
-    DiscordServerError, Forbidden,
-)
+from discord.errors import DiscordServerError, Forbidden
 from discord.abc import GuildChannel
 from discord.ext import commands, tasks
 from discord.utils import get
@@ -17,7 +15,6 @@ from typing import Optional
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
 from .utils import embeds as snorlax_embeds
-from .utils import db as snorlax_db
 from .utils import log_msgs as snorlax_log
 from .utils import utils as snorlax_utils
 
@@ -318,6 +315,23 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
+        # check that the bot has access to the channel
+        bot_member = ctx.guild.get_member(self.bot.user.id)
+        ok_perms = snorlax_checks.check_schedule_perms(bot_member, channel)
+
+        # Cancel schedule creation if channel permissions not correct.
+        if not ok_perms:
+            msg = (
+                'Schedule not created, '
+                f'Snorlax does not have the correct permissions for {channel.mention}!'
+                "\n\nThe following permissions are required:"
+                "\n```"
+                "\nview_channel\nread_messages\nread_message_history\nsend_messages\nmanage_roles"
+                "\n```"
+            )
+            await ctx.channel.send(msg)
+            return
+
         time_ok, f_open_time = snorlax_checks.check_time_format(open_time)
         if not time_ok:
             msg = (
@@ -369,6 +383,10 @@ class Schedules(commands.Cog):
             msg = "Error when setting schedule."
 
         await ctx.channel.send(msg)
+
+        if ok:
+            # Check for roles that won't respect the schedule.
+            await snorlax_checks.check_schedule_overwrites(channel, ctx.channel, self.bot.user)
 
     @createSchedule.error
     async def createSchedule_error(

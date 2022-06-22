@@ -2,17 +2,19 @@
 Contains all the various checks that the commands need to perform.
 """
 
+import numpy as np
 import pytz
 import re
 import time
 
-from discord import Message
+from discord import Message, TextChannel, Member
 from discord.abc import User
 from discord.ext import commands
 from typing import Iterable, Tuple
 
 from . import db as snorlax_db
 from . import utils as snorlax_utils
+from . import embeds as snorlax_embeds
 
 
 def check_bot(ctx: commands.context) -> bool:
@@ -253,3 +255,70 @@ async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
         return True
     else:
         return False
+
+
+def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
+    """Checks the permissions for the bot for the channel that a schedule is to be created.
+
+    Will return False if the bot does not have the required permissions to correctly apply
+    a schedule.
+
+    Args:
+        member: The bot guild member.
+        channel: The channel for which a schedule is to be created.
+
+    Returns:
+        'True' if all permissions are correct, 'False' if not.
+    """
+    perms = channel.permissions_for(member)
+    ok = np.all([
+        perms.view_channel,
+        perms.read_messages,
+        perms.read_message_history,
+        perms.send_messages,
+        perms.manage_roles
+    ])
+
+    return ok
+
+
+async def check_schedule_overwrites(
+    channel: TextChannel,
+    command_channel: TextChannel,
+    bot_user: User
+) -> None:
+    """Checks the overwrites on a channel for which a schedule is to be created.
+
+    If any role explicitly has send_messages set to `True` a warning will be sent to the command
+    channel.
+
+    Args:
+        channel: The channel for which a schedule is to be created.
+        command_channel: The channel where the schedule creation command was issued.
+        bot_user: The bot user.
+    """
+    no_effect_roles_allow = []
+    no_effect_roles_deny = []
+
+    # Get the overwrites
+    overwrites = channel.overwrites
+    bot_role = channel.guild.self_role
+    bot_member = channel.guild.get_member(bot_user.id)
+
+    # Loop over overwrites checking for explicit send_messages in the allow overwrites.
+    for role in overwrites:
+        # Skip self role/member
+        if role == bot_role:
+            continue
+        if role == bot_member:
+            continue
+
+        allow, deny = overwrites[role].pair()
+        if allow.send_messages:
+            no_effect_roles_allow.append(role)
+        if deny.send_messages:
+            no_effect_roles_deny.append(role)
+
+    if len(no_effect_roles_allow + no_effect_roles_deny) > 0:
+        embed = snorlax_embeds.get_schedule_overwrites_embed(no_effect_roles_allow, no_effect_roles_deny)
+        await command_channel.send(embed=embed)
