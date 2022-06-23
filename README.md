@@ -12,15 +12,18 @@ It seems to do the job but undoubtedly could be done much better!
 It is for this reason that I am not yet generally using an invite link for a hosted instance, and rather made the code public for people to self-host if they wish.
 But if you are interested in using a hosted instance please find me on the Sydney Pokemon Go server.
 
-This is yet to be updated to use discord.py >= 2.0, so threads and slash commands are not supported.
+This version supports `discord.py` v2.0 however it only contains all the features that were present in Snorlax v0.2.0. Slash commands are coming!
 
 ## Requirements
 
-* Python 3.5.3+ (tested on 3.8.5)
-* discord.py > 1.6.0, < 2.0
+* Python 3.9+
+* discord.py >= 2.0
 * pandas > 1.1.0
+* python-dotenv == 0.20.0
+* alembic == 1.8.0
+* aiosqlite == 0.17.0
 
-There is a requirements.txt file to install the dependancies from:
+There is a requirements.txt file to install the dependencies from:
 ```
 pip install -r requirements.txt
 ```
@@ -33,22 +36,30 @@ pip install -r requirements.txt
 
 3. Checkout the `main` branch.
 
-```
-git checkout main
-```
+    ```
+    git checkout main
+    ```
 
-4. Initialise the sqlite3 database using the initdb.py script:
-```
-python initdb.py
-```
-this will create `database.db`.
+4. Copy the `alembic.ini.template` file to `alembic.ini` and edit line `58` by replacing "ENTER DATABASE HERE!" with your intended database name, e.g.
+
+    ```
+    sqlalchemy.url = sqlite:///database.db
+    ```
+
+    and then run:
+
+    ```
+    alembic upgrade head
+    ```
+
+    which will create the database.
 
 5. Copy the `.env_template` to `.env` and proceed to enter your settings.
 
 6. Run the bot with:
-```
-python bot.py
-```
+    ```
+    python bot.py
+    ```
 
 ## Permissions Required
 
@@ -155,14 +166,16 @@ To set this up:
   1. Create a voice channel and make sure the permissions are so that no one can connect to it.
   2. Copy the ID of the voice channel created.
   3. Enter the following command in Discord in the Snorlax admin channel, replacing ID with the channel ID copied (the `<#>` is needed in this case):
-    ```
-    @Officer Snorlax setTimeChannel <#ID>
-    ```
+      ```
+      @Officer Snorlax setTimeChannel <#ID>
+      ```
 
 The voice channel name will now be updated every 10 minutes and will look like the example below.
 
 ![setTimeChannel](/screenshots/setTimeChannel.png)
 ![Time Example](/screenshots/time_display_example.png)
+
+Note that Snorlax should take care of the permissions of the voice channel.
 
 ## Schedule Behaviour
 
@@ -186,7 +199,15 @@ A summary of all created schedules can be
 It works by toggling the `@everyone` role on the channel to `deny` for closure and `neutral` for open. 
 The bot will check if the channel is already closed or opening before applying the change, so it won't attempt to close a channel already closed for example.
 
+When creating the schedule Snorlax will check that it has the correct permissions on the respective channel to implement the schedule.
+
 ![CloseAndOpen](/screenshots/CloseAndOpen.png)
+
+### Roles Not Affected By Schedule
+
+When creating the schedule, Snorlax will check if any roles have an explicit send message permission. This would mean that the schedule will have no effect for these roles. These will be communicated via a warning message upon creation like that shown below.
+
+![ScheduleRolesWarning](/screenshots/SchedulesRolesWarning.png)
 
 ### Warning Option
 
@@ -308,7 +329,7 @@ The `removeAllSchedules` command will ask for confirmation before processing req
 
 ![removeAllSchedules](/screenshots/remove_all_confirmation.png)
 
-Click on the green tick emoji to confirm the deletion, or the red cross to cancel.
+Click on the `Confirm` to confirm the deletion, or the `Cancel` button to cancel. The command will timeout after 1 minute.
 
 ### Manual Open and Closing
 
