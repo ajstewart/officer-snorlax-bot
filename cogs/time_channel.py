@@ -1,19 +1,19 @@
-from discord.ext import commands, tasks
-from discord import TextChannel, VoiceChannel
-from typing import Optional
-import discord
+
 import logging
 import datetime
+import discord
 import asyncio
+
+from discord.ext import commands, tasks
+from discord import VoiceChannel
+from discord.abc import GuildChannel
 from discord.utils import get
-from .utils.checks import (
-    check_admin,
-    check_admin_channel,
-    check_bot,
-)
-from .utils.utils import get_current_time, get_hour_emoji
-from .utils.db import add_guild_time_channel, load_guild_db
 from discord.errors import DiscordServerError, Forbidden
+
+from .utils import checks as snorlax_checks
+from .utils import utils as snorlax_utils
+from .utils import db as snorlax_db
+from .utils.log_msgs import time_channel_reset_log_embed
 
 
 logger = logging.getLogger()
@@ -50,9 +50,9 @@ class TimeChannel(commands.Cog):
         ),
         brief="Set a channel as the time channel."
     )
-    @commands.check(check_bot)
-    @commands.check(check_admin)
-    @commands.check(check_admin_channel)
+    @commands.check(snorlax_checks.check_bot)
+    @commands.check(snorlax_checks.check_admin)
+    @commands.check(snorlax_checks.check_admin_channel)
     async def setTimeChannel(
         self,
         ctx: commands.context,
@@ -70,7 +70,7 @@ class TimeChannel(commands.Cog):
             None
         """
         guild = ctx.guild
-        ok = add_guild_time_channel(guild, channel)
+        ok = await snorlax_db.add_guild_time_channel(guild, channel)
         if ok:
             msg = (
                 "{} set as the Snorlax time channel successfully."
@@ -79,6 +79,10 @@ class TimeChannel(commands.Cog):
                 )
             )
             # Make sure the channel permissions are set
+            bot_role = channel.guild.self_role
+            overwrites = channel.overwrites_for(bot_role)
+            overwrites.connect = True
+            await channel.set_permissions(bot_role, overwrite=overwrites)
             role = ctx.guild.default_role
             overwrites = channel.overwrites_for(role)
             overwrites.connect = False
@@ -89,7 +93,6 @@ class TimeChannel(commands.Cog):
             )
 
         await ctx.channel.send(msg)
-
 
     @setTimeChannel.error
     async def setTimeChannel_error(self, ctx: commands.context, error) -> None:
@@ -110,6 +113,29 @@ class TimeChannel(commands.Cog):
                 'Channel not found. Hint: It must be a voice channel!'
             )
 
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
+        """
+        Checks on a channel deletion whether the channel was the time channel.
+
+        Args:
+            channel: The deleted channel object.
+
+        Returns:
+            None
+        """
+        guild_id = channel.guild.id
+
+        if channel.id == await snorlax_db.get_guild_time_channel(guild_id):
+            # No channel entry resets the time channel.
+            ok = await snorlax_db.add_guild_time_channel(channel.guild)
+            if ok:
+                log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
+                if log_channel != -1:
+                    log_channel = get(channel.guild.channels, id=int(log_channel))
+                    log_embed = time_channel_reset_log_embed(channel)
+                    await log_channel.send(embed=log_embed)
+                logger.info(f'Time channel reset for guild {channel.guild.name}.')
 
     @tasks.loop(minutes=10)
     async def time_channels_manager(self) -> None:
@@ -120,8 +146,7 @@ class TimeChannel(commands.Cog):
         Returns:
             None
         """
-        client_user = self.bot.user
-        guild_db = load_guild_db()
+        guild_db = await snorlax_db.load_guild_db(active_only=True)
 
         # check if there are actually any time channels set
         guild_db = guild_db.loc[guild_db['time_channel'] != -1]
@@ -129,7 +154,7 @@ class TimeChannel(commands.Cog):
             for tz in guild_db['tz'].unique():
                 guilds = guild_db.loc[guild_db['tz'] == tz]
 
-                now = get_current_time(tz=tz)
+                now = snorlax_utils.get_current_time(tz=tz)
 
                 for i in guilds['time_channel']:
                     try:
@@ -137,7 +162,7 @@ class TimeChannel(commands.Cog):
                         time_channel = self.bot.get_channel(time_channel_id)
 
                         new_name = now.strftime("%I:%M %p %Z")
-                        new_name = get_hour_emoji(new_name[:5]) + " " + new_name
+                        new_name = snorlax_utils.get_hour_emoji(new_name[:5]) + " " + new_name
 
                         await time_channel.edit(name=new_name)
 
@@ -152,7 +177,6 @@ class TimeChannel(commands.Cog):
                         logger.error(f'Error: {e}')
         else:
             logger.warning('No time channels set skipping loop.')
-
 
     @time_channels_manager.before_loop
     async def before_timer(self):
@@ -176,3 +200,18 @@ class TimeChannel(commands.Cog):
         )
 
         await asyncio.sleep(sleep_time)
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    if bot.test_guild is not None:
+        await bot.add_cog(
+            TimeChannel(bot),
+            guild=discord.Object(id=bot.test_guild)
+        )
+    else:
+        await bot.add_cog(TimeChannel(bot))

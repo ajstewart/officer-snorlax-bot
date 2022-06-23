@@ -2,19 +2,19 @@
 Contains all the various checks that the commands need to perform.
 """
 
-import datetime
+import numpy as np
 import pytz
 import re
 import time
 
-from discord import Message
+from discord import Message, TextChannel, Member
 from discord.abc import User
 from discord.ext import commands
-from discord.utils import escape_mentions
 from typing import Iterable, Tuple
 
-from .db import load_guild_db, load_schedule_db, set_guild_active
-from .utils import strip_url, strip_mentions, strip_punctuation
+from . import db as snorlax_db
+from . import utils as snorlax_utils
+from . import embeds as snorlax_embeds
 
 
 def check_bot(ctx: commands.context) -> bool:
@@ -52,7 +52,7 @@ def check_admin(ctx: commands.context) -> bool:
         return False
 
 
-def check_admin_channel(ctx: commands.context) -> bool:
+async def check_admin_channel(ctx: commands.context) -> bool:
     """
     Checks if the channel of the command is the set admin channel.
 
@@ -64,7 +64,7 @@ def check_admin_channel(ctx: commands.context) -> bool:
         'True' when the context originated from the set admin channel.
         'False' if not.
     """
-    guild_db = load_guild_db()
+    guild_db = await snorlax_db.load_guild_db()
     if ctx.guild.id in guild_db.index:
         admin_channel = guild_db.loc[
             ctx.guild.id, 'admin_channel'
@@ -119,9 +119,9 @@ def check_for_friend_code(content: str) -> bool:
     Returns:
         'True' when the message contains a friend code. 'False' if not.
     """
-    pattern = "\d{4}.*\d{4}.*\d{4}(?!(\d*\>))"
-    content = strip_mentions(content)
-    content = strip_url(content)
+    pattern = re.compile(r"\d{4}.*\d{4}.*\d{4}(?!(\d*\>))")
+    content = snorlax_utils.strip_mentions(content)
+    content = snorlax_utils.strip_url(content)
     match = re.search(pattern, content)
 
     if match:
@@ -180,7 +180,7 @@ def check_for_any_raids(content: str) -> bool:
     Returns:
         'True' if the content contains an any raids question. 'False' if not.
     """
-    content = strip_punctuation(content)
+    content = snorlax_utils.strip_punctuation(content)
     content_strip = content.strip().split(" ")
 
     if content_strip[0] == 'any' and content_strip[-1] in ['raid', 'raids']:
@@ -189,7 +189,7 @@ def check_for_any_raids(content: str) -> bool:
         return False
 
 
-def check_schedule_exists(sched_id: int) -> bool:
+async def check_schedule_exists(sched_id: int) -> bool:
     """
     Checks whether a schedule exists with the provided id number.
 
@@ -199,13 +199,13 @@ def check_schedule_exists(sched_id: int) -> bool:
     Returns:
         'True' when the content contains a match. 'False' if not.
     """
-    schedules = load_schedule_db()
+    schedules = await snorlax_db.load_schedule_db()
     exists = sched_id in schedules['rowid'].astype(int).tolist()
 
     return exists
 
 
-def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
+async def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
     """
     Checks whether the provided schedule id is attached to the guild where
     the command originated.
@@ -219,7 +219,8 @@ def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
         'True' when the schedule id is from the same guild as the command.
         'False' if not.
     """
-    schedules = load_schedule_db().set_index('rowid')
+    schedules = await snorlax_db.load_schedule_db()
+    schedules = schedules.set_index('rowid')
 
     schedule_guild = schedules.loc[sched_id]['guild']
     ctx_guild_id = ctx.guild.id
@@ -229,7 +230,7 @@ def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
     return allowed
 
 
-def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
+async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
     """
     Checks whether a guild exists and, optionally, whether it is set to active.
 
@@ -244,13 +245,80 @@ def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
     Returns:
         'True' when the guild is contained in the database. 'False' if not.
     """
-    guilds = load_guild_db()
+    guilds = await snorlax_db.load_guild_db()
 
     if guild_id in guilds.index.astype(int).tolist():
         if check_active:
             active = guilds.loc[guild_id]['active']
             if not active:
-                set_guild_active(guild_id, 1)
+                await snorlax_db.set_guild_active(guild_id, 1)
         return True
     else:
         return False
+
+
+def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
+    """Checks the permissions for the bot for the channel that a schedule is to be created.
+
+    Will return False if the bot does not have the required permissions to correctly apply
+    a schedule.
+
+    Args:
+        member: The bot guild member.
+        channel: The channel for which a schedule is to be created.
+
+    Returns:
+        'True' if all permissions are correct, 'False' if not.
+    """
+    perms = channel.permissions_for(member)
+    ok = np.all([
+        perms.view_channel,
+        perms.read_messages,
+        perms.read_message_history,
+        perms.send_messages,
+        perms.manage_roles
+    ])
+
+    return ok
+
+
+async def check_schedule_overwrites(
+    channel: TextChannel,
+    command_channel: TextChannel,
+    bot_user: User
+) -> None:
+    """Checks the overwrites on a channel for which a schedule is to be created.
+
+    If any role explicitly has send_messages set to `True` a warning will be sent to the command
+    channel.
+
+    Args:
+        channel: The channel for which a schedule is to be created.
+        command_channel: The channel where the schedule creation command was issued.
+        bot_user: The bot user.
+    """
+    no_effect_roles_allow = []
+    no_effect_roles_deny = []
+
+    # Get the overwrites
+    overwrites = channel.overwrites
+    bot_role = channel.guild.self_role
+    bot_member = channel.guild.get_member(bot_user.id)
+
+    # Loop over overwrites checking for explicit send_messages in the allow overwrites.
+    for role in overwrites:
+        # Skip self role/member
+        if role == bot_role:
+            continue
+        if role == bot_member:
+            continue
+
+        allow, deny = overwrites[role].pair()
+        if allow.send_messages:
+            no_effect_roles_allow.append(role)
+        if deny.send_messages:
+            no_effect_roles_deny.append(role)
+
+    if len(no_effect_roles_allow + no_effect_roles_deny) > 0:
+        embed = snorlax_embeds.get_schedule_overwrites_embed(no_effect_roles_allow, no_effect_roles_deny)
+        await command_channel.send(embed=embed)

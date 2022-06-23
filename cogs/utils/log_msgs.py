@@ -5,6 +5,7 @@ import datetime
 import pytz
 
 from discord import TextChannel, Embed, Message, User
+from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
 from typing import Optional
 
@@ -14,7 +15,6 @@ load_dotenv(find_dotenv())
 
 def filter_delete_log_embed(
     message: Message,
-    tz: str,
     reason: Optional[str] = "None"
 ) -> Embed:
     """
@@ -23,14 +23,12 @@ def filter_delete_log_embed(
 
     Args:
         message: The message that triggered the filter.
-        tz: The timezone of the guild.
         reason: The reason of the deletion.
 
     Returns:
         The Discord Embed object to send to the log channel.
     """
-    tz = pytz.timezone(tz)
-    now = datetime.datetime.now(tz=tz)
+    now = utcnow()
     user = message.author
     embed = Embed(
         description=(
@@ -40,9 +38,10 @@ def filter_delete_log_embed(
         timestamp=now,
         color=2061822
     )
+
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar_url
+        icon_url=user.display_avatar
     )
     embed.add_field(
         name="Reason",
@@ -81,7 +80,7 @@ def ban_log_embed(
     )
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar_url
+        icon_url=user.display_avatar
     )
     embed.add_field(
         name="Reason",
@@ -167,7 +166,102 @@ def schedule_log_embed(
 
     embed.set_author(
         name=f"{channel.guild.name}",
-        icon_url=channel.guild.icon_url
+        icon_url=channel.guild.icon
+    )
+
+    return embed
+
+
+def fc_channel_removed_log_embed(channel: TextChannel) -> Embed:
+    """
+    Create an embed to send to the logging channel upon a filter message
+    deletion.
+
+    Args:
+        channel: The channel that has been removed.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = Embed(
+        description=(
+            f'Channel **#{channel.name}** has been removed from the allowed friend codes list.'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{channel.guild.name}",
+        icon_url=channel.guild.icon
+    )
+    embed.add_field(
+        name="Reason",
+        value="Channel has been deleted."
+    )
+
+    return embed
+
+
+def time_channel_reset_log_embed(channel: TextChannel) -> Embed:
+    """
+    Create an embed to send to the logging channel upon a time channel deletion.
+
+    Args:
+        channel: The channel that has been removed.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = Embed(
+        description=(
+            f'Time channel has been reset.'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{channel.guild.name}",
+        icon_url=channel.guild.icon
+    )
+    embed.add_field(
+        name="Reason",
+        value=f"Deletion of time channel **#{channel.name}**."
+    )
+
+    return embed
+
+
+def schedules_deleted_log_embed(channel: TextChannel, id: int) -> Embed:
+    """
+    Create an embed to send to the logging channel upon a channel deletion that had a schedule.
+
+    Args:
+        channel: The channel which schedules have been removed.
+        id: The id of the schedule removed.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = Embed(
+        description=(
+            f'Schedule ID {id} has been deleted.'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{channel.guild.name}",
+        icon_url=channel.guild.icon
+    )
+    embed.add_field(
+        name="Reason",
+        value=f"Deletion of channel **#{channel.name}**."
     )
 
     return embed
