@@ -7,7 +7,7 @@ import pytz
 import re
 import time
 
-from discord import Message, TextChannel, Member
+from discord import Message, TextChannel, Member, Interaction
 from discord.abc import User
 from discord.ext import commands
 from typing import Iterable, Tuple
@@ -34,6 +34,18 @@ def check_bot(ctx: commands.context) -> bool:
         return True
 
 
+def interaction_check_bot(interaction: Interaction):
+    """Checks whether the interaction came from a bot.
+
+    Args:
+        interaction: The interaction passed.
+
+    Returns:
+        'True' when the context originated from a bot account. 'False' if not.
+    """
+    return not interaction.user.bot
+
+
 def check_admin(ctx: commands.context) -> bool:
     """
     Checks whether the user is an admin.
@@ -48,31 +60,6 @@ def check_admin(ctx: commands.context) -> bool:
     """
     if ctx.author.guild_permissions.administrator:
         return True
-    else:
-        return False
-
-
-async def check_admin_channel(ctx: commands.context) -> bool:
-    """
-    Checks if the channel of the command is the set admin channel.
-
-    Args:
-        ctx: The command context containing the message content and other
-            metadata.
-
-    Returns:
-        'True' when the context originated from the set admin channel.
-        'False' if not.
-    """
-    guild_db = await snorlax_db.load_guild_db()
-    if ctx.guild.id in guild_db.index:
-        admin_channel = guild_db.loc[
-            ctx.guild.id, 'admin_channel'
-        ]
-        if ctx.channel.id == admin_channel:
-            return True
-        else:
-            return False
     else:
         return False
 
@@ -125,22 +112,6 @@ def check_for_friend_code(content: str) -> bool:
     match = re.search(pattern, content)
 
     if match:
-        return True
-    else:
-        return False
-
-
-def check_valid_timezone(tz: str) -> bool:
-    """
-    Checks whether the tz sting is a valid timezone using pytz.
-
-    Args:
-        tz: The string timezone. E.g. 'Australia/Sydney'.
-
-    Returns:
-        'True' when the tz is valid. 'False' if not.
-    """
-    if tz in pytz.all_timezones:
         return True
     else:
         return False

@@ -161,13 +161,12 @@ class Schedules(commands.Cog):
                 respectively.
         """
         admin_check = snorlax_checks.check_admin(ctx)
-        channel_check = await snorlax_checks.check_admin_channel(ctx)
         bot_check = snorlax_checks.check_bot(ctx)
 
         if not bot_check:
             return False
 
-        if admin_check and channel_check:
+        if admin_check:
             return True
         else:
             return False

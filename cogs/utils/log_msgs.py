@@ -4,7 +4,7 @@ Contains the embeds that are used as part of the logging.
 import datetime
 import pytz
 
-from discord import TextChannel, Embed, Message, User
+from discord import TextChannel, Embed, Message, User, app_commands
 from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
 from typing import Optional
@@ -262,6 +262,53 @@ def schedules_deleted_log_embed(channel: TextChannel, id: int) -> Embed:
     embed.add_field(
         name="Reason",
         value=f"Deletion of channel **#{channel.name}**."
+    )
+
+    return embed
+
+
+def attempted_app_command_embed(command: app_commands.Command, channel: TextChannel, user: User) -> Embed:
+    """
+    Create an embed to send to the logging channel that a user attempted to use an admin command.
+
+    Args:
+        command: The app command that was attempted to be used.
+        channel: The channel where it was attempted.
+        user: The user who attempted the command.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = Embed(
+        description=(
+            f'Unauthorised command attempted!'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{user.name}#{user.discriminator}",
+        icon_url=user.display_avatar
+    )
+
+    embed.add_field(
+        name="User",
+        value=f"{user.mention} (id: {user.id})",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Command",
+        value=f"{command.name}",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Channel",
+        value=f"{channel.mention}",
+        inline=False
     )
 
     return embed

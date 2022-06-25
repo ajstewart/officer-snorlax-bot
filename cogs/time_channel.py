@@ -52,7 +52,6 @@ class TimeChannel(commands.Cog):
     )
     @commands.check(snorlax_checks.check_bot)
     @commands.check(snorlax_checks.check_admin)
-    @commands.check(snorlax_checks.check_admin_channel)
     async def setTimeChannel(
         self,
         ctx: commands.context,

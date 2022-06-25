@@ -183,35 +183,6 @@ async def add_allowed_friend_code_channel(
         return False
 
 
-async def add_guild_admin_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
-    """
-    Records the admin channel for the guild to the database.
-
-    Args:
-        guild: The discord guild object.
-        channel: The discord textchannel object.
-
-    Returns:
-        A bool to signify that the database transaction was successful
-        ('True') or not ('False').
-    """
-    if channel is None:
-        channel_id = -1
-    else:
-        channel_id = channel.id
-
-    try:
-        async with aiosqlite.connect(DATABASE) as db:
-            sql_command = "UPDATE guilds SET admin_channel = ? WHERE id = ?"
-            await db.execute(sql_command, (channel_id, guild.id))
-            await db.commit()
-
-        return True
-
-    except Exception as e:
-        return False
-
-
 async def add_guild_log_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
     """
     Records the log channel for the guild to the database.
@@ -690,24 +661,6 @@ async def get_schedule_close(schedule_id: int) -> str:
     return close[0]
 
 
-async def get_guild_admin_channel(guild_id: int) -> str:
-    """
-    Fetches the admin channel of the requested guild.
-
-    Args:
-        guild_id: The id of the guild to obtain the admin channel for.
-
-    Returns:
-        The guild admin channel.
-    """
-    async with aiosqlite.connect(DATABASE) as db:
-        query = "SELECT admin_channel FROM guilds WHERE id = ?;"
-        async with db.execute(query, (guild_id,)) as cursor:
-            admin_channel = await cursor.fetchone()
-
-    return admin_channel[0]
-
-
 async def get_guild_log_channel(guild_id: int) -> str:
     """
     Fetches the log channel of the requested guild.
@@ -744,6 +697,24 @@ async def get_guild_time_channel(guild_id: int) -> str:
     return time_channel[0]
 
 
+async def get_guild_tz(guild_id: int) -> str:
+    """
+    Fetches the time channel of the requested guild.
+
+    Args:
+        guild_id: The id of the guild to obtain the time channel for.
+
+    Returns:
+        The guild time channel.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT tz FROM guilds WHERE id = ?;"
+        async with db.execute(query, (guild_id,)) as cursor:
+            guild_tz = await cursor.fetchone()
+
+    return guild_tz[0]
+
+
 async def get_guild_any_raids_active(guild_id: int) -> bool:
     """
     Fetches the any raids filter value of the requested guild.
@@ -760,6 +731,24 @@ async def get_guild_any_raids_active(guild_id: int) -> bool:
             any_raids = await cursor.fetchone()
 
     return bool(any_raids[0])
+
+
+async def get_guild_join_name_active(guild_id: int) -> bool:
+    """
+    Fetches the join name filter value of the requested guild.
+
+    Args:
+        guild_id: The id of the guild to obtain the any raids value.
+
+    Returns:
+        The guild time channel.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT join_name_filter FROM guilds WHERE id = ?;"
+        async with db.execute(query, (guild_id,)) as cursor:
+            join_name = await cursor.fetchone()
+
+    return bool(join_name[0])
 
 
 async def get_guild_raid_category(guild_id: int) -> bool:

@@ -41,7 +41,6 @@ class FriendCodeFilter(commands.Cog):
     )
     @commands.check(snorlax_checks.check_bot)
     @commands.check(snorlax_checks.check_admin)
-    @commands.check(snorlax_checks.check_admin_channel)
     async def addFriendChannel(
         self,
         ctx: commands.context,
@@ -76,7 +75,6 @@ class FriendCodeFilter(commands.Cog):
         await ctx.channel.send(msg)
 
     @commands.check(snorlax_checks.check_bot)
-    @commands.check(snorlax_checks.check_admin_channel)
     @commands.check(snorlax_checks.check_admin)
     @commands.command(
         help=(
@@ -118,7 +116,6 @@ class FriendCodeFilter(commands.Cog):
     )
     @commands.check(snorlax_checks.check_bot)
     @commands.check(snorlax_checks.check_admin)
-    @commands.check(snorlax_checks.check_admin_channel)
     async def removeFriendChannel(
         self,
         ctx: commands.context,

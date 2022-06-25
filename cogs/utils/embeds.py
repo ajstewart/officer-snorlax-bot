@@ -6,8 +6,7 @@ import os
 import pandas as pd
 import pytz
 
-from discord import Embed, User, Member, Role
-from discord.ext import commands
+from discord import Embed, User, Member, Role, Interaction
 from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
 from typing import List, Union
@@ -90,7 +89,7 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
 
 
 def get_settings_embed(
-    ctx: commands.context,
+    interaction: Interaction,
     guild_settings: pd.DataFrame
 ) -> Embed:
     """
@@ -98,15 +97,14 @@ def get_settings_embed(
     was used from.
 
     Args:
-        ctx: The command context containing the message content and other
-            metadata.
+        interaction: The interaction that triggered the request.
         guild_settings: The guild settings database table as a pandas dataframe.
 
     Returns:
         The embed containing the guild settings.
     """
     if guild_settings['meowth_raid_category'] != -1:
-        cat_name = ctx.guild.get_channel(
+        cat_name = interaction.guild.get_channel(
             guild_settings['meowth_raid_category']
         ).name
     else:
@@ -133,15 +131,13 @@ def get_settings_embed(
         name="Guild Settings",
         value=(
             'TZ: **{}**\n'
-            'Admin Channel: **<#{}>**\n'
             'Log Channel: **{}**\n'
             'Time Channel: **{}**\n'
-            'Meowth Raid Category: **{}**\n'
+            'Pokenav Raid Category: **{}**\n'
             'Any raids filter: **{}**\n'
             'Join name filter: **{}**\n'
             'Prefix: **{}**'.format(
                 guild_settings['tz'],
-                guild_settings['admin_channel'],
                 log_channel,
                 time_channel,
                 cat_name,
