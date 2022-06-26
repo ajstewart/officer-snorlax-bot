@@ -5,10 +5,11 @@ import discord
 import asyncio
 
 from discord.ext import commands, tasks
-from discord import VoiceChannel
+from discord import VoiceChannel, app_commands, Interaction
 from discord.abc import GuildChannel
 from discord.utils import get
 from discord.errors import DiscordServerError, Forbidden
+from typing import Optional
 
 from .utils import checks as snorlax_checks
 from .utils import utils as snorlax_utils
@@ -42,75 +43,77 @@ class TimeChannel(commands.Cog):
         )
         self.time_channels_manager.start()
 
-    @commands.command(
-        help=(
-            "Activates a channel as a 'time channel'. Which means the channel"
-            " will become purely a channel to display the current local time"
-            " in the channel name."
-        ),
-        brief="Set a channel as the time channel."
+    @app_commands.command(
+        name='create-time-channel',
+        description=(
+            'Create a voice channel that will display the local time (according to the '
+            'server timezone setting.'
+        )
     )
-    @commands.check(snorlax_checks.check_bot)
-    @commands.check(snorlax_checks.check_admin)
-    async def setTimeChannel(
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    # TODO: Add connect back in
+    @app_commands.checks.bot_has_permissions(manage_channels=True)
+    async def createTimeChannel(
         self,
-        ctx: commands.context,
-        channel: VoiceChannel
+        interaction: Interaction,
+        category: Optional[discord.CategoryChannel] = None
     ) -> None:
-        """
-        Command to set the time channel for the server.
+        """Creates a voice channel that will display the local server time.
+
+        Time is determined using the set server timezone.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            channel: The voice channel to set as the time channel.
-
-        Returns:
-            None
+            interaction: The interaction containing the request.
         """
-        guild = ctx.guild
-        ok = await snorlax_db.add_guild_time_channel(guild, channel)
-        if ok:
-            msg = (
-                "{} set as the Snorlax time channel successfully."
-                " Make sure Snorlax has the correct permissions!".format(
-                    channel.mention
-                )
+        # Check if time channel already exists.
+        time_channel_id = await snorlax_db.get_guild_time_channel(interaction.guild.id)
+
+        if time_channel_id != -1:
+            time_channel = self.bot.get_channel(time_channel_id)
+            await interaction.response.send_message(
+                f'Time channel {time_channel.mention} already exists!'
+                ' Delete this channel before creating a new one.'
             )
-            # Make sure the channel permissions are set
-            bot_role = channel.guild.self_role
-            overwrites = channel.overwrites_for(bot_role)
-            overwrites.connect = True
-            await channel.set_permissions(bot_role, overwrite=overwrites)
-            role = ctx.guild.default_role
-            overwrites = channel.overwrites_for(role)
-            overwrites.connect = False
-            await channel.set_permissions(role, overwrite=overwrites)
+
         else:
-            msg = (
-                "Error when setting the time channel."
+            overwrites = {}
+
+            # Give bot permission to connect to channel
+            bot_role = interaction.guild.self_role
+            overwrites[bot_role] = discord.PermissionOverwrite(
+                connect=True
             )
 
-        await ctx.channel.send(msg)
-
-    @setTimeChannel.error
-    async def setTimeChannel_error(self, ctx: commands.context, error) -> None:
-        """
-        Handles any error from setTimeChannel.
-
-        Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            error (Exception): The actual exception that could be a range of
-                error types.
-
-        Returns:
-            None
-        """
-        if isinstance(error, commands.BadArgument):
-            await ctx.send(
-                'Channel not found. Hint: It must be a voice channel!'
+            # block everybody from connecting
+            default_role = interaction.guild.default_role
+            overwrites[default_role] = discord.PermissionOverwrite(
+                connect=False
             )
+
+            time_channel = await interaction.guild.create_voice_channel(
+                'temp-time-channel',
+                overwrites=overwrites,
+                category=category,
+                reason='Channel created for Snorlax to display time.'
+            )
+
+            ok = await snorlax_db.add_guild_time_channel(interaction.guild, time_channel)
+
+            if ok:
+                msg = (
+                    "{} set as the Snorlax time channel successfully."
+                    " The time is updated every 10 minutes.".format(
+                        time_channel.mention
+                    )
+                )
+            else:
+                msg = (
+                    "Error when setting the time channel."
+                )
+
+            await interaction.response.send_message(msg, ephemeral=True)
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:

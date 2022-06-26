@@ -6,6 +6,7 @@ and set up of the bot.
 import discord
 import os
 import logging
+import traceback
 
 from discord import Guild, TextChannel, app_commands, Interaction, CategoryChannel
 from discord.abc import GuildChannel
@@ -68,17 +69,34 @@ class Management(commands.Cog):
                     logger.info('Unauthorised command attempt notification sent to log channel.')
 
         elif isinstance(error, app_commands.CheckFailure):
-            await interaction.response.send_message(
-                    "You can't use that here.",
+            if (('manage_channels' in error.missing_permissions
+                    or 'connect' in error.missing_permissions)
+                    and interaction.command.name == 'create-time-channel'):
+                await interaction.response.send_message(
+                    (
+                        "Permission error! Snorlax is missing the following permissions to create a time channel:\n"
+                        f"`{', '.join(error.missing_permissions)}` (`connect` may also be required)."
+                    ),
                     ephemeral=True
                 )
+            else:
+                await interaction.response.send_message(
+                        "You can't use that here.",
+                        ephemeral=True
+                    )
+        elif isinstance(error, app_commands.errors.CommandInvokeError) and "Missing Permissions" in str(error):
+            await interaction.response.send_message(
+                    "A permissions error has occurred. Does Snorlax have the correct permissions?",
+                    ephemeral=True
+                )
+            logger.error(error, exc_info=True)
         else:
             await interaction.response.send_message(
                     "Unexpected error occurred, contact administrator.",
                     ephemeral=True
                 )
-            logger.error(error)
             logger.error(type(error))
+            logger.error(error, exc_info=True)
 
     @app_commands.command(
         name='activate-any-raids-filter',
@@ -86,6 +104,7 @@ class Management(commands.Cog):
             "Turn on the 'any raids' filter. Filters messages containing 'any raids?'."
         ),
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def activateAnyRaidsFilter(self, interaction: Interaction) -> None:
@@ -116,6 +135,7 @@ class Management(commands.Cog):
         name="deactivate-any-raids-filter",
         description="Turns off the 'any raids' filter."
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def deactivateAnyRaidsFilter(self, interaction: Interaction):
@@ -146,6 +166,7 @@ class Management(commands.Cog):
         name='activate-join-name-filter',
         description="Turns on the 'join name' filter."
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def activateJoinNameFilter(self, interaction: Interaction) -> None:
@@ -174,6 +195,7 @@ class Management(commands.Cog):
         name='deactivate-join-name-filter',
         description="Turns off the 'join name' filter."
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def deactivateJoinNameFilter(self, interaction: Interaction) -> None:
@@ -229,6 +251,7 @@ class Management(commands.Cog):
         name='ping',
         description="Get a pong!"
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def ping(self, interaction: Interaction) -> None:
@@ -247,6 +270,7 @@ class Management(commands.Cog):
         name="set-log-channel",
         description="Set the channel for where snorlax will send log messages."
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def setLogChannel(
@@ -285,6 +309,7 @@ class Management(commands.Cog):
             " will make sure not to eat friend codes."
         ),
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def setPokenavRaidCategory(
@@ -322,6 +347,7 @@ class Management(commands.Cog):
         name='reset-pokenav-raid-category',
         description="Resets the Pokenav raid category (disables)."
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def resetPokenavRaidCategory(self, interaction: Interaction) -> None:
@@ -350,6 +376,7 @@ class Management(commands.Cog):
             "Set the timezone for the guild."
         )
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(tz=snorlax_autocompletes.timezones_autocomplete)
@@ -386,6 +413,7 @@ class Management(commands.Cog):
         ),
         brief="Set the prefix for the bot."
     )
+    @app_commands.default_permissions(administrator=True)
     @commands.check(snorlax_checks.check_bot)
     @commands.check(snorlax_checks.check_admin)
     async def setPrefix(self, ctx: commands.context, prefix: str) -> None:
@@ -425,6 +453,7 @@ class Management(commands.Cog):
             "Show all the current settings for the bot and guild."
         ),
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     async def showSettings(self, interaction: Interaction) -> None:

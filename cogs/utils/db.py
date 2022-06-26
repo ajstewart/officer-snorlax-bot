@@ -147,14 +147,14 @@ async def get_guild_prefix(guild_id: int) -> str:
 async def add_allowed_friend_code_channel(
     guild: Guild,
     channel: TextChannel,
-    secret: str = "False"
+    secret: bool = False
 ) -> bool:
     """
     Adds an allowed friend code channel to the database.
 
     Args:
         guild: The discord guild object.
-        channel: The discord textchannel object.
+        channel: The discord TextChannel object.
         secret: Whether the channel should be marked as secret in the database.
 
     Returns:
@@ -163,8 +163,6 @@ async def add_allowed_friend_code_channel(
     """
     # TODO: This is an awkward way of doing it really.
     #       Should change check to be in the actual command code.
-    secret = str2bool(secret)
-
     try:
         async with aiosqlite.connect(DATABASE) as db:
             async with db.cursor() as cursor:
@@ -433,6 +431,24 @@ async def drop_allowed_friend_code_channel(
 
     except Exception as e:
         return False
+
+
+async def check_friend_code_channel(channel_id: int) -> bool:
+    """
+    Checks whether the requested channel is in the friend code database.
+
+    Args:
+        channel_id: The id of the channel to be checked.
+
+    Returns:
+        True if present, False if not.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT channel_name FROM fc_channels WHERE channel = ?;"
+        async with db.execute(query, (channel_id,)) as cursor:
+            open = await cursor.fetchone()
+
+    return False if open is None else True
 
 
 async def drop_schedule(id_to_drop: int) -> bool:
