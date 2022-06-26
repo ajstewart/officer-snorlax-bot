@@ -4,19 +4,22 @@ import discord
 import os
 import logging
 
-from discord import TextChannel, User, Role, PermissionOverwrite, Interaction
+from discord import SelectOption, TextChannel, User, Role, PermissionOverwrite, Interaction, app_commands, Guild
 from discord.errors import DiscordServerError, Forbidden
 from discord.abc import GuildChannel
 from discord.ext import commands, tasks
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional
+from typing import Optional, List
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
 from .utils import embeds as snorlax_embeds
 from .utils import log_msgs as snorlax_log
 from .utils import utils as snorlax_utils
+from .utils import autocompletes as snorlax_autocompletes
+from .utils import select_options as snorlax_options
+from .utils import views as snorlax_views
 
 
 # obtain the bot settings from the dotenv.
@@ -28,102 +31,6 @@ INACTIVE_TIME = int(os.getenv('INACTIVE_TIME'))
 DELAY_TIME = int(os.getenv('DELAY_TIME'))
 
 logger = logging.getLogger()
-
-
-# Define a simple View that gives us a confirmation menu
-class RemoveAllConfirm(discord.ui.View):
-    """This View is used for the confirmation of the removeAllSchedules command.
-
-    Users will confirm or cancel the command. Only responds to the original author.
-    Note that the initial response message should be attached to the class when used!
-
-    Attributes:
-        value (Optional[bool]): Whether the interaction is complete (True) or not (False).
-            None indicates a timeout.
-        user (Discord.User): The original author of the command who the view will only respond to.
-    """
-    def __init__(self, user: User, timeout: int = 60) -> None:
-        """Init function of the view.
-
-        Args:
-            user: The original author of the command who the view will only respond to.
-            timeout: How long, in seconds, the view will remain active for.
-        """
-        super().__init__(timeout=timeout)
-        self.value = None
-        self.user = user
-
-    # When the confirm button is pressed, set the inner value to `True` and
-    # stop the View from listening to more input.
-    # We also send the user an ephemeral message that we're confirming their choice.
-    @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        """The confirm button of the view.
-
-        The value attribute is set to True when used and the view is stopped.
-
-        Args:
-            interaction: The interaction instance.
-            button: The button instance.
-        """
-        await interaction.response.send_message('Confirmed!', ephemeral=True)
-        self.value = True
-        await self.disable_children()
-        self.stop()
-
-    # This one is similar to the confirmation button except sets the inner value to `False`
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.grey)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        """The cancel button of the view.
-
-        The value attribute is set to False when used and the view is stopped.
-
-        Args:
-            interaction: The interaction instance.
-            button: The button instance.
-        """
-        await interaction.response.send_message('Cancelled!', ephemeral=True)
-        self.value = False
-        await self.disable_children()
-        self.stop()
-
-    async def disable_children(self, timeout_label: bool = False) -> None:
-        """Loops through the view children and disables the components.
-
-        The response must have been attached to the view!
-
-        Args:
-            timeout_label: If True, the label of button components will be replaced with 'Timeout!'.
-        """
-        for child in self.children:
-            child.disabled = True
-            if timeout_label:
-                child.label = "Timeout!"
-
-        await self.response.edit(view=self)
-
-    async def on_timeout(self) -> None:
-        """Disable the buttons of the view in the event of a timeout.
-        """
-        await self.disable_children(timeout_label=True)
-
-    async def interaction_check(self, interaction: Interaction) -> bool:
-        """The interaction check for the view.
-
-        Checks whether the interaction user is the initial command user. A response is sent if this is not the case.
-
-        Args:
-            interaction: The interaction instance.
-
-        Returns:
-            Whether the check has passed (True) or not (False).
-        """
-        check_pass = self.user.id == interaction.user.id
-
-        if not check_pass:
-            await interaction.response.send_message("You do not have permission to do that!", ephemeral=True)
-
-        return check_pass
 
 
 class Schedules(commands.Cog):
@@ -171,99 +78,147 @@ class Schedules(commands.Cog):
         else:
             return False
 
-    @commands.command(
-        help="Set a schedule to be active.",
-        brief="Set a schedule to be active."
+    @app_commands.command(
+        name='activate-schedule',
+        description="Set a schedule to be active.",
     )
-    async def activateSchedule(self, ctx: commands.context, id: int) -> None:
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
+    async def activateSchedule(self, interaction: Interaction, schedule: str) -> None:
         """
         Toggles a saved schedule to active.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            id: The database id value of the schedule to be toggled.
+            interaction: The interaction that triggered the request.
+            schedule: The schedule to activate. Type the name of the channel to find your schedule.
 
         Returns:
             None.
         """
-        exists = await snorlax_checks.check_schedule_exists(id)
+        try:
+            schedule = int(schedule)
+        except Exception as e:
+            await interaction.response.send_message(
+                f"'{schedule}' is not a valid schedule. Please select a schedule from the options provided.",
+                ephemeral=True
+            )
+            logger.error(f'Failed activate schedule attempt in {interaction.guild.name}: {e}.')
+            return
+
+        exists = await snorlax_checks.check_schedule_exists(schedule)
 
         if not exists:
-            msg = 'Schedule ID {} does not exist!'.format(
-                id
-            )
+            msg = f'Schedule ID {schedule} does not exist!'
 
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
 
         if not allowed:
-            msg = f'You do not have permission to activate schedule {id}.'
+            msg = f'You do not have permission to activate schedule {schedule}.'
 
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        try:
-            await self.updateSchedule(ctx, int(id), 'active', 'on')
-        except Exception as e:
-            pass
+        ok = await snorlax_db.update_schedule(schedule, 'active', True)
+        if ok:
+            await interaction.response.send_message('Schedule activated successfully.')
+        else:
+            await interaction.response.send_message('Schedule activation failed.')
 
-    @commands.command(
-        help="Set multiple schedules to be active.",
-        brief="Set multiple schedules to be active."
+    @app_commands.command(
+        name='activate-schedules',
+        description="Set multiple schedules to activate at once.",
     )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
     async def activateSchedules(
         self,
-        ctx: commands.context,
-        *args: int
+        interaction: Interaction
     ) -> None:
         """
         Toggles all schedules provided to active.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            id: The database id value of the schedule to be toggled.
+            interaction: The interaction that triggered the request.
 
         Returns:
             None.
         """
-        for id in args:
-            try:
-                await self.activateSchedule(ctx, int(id))
-            except Exception as e:
-                pass
+        options = await snorlax_options.schedule_options(guild=interaction.guild, active=False)
 
-    @commands.command(
-        help="Set all schedules to be active.",
-        brief="Set all schedules to be active."
+        if not options:
+            await interaction.response.send_message('All schedules are already active!')
+
+            return
+
+        view = snorlax_views.ScheduleDropdownView(
+            user=interaction.user,
+            options=options,
+            context='activate',
+            timeout=120
+        )
+
+        await interaction.response.defer()
+
+        out = await interaction.channel.send(view=view)
+
+        view.response = out
+
+        await view.wait()
+
+        if view.values is None:
+            logger.info("activate-schedules command timeout.")
+            await interaction.followup.send("activate-schedules command timed out.")
+        else:
+            all_ok = True
+            for id in view.values:
+                ok = await snorlax_db.update_schedule(id, 'active', True)
+                if not ok and all_ok:
+                    all_ok = False
+            if all_ok:
+                await interaction.followup.send(f"Activated {len(view.values)} schedules successfully.")
+            else:
+                await interaction.followup.send(f"Activation failed.")
+
+    @app_commands.command(
+        name='activate-all-schedules',
+        description="Set all schedules to active.",
     )
-    async def activateAllSchedules(self, ctx: commands.context) -> None:
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def activateAllSchedules(self, interaction: Interaction) -> None:
         """
         Toggles all schedules to active.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
+            interaction: The interaction that triggered the request.
 
         Returns:
             None.
         """
-        schedules = await snorlax_db.load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await snorlax_db.load_schedule_db(guild_id=interaction.guild.id, active=False)
 
         if schedules.empty:
-            await ctx.send("There are no schedules to delete!")
+            await interaction.response.send_message("All schedules are active already!")
             return
 
+        all_ok = True
         for id in schedules['rowid'].tolist():
-            try:
-                await self.activateSchedule(ctx, int(id))
-            except Exception as e:
-                pass
+            ok = await snorlax_db.update_schedule(id, 'active', True)
+            if not ok and all_ok:
+                all_ok = False
+        if all_ok:
+            await interaction.response.send_message(f"Activated {len(schedules)} schedules successfully.")
+        else:
+            await interaction.response.send_message(f"Activation failed.")
 
     @commands.command(
         help=(
@@ -420,97 +375,143 @@ class Schedules(commands.Cog):
             )
             await ctx.send(msg)
 
-    @commands.command(
-        help="Deactivate a schedule.",
-        brief="Deactivate a schedule."
+    @app_commands.command(
+        name='deactivate-schedule',
+        description="Set a schedule to be deactivated.",
     )
-    async def deactivateSchedule(self, ctx: commands.context, id: int) -> None:
-        """
-        Toggles a saved schedule to not active.
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
+    async def deactivateSchedule(self, interaction: Interaction, schedule: str) -> None:
+        """Toggles a saved schedule to deactivated.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            id: The database id value of the schedule to be toggled.
+            interaction: The interaction that triggered the request.
+            schedule: The schedule to activate. Type the name of the channel to find your schedule.
 
         Returns:
             None.
         """
-        exists = await snorlax_checks.check_schedule_exists(id)
+        try:
+            schedule = int(schedule)
+        except Exception as e:
+            await interaction.response.send_message(
+                f"'{schedule}' is not a valid schedule. Please select a schedule from the options provided.",
+                ephemeral=True
+            )
+            logger.error(f'Failed deactivate schedule attempt in {interaction.guild.name}: {e}.')
+            return
+
+        exists = await snorlax_checks.check_schedule_exists(schedule)
 
         if not exists:
-            msg = 'Schedule ID {} does not exist!'.format(
-                id
-            )
+            msg = f'Schedule ID {schedule} does not exist!'
 
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
 
         if not allowed:
-            msg = f'You do not have permission to deactivate schedule {id}.'
+            msg = f'You do not have permission to deactivate schedule {schedule}.'
 
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        try:
-            await self.updateSchedule(ctx, int(id), 'active', 'off')
-        except Exception as e:
-            pass
+        ok = await snorlax_db.update_schedule(schedule, 'active', False)
+        if ok:
+            await interaction.response.send_message('Schedule deactivated successfully.')
+        else:
+            await interaction.response.send_message('Schedule deactivation failed.')
 
-    @commands.command(
-        help="Deactivate multiple schedules.",
-        brief="Deactivate multiple schedules."
+    @app_commands.command(
+        name='deactivate-schedules',
+        description="Set multiple schedules to deactivated at once.",
     )
-    async def deactivateSchedules(
-        self, ctx: commands.context, *args: int
-    ) -> None:
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def deactivateSchedules(self, interaction: Interaction) -> None:
         """
         Toggles the provided schedules to not active.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            id: The database id values of the schedules to be toggled.
+            interaction: The interaction that triggered the request.
 
         Returns:
             None.
         """
-        for id in args:
-            try:
-                await self.deactivateSchedule(ctx, int(id))
-            except Exception as e:
-                pass
+        options = await snorlax_options.schedule_options(guild=interaction.guild, active=True)
 
-    @commands.command(
-        help="Deactivate all schedules.",
-        brief="Deactivate all schedules."
-    )
-    async def deactivateAllSchedules(self, ctx: commands.context) -> None:
-        """
-        Toggles all saved schedules to not active on the command origin server.
+        if not options:
+            await interaction.response.send_message('All schedules are already deactivated!')
 
-        Args:
-            ctx: The command context containing the message content and other
-                metadata.
-
-        Returns:
-            None.
-        """
-        schedules = await snorlax_db.load_schedule_db(guild_id=ctx.guild.id)
-
-        if schedules.empty:
-            await ctx.send("There are no schedules to delete!")
             return
 
+        view = snorlax_views.ScheduleDropdownView(
+            user=interaction.user,
+            options=options,
+            context='deactivate',
+            timeout=120
+        )
+
+        await interaction.response.defer()
+
+        out = await interaction.channel.send(view=view)
+
+        view.response = out
+
+        await view.wait()
+
+        if view.values is None:
+            logger.info("deactivate-schedules command timeout.")
+            await interaction.followup.send("deactivate-schedules command timed out.")
+        else:
+            all_ok = True
+            for id in view.values:
+                ok = await snorlax_db.update_schedule(id, 'active', False)
+                if not ok and all_ok:
+                    all_ok = False
+            if all_ok:
+                await interaction.followup.send(f"Deactivated {len(view.values)} schedules successfully.")
+            else:
+                await interaction.followup.send(f"Deactivation failed.")
+
+    @app_commands.command(
+        name='deactivate-all-schedules',
+        description="Set all schedules to deactivated.",
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def deactivateAllSchedules(self, interaction: Interaction) -> None:
+        """
+        Toggles all schedules to deactivated.
+
+        Args:
+            interaction: The interaction that triggered the request.
+
+        Returns:
+            None.
+        """
+        schedules = await snorlax_db.load_schedule_db(guild_id=interaction.guild.id, active=True)
+
+        if schedules.empty:
+            await interaction.response.send_message("All schedules are deactivated already!")
+            return
+
+        all_ok = True
         for id in schedules['rowid'].tolist():
-            try:
-                await self.deactivateSchedule(ctx, int(id))
-            except Exception as e:
-                pass
+            ok = await snorlax_db.update_schedule(id, 'active', False)
+            if not ok and all_ok:
+                all_ok = False
+        if all_ok:
+            await interaction.response.send_message(f"Deactivated {len(schedules)} schedules successfully.")
+        else:
+            await interaction.response.send_message(f"Deactivation failed.")
 
     @commands.command(
         help=(
@@ -552,39 +553,42 @@ class Schedules(commands.Cog):
 
             await ctx.channel.send(embed=embed)
 
-    @commands.command(
-        help=(
-            "Provides the ability to manually close a channel at any time."
-            " Normal close settings will apply and the channel will open"
-            " again at the scheduled time (unless manually opened earlier)."
-            " Only works on channels with an active schedule."
+    @app_commands.command(
+        name='manual-close-channel',
+        description=(
+            "Manually close a channel early. The channel must have an active schedule"
+            " for the command to work!"
         ),
-        brief="Manually close a channel."
     )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualClose(
         self,
-        ctx: commands.context,
-        channel: TextChannel,
+        interaction: Interaction,
+        channel: Optional[TextChannel] = None,
         silent: bool = False
     ) -> None:
         """
         A command to manually close a channel.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            channel: The channel to be closed.
+            interaction: The interaction that triggered the request.
+            channel: The channel to be closed, defaults to current channel.
             silent: Whether to close the channel silently.
 
         Returns:
             None
         """
+        if channel is None:
+            channel = get(interaction.guild.channels, id=interaction.channel.id)
         # check if in schedule
         # check if already closed
         # close
-        schedule_db = await snorlax_db.load_schedule_db(active_only=True)
+        schedule_db = await snorlax_db.load_schedule_db(active=True)
         if channel.id not in schedule_db['channel'].to_numpy():
-            await ctx.channel.send("That channel has no schedule set.")
+            await interaction.response.send_message("That channel has no active schedule set.", ephemeral=True)
 
             return
 
@@ -592,15 +596,15 @@ class Schedules(commands.Cog):
         row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
 
         guild_db = await snorlax_db.load_guild_db()
-        guild_tz = guild_db.loc[ctx.guild.id]['tz']
+        guild_tz = guild_db.loc[interaction.guild.id]['tz']
 
-        log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
+        log_channel_id = int(guild_db.loc[interaction.guild.id]['log_channel'])
         if log_channel_id != -1:
             log_channel = self.bot.get_channel(log_channel_id)
         else:
             log_channel = None
         time_channel_id = int(
-            guild_db.loc[ctx.guild.id]['time_channel']
+            guild_db.loc[interaction.guild.id]['time_channel']
         )
         if time_channel_id != -1:
             time_format_fill = f"<#{time_channel_id}>"
@@ -614,7 +618,7 @@ class Schedules(commands.Cog):
 
         if deny.send_messages is True:
             # this means the channel is already closed
-            await ctx.channel.send(f"{channel.mention} is already closed!")
+            await interaction.response.send_message(f"{channel.mention} is already closed!", ephemeral=True)
 
             return
 
@@ -632,7 +636,7 @@ class Schedules(commands.Cog):
             self.bot.user
         )
 
-        await ctx.channel.send(f"Closed {channel.mention}!")
+        await interaction.response.send_message(f"Closed {channel.mention}!", ephemeral=True)
 
     @manualClose.error
     async def manualClose_error(self, ctx: commands.context, error):
@@ -656,39 +660,42 @@ class Schedules(commands.Cog):
                 f"Unknown error when processing command: {error}"
             )
 
-    @commands.command(
-        help=(
-            "Provides the ability to manually open a channel at any time."
-            " Normal open settings will apply and the channel will close"
-            " at the scheduled time (unless manually closed earlier)."
-            " Only works on channels with an active schedule."
+    @app_commands.command(
+        name='manual-open-channel',
+        description=(
+            "Manually open a channel early. The channel must have an active schedule"
+            " for the command to work!"
         ),
-        brief="Manually open a channel."
     )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualOpen(
         self,
-        ctx: commands.context,
-        channel: TextChannel,
+        interaction: Interaction,
+        channel: Optional[TextChannel] = None,
         silent: bool = False
     ) -> None:
         """
         A command to manually close a channel.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            channel: The channel to be opened.
+            interaction: The interaction that triggered the request.
+            channel: The channel to be closed, defaults to current channel.
             silent: Whether to open the channel silently.
 
         Returns:
             None
         """
+        if channel is None:
+            channel = get(interaction.guild.channels, id=interaction.channel.id)
         # check if in schedule
         # check if already open
         # open
         schedule_db = await snorlax_db.load_schedule_db()
         if channel.id not in schedule_db['channel'].to_numpy():
-            await ctx.channel.send("That channel has no schedule set.")
+            await interaction.response.send_message("That channel has no schedule set.", ephemeral=True)
 
             return
 
@@ -696,16 +703,16 @@ class Schedules(commands.Cog):
         row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
 
         guild_db = await snorlax_db.load_guild_db()
-        guild_tz = guild_db.loc[ctx.guild.id]['tz']
+        guild_tz = guild_db.loc[interaction.guild.id]['tz']
 
-        log_channel_id = int(guild_db.loc[ctx.guild.id]['log_channel'])
+        log_channel_id = int(guild_db.loc[interaction.guild.id]['log_channel'])
         if log_channel_id != -1:
             log_channel = self.bot.get_channel(log_channel_id)
         else:
             log_channel = None
 
         time_channel_id = int(
-            guild_db.loc[ctx.guild.id]['time_channel']
+            guild_db.loc[interaction.guild.id]['time_channel']
         )
         if time_channel_id != -1:
             time_format_fill = f"<#{time_channel_id}>"
@@ -719,7 +726,7 @@ class Schedules(commands.Cog):
 
         if allow.send_messages == deny.send_messages is False:
             # this means the channel is already open
-            await ctx.channel.send(f"{channel.mention} is already open!")
+            await interaction.response.send_message(f"{channel.mention} is already open!", ephemeral=True)
 
             return
 
@@ -736,7 +743,7 @@ class Schedules(commands.Cog):
             self.bot.user
         )
 
-        await ctx.channel.send(f"Opened {channel.mention}!")
+        await interaction.response.send_message(f"Opened {channel.mention}!", ephemeral=True)
 
     @manualOpen.error
     async def manualOpen_error(self, ctx: commands.context, error) -> None:
@@ -863,7 +870,7 @@ class Schedules(commands.Cog):
             await ctx.send("There are no schedules to delete!")
             return
 
-        view = RemoveAllConfirm(ctx.author, timeout=30)
+        view = snorlax_views.RemoveAllConfirm(ctx.author, timeout=30)
 
         out = await ctx.send(
             "Are you sure you want to remove all "
@@ -1247,7 +1254,7 @@ class Schedules(commands.Cog):
         """
         client_user = self.bot.user
         guild_db = await snorlax_db.load_guild_db(active_only=True)
-        schedule_db = await snorlax_db.load_schedule_db(active_only=True)
+        schedule_db = await snorlax_db.load_schedule_db(active=True)
 
         for tz in guild_db['tz'].unique():
             now = snorlax_utils.get_current_time(tz=tz)

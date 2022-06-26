@@ -34,7 +34,7 @@ def check_bot(ctx: commands.context) -> bool:
         return True
 
 
-def interaction_check_bot(interaction: Interaction):
+def interaction_check_bot(interaction: Interaction) -> bool:
     """Checks whether the interaction came from a bot.
 
     Args:
@@ -44,6 +44,15 @@ def interaction_check_bot(interaction: Interaction):
         'True' when the context originated from a bot account. 'False' if not.
     """
     return not interaction.user.bot
+
+
+def interaction_check_owner(interaction: Interaction):
+    """Checks whether the interaction is coming from the bot owner.
+
+    Args:
+        interaction: The interaction passed.
+    """
+    return interaction.client.is_owner(interaction.user)
 
 
 def check_admin(ctx: commands.context) -> bool:

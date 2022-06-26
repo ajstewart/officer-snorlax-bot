@@ -6,7 +6,6 @@ and set up of the bot.
 import discord
 import os
 import logging
-import traceback
 
 from discord import Guild, TextChannel, app_commands, Interaction, CategoryChannel
 from discord.abc import GuildChannel
@@ -67,23 +66,38 @@ class Management(commands.Cog):
                     )
                     await log_channel.send(embed=embed)
                     logger.info('Unauthorised command attempt notification sent to log channel.')
-
-        elif isinstance(error, app_commands.CheckFailure):
-            if (('manage_channels' in error.missing_permissions
-                    or 'connect' in error.missing_permissions)
-                    and interaction.command.name == 'create-time-channel'):
+            else:
                 await interaction.response.send_message(
-                    (
-                        "Permission error! Snorlax is missing the following permissions to create a time channel:\n"
-                        f"`{', '.join(error.missing_permissions)}` (`connect` may also be required)."
-                    ),
+                    "You do not have the correct permissions to use this command.",
                     ephemeral=True
                 )
+
+        elif isinstance(error, app_commands.CheckFailure):
+            if interaction.command.name == 'create-time-channel':
+                if 'manage_channels' in error.missing_permissions or 'connect' in error.missing_permissions:
+                    await interaction.response.send_message(
+                        (
+                            "Permission error! Snorlax is missing the following permissions to create a time channel:\n"
+                            f"`{', '.join(error.missing_permissions)}` (`connect` may also be required)."
+                        ),
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.response.send_message(
+                            "You can't use that here.",
+                            ephemeral=True
+                        )
+            elif interaction.command.name == 'shutdown':
+                await interaction.response.send_message(
+                        "Only the bot owner can shutdown the bot.",
+                        ephemeral=True
+                    )
             else:
                 await interaction.response.send_message(
                         "You can't use that here.",
                         ephemeral=True
                     )
+
         elif isinstance(error, app_commands.errors.CommandInvokeError) and "Missing Permissions" in str(error):
             await interaction.response.send_message(
                     "A permissions error has occurred. Does Snorlax have the correct permissions?",
@@ -385,8 +399,7 @@ class Management(commands.Cog):
         Sets the timezone for a guild.
 
         Args:
-            interaction: The interaction containing the message content and other
-                metadata.
+            interaction: The interaction that triggered the request.
             tz: The timezone in string form. Uses format from the tz database of timezones
                 e.g. 'Australia/Sydney', 'America/Los_Angeles'.
 
@@ -407,31 +420,30 @@ class Management(commands.Cog):
 
         await interaction.response.send_message(msg)
 
-    @commands.command(
-        help=(
-            "Set the prefix for the server. Must be 3 characters or less"
-        ),
-        brief="Set the prefix for the bot."
+    @app_commands.command(
+        name='set-prefix',
+        description="Set the prefix for the server. Will soon be deprecated.",
     )
     @app_commands.default_permissions(administrator=True)
-    @commands.check(snorlax_checks.check_bot)
-    @commands.check(snorlax_checks.check_admin)
-    async def setPrefix(self, ctx: commands.context, prefix: str) -> None:
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def setPrefix(self, interaction: Interaction, prefix: str) -> None:
         """
         Sets the command prefix for a guild.
 
+        Will soon be deprecated.
+
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            prefix: The prefix to use. Must be 3 or less characters in length.
+            interaction: The interaction that triggered the request.
+            prefix: The prefix to use. Must be 3 or less characters in length!
 
         Returns:
             None
         """
-        guild_id = ctx.guild.id
+        guild_id = interaction.guild.id
 
         if len(prefix) > 3:
-            await ctx.send("Prefix must be 3 or less characters.")
+            await interaction.response.send_message("Prefix must be 3 or less characters.", ephemeral=True)
             return
 
         ok = await snorlax_db.set_guild_prefix(guild_id, prefix)
@@ -445,7 +457,7 @@ class Management(commands.Cog):
             msg = (
                 "Error when setting the prefix."
             )
-        await ctx.channel.send(msg)
+        await interaction.response.send_message(msg)
 
     @app_commands.command(
         name="show-settings",
@@ -479,30 +491,26 @@ class Management(commands.Cog):
 
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @commands.command(
-        help=(
-            "Shutdown the bot."
-        ),
-        brief="Shutdown the bot."
+    @app_commands.command(
+        name='shutdown',
+        description="Shutdown the bot (only the bot owner can use)."
     )
-    @commands.check(snorlax_checks.check_bot)
-    @commands.is_owner()
-    async def shutdown(self, ctx: commands.context) -> None:
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_owner)
+    async def shutdown(self, interaction: Interaction) -> None:
         """
         Function to force the bot to shutdown.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
+            interaction: The interaction containing the request.
 
         Returns:
             None
         """
-
-        await ctx.channel.send(
+        await interaction.response.send_message(
             "Snorlax is shutting down."
         )
-        await ctx.bot.close()
+        await interaction.client.close()
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: Guild) -> None:

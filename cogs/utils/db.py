@@ -49,7 +49,7 @@ async def _get_fc_channels_db():
 
 async def load_schedule_db(
     guild_id: Optional[int] = None,
-    active_only: bool = False
+    active: Optional[bool] = None,
 ) -> pd.DataFrame:
     """
     Loads the schedules database table and returns it as a pandas dataframe.
@@ -57,7 +57,9 @@ async def load_schedule_db(
     Args:
         guild_id: If provided, the returned schedules will be limited to only
             that specific guild id.
-        active_only: If True, only schedules from active guilds are returned.
+        active: If provided the schedule will be filtered by the provided
+            active status. E.g. if `True` then only active schedules will be returned,
+            `False` will return inactive.
 
     Returns:
         A pandas dataframe containing the contents of the table.
@@ -75,8 +77,11 @@ async def load_schedule_db(
     if guild_id is not None:
         schedules = schedules.loc[schedules['guild'] == guild_id]
 
-    if active_only:
-        schedules = schedules.loc[schedules['active']]
+    if active is not None:
+        if active:
+            schedules = schedules.loc[schedules['active']]
+        else:
+            schedules = schedules.loc[~schedules['active']]
 
     return schedules
 
