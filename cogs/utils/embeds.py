@@ -4,7 +4,6 @@
 import datetime
 import os
 import pandas as pd
-import pytz
 
 from discord import Embed, User, Member, Role, Interaction
 from discord.utils import utcnow
@@ -20,7 +19,7 @@ INACTIVE_TIME = os.getenv('INACTIVE_TIME')
 DELAY_TIME = os.getenv('DELAY_TIME')
 
 
-def get_schedule_embed(schedule_db: pd.DataFrame, tz: str) -> Embed:
+def get_schedule_embed(schedule_db: pd.DataFrame) -> Embed:
     """
     Create an embed to show the saved schedules.
 
@@ -31,26 +30,20 @@ def get_schedule_embed(schedule_db: pd.DataFrame, tz: str) -> Embed:
     Returns:
         The embed containing the list of schedules.
     """
-    tz = pytz.timezone(tz)
-    now = datetime.datetime.now(tz=tz)
     embed = Embed(
         title='Schedules',
-        timestamp=now,
+        timestamp=utcnow(),
         color=2061822
     )
-    for i, row in schedule_db.iterrows():
+    for _, row in schedule_db.iterrows():
         embed.add_field(
-            name='ID: {}'.format(row.rowid),
+            name=f'Channel: #{row.channel_name}',
             value=(
-                "Active: **{}**\n"
-                "Channel: <#{}>\nOpen: **{}**\nOpen Custom Message: **{}**\n"
-                "Close: **{}**\nClose Custom Message: **{}**"
-                "\nWarning: **{}**\nDynamic: **{}**\n"
-                "Max number of delays: **{}**\nSilent: **{}**".format(
-                    row.active, row.channel, row.open, row.open_message,
-                    row.close, row.close_message, row.warning, row.dynamic,
-                    row.max_num_delays, row.silent
-                )
+                f"Active: **{row.active}**\n"
+                f"Open: **{row.open}**\nOpen Custom Message: **{row.open_message}**\n"
+                f"Close: **{row.close}**\nClose Custom Message: **{row.close_message}**"
+                f"\nWarning: **{row.warning}**\nDynamic: **{row.dynamic}**\n"
+                f"Max number of delays: **{row.max_num_delays}**\nSilent: **{row.silent}**"
             ).replace('True', '✅').replace('False', '❌'),
             inline=False
         )

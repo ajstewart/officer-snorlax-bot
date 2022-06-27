@@ -513,46 +513,6 @@ class Schedules(commands.Cog):
         else:
             await interaction.response.send_message(f"Deactivation failed.")
 
-    @commands.command(
-        help=(
-            "Will list all the active schedules for the"
-            " guild, showing the open and close times."
-        ),
-        brief="Show a list of active schedules."
-    )
-    async def listSchedules(self, ctx, schedule_id: int = None) -> None:
-        """
-        A method to send a message to the command channel that contains an
-        embed of all the schedules for that server.
-
-        If a `schedule_id` is provided then only that schedule is shown.
-
-        Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            schedule_id: Limit the output to only the provided id. If None
-                then all are listed.
-
-        Returns:
-            None
-        """
-        schedule_db = await snorlax_db.load_schedule_db()
-        if ctx.guild.id not in schedule_db['guild'].values:
-            await ctx.channel.send("There are no schedules set.")
-        else:
-            guild_schedules = schedule_db.loc[
-                schedule_db['guild'] == ctx.guild.id
-            ]
-            if schedule_id is not None:
-                guild_schedules = guild_schedules.loc[
-                    guild_schedules['rowid'] == schedule_id
-                ]
-            guild_db = await snorlax_db.load_guild_db()
-            guild_tz = guild_db.loc[ctx.guild.id]['tz']
-            embed = snorlax_embeds.get_schedule_embed(guild_schedules, guild_tz)
-
-            await ctx.channel.send(embed=embed)
-
     @app_commands.command(
         name='manual-close-channel',
         description=(
@@ -1211,6 +1171,124 @@ class Schedules(commands.Cog):
                 'open'
             )
             await log_channel.send(embed=embed)
+
+    @app_commands.command(
+        name='view-schedule',
+        description="View the details of the selected schedule.",
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
+    async def viewSchedule(self, interaction: Interaction, schedule: str) -> None:
+        """Sends an embed to the interacting user that shows the details of the selected schedule.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            schedule: The schedule to view, start typing the name of the channel narrow down the
+                options.
+
+        Returns:
+            None
+        """
+        try:
+            schedule = int(schedule)
+        except Exception as e:
+            await interaction.response.send_message(
+                f"'{schedule}' is not a valid schedule. Please select a schedule from the options provided.",
+                ephemeral=True
+            )
+            logger.error(f'Failed view schedule attempt in {interaction.guild.name}: {e}.')
+            return
+
+        exists = await snorlax_checks.check_schedule_exists(schedule)
+
+        if not exists:
+            msg = f'That schedule does not exist!'
+
+            await interaction.response.send_message(msg)
+
+            return
+
+        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
+
+        if not allowed:
+            msg = f'That schedule does not exist!'
+
+            await interaction.response.send_message(msg)
+
+            return
+
+        schedule_df = await snorlax_db.load_schedule_db(rowid=schedule)
+        embed = snorlax_embeds.get_schedule_embed(schedule_df)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(
+        name='view-schedules',
+        description="View all the created schedules. Can filter by activated or deactivated.",
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def viewSchedules(self, interaction: Interaction, active: Optional[bool] = None) -> None:
+        """
+        Sends an embed to the interacting user that shows all the schedules.
+
+        User can select whether to only show active or deactivated schedules.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            active: Select 'True' to only show active schedules, select 'False'
+                to show all inactive schedules. By default all schedules are shown
+                regardless of active state.
+
+        Returns:
+            None
+        """
+        schedule_df = await snorlax_db.load_schedule_db(
+            guild_id=interaction.guild.id,
+            active=active
+        )
+
+        if schedule_df.empty:
+            if active is None:
+                msg = "There are no schedules on this server."
+            elif active:
+                msg = "There are no active schedules on this server."
+            else:
+                msg = "There are no deactivated schedules on this server."
+
+            await interaction.response.send_message(msg, ephemeral=True)
+        else:
+            embed = snorlax_embeds.get_schedule_embed(schedule_df)
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_update(self, before: GuildChannel, after: GuildChannel) -> None:
+        """Updates the channel name in the schedules db upon an edit.
+
+        Args:
+            before: The channel object before the change.
+            after: The channel object after the change.
+        """
+        if before.name != after.name:
+            schedule_ids = await snorlax_db.get_schedule_ids_by_channel_id(before.id)
+
+            if schedule_ids:
+                for id in schedule_ids:
+                    ok = await snorlax_db.update_schedule(id[0], 'channel_name', after.name)
+                    if not ok:
+                        logger.error(
+                            f'Update channel name failed for channel {after.name} in '
+                            f'guild {after.guild.name}.'
+                        )
+
+                logger.info(
+                    f'Updated channel {before.name} name to {after.name} '
+                    f'for guild {after.guild.name} in schedules database.'
+                )
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:

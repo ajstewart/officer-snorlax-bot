@@ -179,8 +179,7 @@ async def check_schedule_exists(sched_id: int) -> bool:
     Returns:
         'True' when the content contains a match. 'False' if not.
     """
-    schedules = await snorlax_db.load_schedule_db()
-    exists = sched_id in schedules['rowid'].astype(int).tolist()
+    exists = await snorlax_db.check_schedule_exists(schedule_id=sched_id)
 
     return exists
 
@@ -199,10 +198,9 @@ async def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
         'True' when the schedule id is from the same guild as the command.
         'False' if not.
     """
-    schedules = await snorlax_db.load_schedule_db()
-    schedules = schedules.set_index('rowid')
+    schedules = await snorlax_db.load_schedule_db(rowid=sched_id)
 
-    schedule_guild = schedules.loc[sched_id]['guild']
+    schedule_guild = schedules.iloc[0]['guild']
     ctx_guild_id = ctx.guild.id
 
     allowed = schedule_guild == ctx_guild_id

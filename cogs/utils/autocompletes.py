@@ -35,6 +35,8 @@ async def schedule_selection_autocomplete(
         active = False
     elif interaction.command.name in ['deactivate-schedule']:
         active = True
+    else:
+        active = None
 
     schedules_db = await snorlax_db.load_schedule_db(guild_id=interaction.guild.id, active=active)
 
@@ -44,7 +46,7 @@ async def schedule_selection_autocomplete(
     # create a label so humans can see the schedule
     # TODO: Is this worth being a database column?
     schedules_db['label'] = schedules_db[['channel_name', 'open', 'close']].apply(
-        lambda x: f"⏰ #{x['channel_name']}: Opens @ {x['open']} & Closes @ {x['close']}",
+        lambda x: f"{x['channel_name']}: Opens @ {x['open']} & Closes @ {x['close']}",
         axis=1
     )
 

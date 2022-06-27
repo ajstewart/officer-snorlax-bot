@@ -6,7 +6,7 @@ import pandas as pd
 
 from discord import Guild, TextChannel
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 
 from .utils import str2bool
 
@@ -22,6 +22,17 @@ async def _get_schedule_db():
         async with db.execute(f'PRAGMA table_info(schedules);') as cursor:
             columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
         async with db.execute("SELECT rowid, * FROM schedules") as cursor:
+            rows = await cursor.fetchall()
+
+    return rows, columns
+
+
+async def _get_single_schedule(rowid: int):
+    async with aiosqlite.connect(DATABASE) as db:
+        async with db.execute(f'PRAGMA table_info(schedules);') as cursor:
+            columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
+        query = "SELECT rowid, * FROM schedules WHERE rowid = ?"
+        async with db.execute(query, (rowid,)) as cursor:
             rows = await cursor.fetchall()
 
     return rows, columns
@@ -50,6 +61,7 @@ async def _get_fc_channels_db():
 async def load_schedule_db(
     guild_id: Optional[int] = None,
     active: Optional[bool] = None,
+    rowid: Optional[int] = None
 ) -> pd.DataFrame:
     """
     Loads the schedules database table and returns it as a pandas dataframe.
@@ -60,11 +72,17 @@ async def load_schedule_db(
         active: If provided the schedule will be filtered by the provided
             active status. E.g. if `True` then only active schedules will be returned,
             `False` will return inactive.
+        rowid: Select a single schedule to return. 'guild_id' and 'active' will be
+            set to 'None' regardless of input.
 
     Returns:
         A pandas dataframe containing the contents of the table.
     """
-    rows, columns = await _get_schedule_db()
+    if rowid is None:
+        rows, columns = await _get_schedule_db()
+    else:
+        rows, columns = await _get_single_schedule(rowid=rowid)
+        guild_id = active = None
 
     # Sort into a pandas dataframe as it's just much easier to deal with.
     schedules = pd.DataFrame(rows, columns=columns)
@@ -312,7 +330,7 @@ async def create_schedule(
     dynamic: str = "True",
     max_num_delays: int = 1,
     silent: str = "False"
-) -> bool:
+) -> Tuple[bool, int]:
     """
     Save a new channel schedule to the database.
 
@@ -680,6 +698,40 @@ async def get_schedule_close(schedule_id: int) -> str:
             close = await cursor.fetchone()
 
     return close[0]
+
+
+async def get_schedule_ids_by_channel_id(channel_id: int) -> List[Tuple[int]]:
+    """Fetches the schedule(s) of the requested channel id.
+
+    Args:
+        channel_id: The channel_id to get the schedules for.
+
+    Returns:
+        The schedule rows.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT rowid FROM schedules WHERE channel = ?"
+        async with db.execute(query, (channel_id,)) as cursor:
+            schedule_ids = await cursor.fetchall()
+
+    return schedule_ids
+
+
+async def check_schedule_exists(schedule_id: int) -> bool:
+    """Fetches the schedule(s) of the requested channel id.
+
+    Args:
+        schedule_id: The schedule id (rowid) to check.
+
+    Returns:
+        'True' if exists, 'False' if not.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT EXISTS(SELECT 1 FROM schedules WHERE rowid = ?)"
+        async with db.execute(query, (schedule_id,)) as cursor:
+            exists = await cursor.fetchone()
+
+    return bool(exists[0])
 
 
 async def get_guild_log_channel(guild_id: int) -> str:
