@@ -30,8 +30,10 @@ def get_schedule_embed(schedule_db: pd.DataFrame) -> Embed:
     Returns:
         The embed containing the list of schedules.
     """
+    embed_title = "Schedules Details" if len(schedule_db) > 1 else "Schedule Details"
+
     embed = Embed(
-        title='Schedules',
+        title=embed_title,
         timestamp=utcnow(),
         color=2061822
     )

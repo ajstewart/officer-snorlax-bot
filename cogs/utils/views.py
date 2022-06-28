@@ -11,14 +11,15 @@ class ScheduleDropdown(discord.ui.Select):
             'activate': 'activated',
             'deactivate': 'deactivated',
             'update': 'updated',
-            'list': 'listed'
+            'list': 'listed',
+            'delete': 'deleted'
         }
         if context not in self.context_verbs:
             raise ValueError(f'context {context} is not valid!')
 
         self.context = context
 
-        if context in ['activate', 'deactivate']:
+        if context in ['activate', 'deactivate', 'delete']:
             max_values = len(options)
 
         # The placeholder is what will be shown when no option is chosen
@@ -33,9 +34,7 @@ class ScheduleDropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         # Use the interaction object to send a response message containing
-        # the user's favourite colour or choice. The self object refers to the
-        # Select object, and the values attribute gets a list of the user's
-        # selected options. We only want the first one.
+        # the user's selected schedules.
         self.view.values = self.values
         msg = f"The {len(self.values)} selected schedule(s) will be {self.context_verbs[self.context]}."
         await interaction.response.send_message(msg, ephemeral=True)
@@ -95,8 +94,8 @@ class ScheduleDropdownView(discord.ui.View):
 
 
 # Define a simple View that gives us a confirmation menu
-class RemoveAllConfirm(discord.ui.View):
-    """This View is used for the confirmation of the removeAllSchedules command.
+class Confirm(discord.ui.View):
+    """This View is used for supplying a confirmation choice.
 
     Users will confirm or cancel the command. Only responds to the original author.
     Note that the initial response message should be attached to the class when used!
@@ -151,25 +150,20 @@ class RemoveAllConfirm(discord.ui.View):
         await self.disable_children()
         self.stop()
 
-    async def disable_children(self, timeout_label: bool = False) -> None:
+    async def disable_children(self) -> None:
         """Loops through the view children and disables the components.
 
         The response must have been attached to the view!
-
-        Args:
-            timeout_label: If True, the label of button components will be replaced with 'Timeout!'.
         """
         for child in self.children:
             child.disabled = True
-            if timeout_label:
-                child.label = "Timeout!"
 
         await self.response.edit(view=self)
 
     async def on_timeout(self) -> None:
         """Disable the buttons of the view in the event of a timeout.
         """
-        await self.disable_children(timeout_label=True)
+        await self.disable_children()
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """The interaction check for the view.

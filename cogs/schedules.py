@@ -727,89 +727,183 @@ class Schedules(commands.Cog):
                 f"Unknown error when processing command: {error}"
             )
 
-    @commands.command(
-        help=(
-            "Remove a channel from the active schedules."
-            " Use the 'id' to remove."
-        ),
-        brief="Remove a channel from the active schedules."
+    @app_commands.command(
+        name='delete-schedule',
+        description="Delete the selected schedule.",
     )
-    async def removeSchedule(self, ctx: commands.context, id: int) -> None:
-        """
-        Attempts to delete the requested schedule from the database.
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
+    async def deleteSchedule(self, interaction: Interaction, schedule: str) -> None:
+        """Deletes the requested schedule.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            id: The database id value of the schedule to be deleted.
+            interaction: The interaction that triggered the request.
+            schedule: The schedule to view, start typing the name of the channel narrow down the
+                options.
 
         Returns:
             None
         """
-        exists = await snorlax_checks.check_schedule_exists(id)
+        try:
+            schedule = int(schedule)
+        except Exception as e:
+            await interaction.response.send_message(
+                f"'{schedule}' is not a valid schedule. Please select a schedule from the options provided.",
+                ephemeral=True
+            )
+            logger.error(f'Failed view schedule attempt in {interaction.guild.name}: {e}.')
+            return
+
+        exists = await snorlax_checks.check_schedule_exists(schedule)
 
         if not exists:
-            msg = 'Schedule ID {} does not exist!'.format(
-                id
-            )
+            msg = f'That schedule does not exist!'
 
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
 
         if not allowed:
-            msg = f'You do not have permission to remove schedule {id}.'
+            msg = f'That schedule does not exist!'
 
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        ok = await snorlax_db.drop_schedule(id)
+        await interaction.response.defer()
 
-        if ok:
-            msg = 'Schedule ID {} removed successfully.'.format(
-                id
-            )
+        schedule_df = await snorlax_db.load_schedule_db(rowid=schedule)
+        schedule_channel_id = schedule_df.iloc[0]['channel']
+
+        view = snorlax_views.Confirm(interaction.user, timeout=30)
+
+        embed = snorlax_embeds.get_schedule_embed(schedule_df)
+
+        out = await interaction.channel.send(
+            f"Are you sure you want to delete the schedule for <#{schedule_channel_id}>?",
+            view=view,
+            embed=embed
+        )
+
+        view.response = out
+
+        await view.wait()
+
+        if view.value is None:
+            logger.info(f"Deletion request timeout in guild {interaction.guild.name}.")
+            msg = "delete-schedule command timed out."
+        elif view.value:
+            ok = await snorlax_db.drop_schedule(schedule)
+            if ok:
+                msg = f'<#{schedule_channel_id}> schedule deleted successfully.'
+                logger.info(f'Schedule {schedule} delete in guild {interaction.guild.name}.')
+            else:
+                msg = f'Error ocurred while attempting to delete the <#{schedule_channel_id}> schedule!.'
+                logger.error(f'Schedule {schedule} delete failed in guild {interaction.guild.name}!')
         else:
-            msg = 'Error during removal of schedule with ID {}.'.format(
-                id
-            )
+            msg = "delete-schedule command cancelled."
 
-        await ctx.channel.send(msg)
+        await interaction.followup.send(msg)
 
-    @commands.command(
-        help=(
-            "Remove multiple schedules."
-            " Use the 'id' value to remove with space in between."
-            " E.g. removeSchedules 1 2 4 10"
-        ),
-        brief="Remove multiple schedules."
+    @app_commands.command(
+        name='delete-schedules',
+        description="Select multiple schedules to be deleted.",
     )
-    async def removeSchedules(self, ctx: commands.context, *args: int) -> None:
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def deleteSchedules(self, interaction: Interaction) -> None:
         """
-        Attempts to delete the requested schedules from the database.
+        Deletes the schedules selected by the user. A maximum of 25 schedules can be shown.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            id: The database id values of the schedules to be deleted.
+            interaction: The interaction that triggered the request.
 
         Returns:
-            None
+            None.
         """
-        for id in args:
-            try:
-                await self.removeSchedule(ctx, int(id))
-            except Exception as e:
-                pass
+        options = await snorlax_options.schedule_options(guild=interaction.guild, active=None)
 
-    @commands.command(
-        help="Remove all schedules. Confirmation will be requested.",
-        brief="Remove all schedules."
+        if not options:
+            await interaction.response.send_message('There are no schedules to delete!')
+
+            return
+
+        view = snorlax_views.ScheduleDropdownView(
+            user=interaction.user,
+            options=options,
+            context='delete',
+            timeout=60
+        )
+
+        await interaction.response.defer()
+
+        out = await interaction.channel.send(view=view)
+
+        view.response = out
+
+        await view.wait()
+
+        if view.values is None:
+            logger.info("delete-schedules command timeout.")
+            await interaction.followup.send("deactivate-schedules command timed out.")
+        else:
+            # Get schedules for embed.
+            schedules_to_delete = [int(schedule) for schedule in view.values]
+            schedules_db = await snorlax_db.load_schedule_db(guild_id=interaction.guild.id)
+            schedules_db = schedules_db.loc[schedules_db['rowid'].isin(schedules_to_delete)]
+
+            embed = snorlax_embeds.get_schedule_embed(schedules_db)
+
+            confirm_view = snorlax_views.Confirm(user=interaction.user)
+
+            confirm_out = await interaction.channel.send(
+                f"Are you sure you want to delete the {len(schedules_to_delete)} selected schedules?",
+                view=confirm_view,
+                embed=embed
+            )
+
+            confirm_view.response = confirm_out
+
+            await confirm_view.wait()
+
+            if confirm_view.value is None:
+                logger.info(f"Deletion request timeout in guild {interaction.guild.name}.")
+                msg = "delete-schedules command timed out."
+            elif confirm_view.value:
+                all_ok = True
+                for schedule_id in schedules_to_delete:
+                    ok = await snorlax_db.drop_schedule(schedule_id)
+                    if ok:
+                        logger.info(f'Schedule {schedule_id} deleted in guild {interaction.guild.name}.')
+                    else:
+                        logger.error(f'Schedule {schedule_id} delete failed in guild {interaction.guild.name}!')
+                        all_ok = False
+
+                if all_ok:
+                    msg = f"{len(schedules_to_delete)} schedules deleted successfully."
+                else:
+                    msg = "An error was encountered while deleting the schedules."
+
+                # Send feedback to the user in the channel as this can be a long message with many schedules.
+                await interaction.channel.send(msg)
+            else:
+                msg = "delete-schedules command cancelled."
+
+            await interaction.followup.send(msg)
+
+    @app_commands.command(
+        name='delete-all-schedules',
+        description="Delete all the schedules in the guild, use with caution!",
     )
-    async def removeAllSchedules(self, ctx: commands.context) -> None:
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def deleteAllSchedules(self, interaction: Interaction) -> None:
         """
         Attempts to delete all schedules from the command origin server from
         the database.
@@ -818,24 +912,27 @@ class Schedules(commands.Cog):
         deletion.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
+            interaction: The interaction that triggered the request.
 
         Returns:
             None
         """
-        schedules = await snorlax_db.load_schedule_db(guild_id=ctx.guild.id)
+        schedules = await snorlax_db.load_schedule_db(guild_id=interaction.guild.id)
 
         if schedules.empty:
-            await ctx.send("There are no schedules to delete!")
+            await interaction.response.send_message("There are no schedules to delete!")
             return
 
-        view = snorlax_views.RemoveAllConfirm(ctx.author, timeout=30)
+        await interaction.response.defer()
 
-        out = await ctx.send(
+        view = snorlax_views.Confirm(interaction.user, timeout=30)
+        embed = snorlax_embeds.get_schedule_embed(schedules)
+
+        out = await interaction.channel.send(
             "Are you sure you want to remove all "
             f"{schedules.shape[0]} schedules?",
-            view=view
+            view=view,
+            embed=embed
         )
 
         view.response = out
@@ -843,15 +940,29 @@ class Schedules(commands.Cog):
         await view.wait()
 
         if view.value is None:
-            logger.info("removeAllSchedules command timeout.")
+            logger.info(f"Deletion request timeout in guild {interaction.guild.name}.")
+            msg = "delete-all-schedules command timed out."
         elif view.value:
-            for id in schedules['rowid'].tolist():
-                try:
-                    await self.removeSchedule(ctx, int(id))
-                except Exception as e:
-                    pass
+            all_ok = True
+            for schedule_id in schedules['rowid']:
+                ok = await snorlax_db.drop_schedule(schedule_id)
+                if ok:
+                    logger.info(f'Schedule {schedule_id} deleted in guild {interaction.guild.name}.')
+                else:
+                    logger.error(f'Schedule {schedule_id} delete failed in guild {interaction.guild.name}!')
+                    all_ok = False
+
+            if all_ok:
+                msg = f"{len(schedules)} schedules deleted successfully."
+            else:
+                msg = "An error was encountered while deleting the schedules."
+
+            # Send feedback to the user in the channel as this can be a long message with many schedules.
+            await interaction.channel.send(msg)
         else:
-            logger.info("removeAllSchedules command cancelled.")
+            msg = "delete-all-schedules command cancelled."
+
+        await interaction.followup.send(msg)
 
     @commands.command(
         help=(
