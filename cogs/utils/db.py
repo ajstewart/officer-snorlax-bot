@@ -6,7 +6,7 @@ import pandas as pd
 
 from discord import Guild, TextChannel
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union
 
 from .utils import str2bool
 
@@ -324,13 +324,13 @@ async def create_schedule(
     role_name: str,
     open_time: str,
     close_time: str,
-    open_message: Optional[str] = "None",
-    close_message: Optional[str] = "None",
-    warning: str = "False",
-    dynamic: str = "True",
+    open_message: Optional[str] = None,
+    close_message: Optional[str] = None,
+    warning: bool = False,
+    dynamic: bool = False,
     max_num_delays: int = 1,
-    silent: str = "False"
-) -> Tuple[bool, int]:
+    silent: bool = False
+) -> tuple[bool, int]:
     """
     Save a new channel schedule to the database.
 
@@ -357,11 +357,13 @@ async def create_schedule(
         A bool to signify that the database transaction was successful
         ('True') or not ('False').
     """
-    try:
-        warning = str2bool(warning)
-        dynamic = str2bool(dynamic)
-        silent = str2bool(silent)
+    if open_message is None:
+        open_message = "None"
 
+    if close_message is None:
+        close_message = "None"
+
+    try:
         async with aiosqlite.connect(DATABASE) as db:
             sql_command = "INSERT INTO schedules VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             params = (
@@ -700,7 +702,7 @@ async def get_schedule_close(schedule_id: int) -> str:
     return close[0]
 
 
-async def get_schedule_ids_by_channel_id(channel_id: int) -> List[Tuple[int]]:
+async def get_schedule_ids_by_channel_id(channel_id: int) -> list[tuple[int]]:
     """Fetches the schedule(s) of the requested channel id.
 
     Args:

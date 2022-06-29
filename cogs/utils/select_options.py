@@ -4,7 +4,7 @@ Contains all the options used in dropdown commands.
 import pandas as pd
 
 from discord import Guild, SelectOption
-from typing import List, Optional
+from typing import Optional
 
 from . import db as snorlax_db
 
@@ -12,7 +12,7 @@ from . import db as snorlax_db
 async def schedule_options(
     guild: Guild,
     active: Optional[bool] = None
-) -> List[SelectOption]:
+) -> list[SelectOption]:
     """Fetches schedules to present to user.
     """
     schedules_db = await snorlax_db.load_schedule_db(guild_id=guild.id, active=active)

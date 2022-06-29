@@ -5,10 +5,10 @@ import datetime
 import os
 import pandas as pd
 
-from discord import Embed, User, Member, Role, Interaction
+from discord import Embed, User, Member, Role, Interaction, TextChannel
 from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
-from typing import List, Union
+from typing import Union
 
 
 load_dotenv(find_dotenv())
@@ -19,13 +19,14 @@ INACTIVE_TIME = os.getenv('INACTIVE_TIME')
 DELAY_TIME = os.getenv('DELAY_TIME')
 
 
-def get_schedule_embed(schedule_db: pd.DataFrame) -> Embed:
+def get_schedule_embed(schedule_db: pd.DataFrame, creation: bool = False) -> Embed:
     """
     Create an embed to show the saved schedules.
 
     Args:
         schedule_db: The schedule database table as a pandas dataframe.
-        tz: The guild timezone, e.g., 'Australia/Sydney'.
+        creation: If 'True' the check channel permissions note is added
+            to the embed.
 
     Returns:
         The embed containing the list of schedules.
@@ -48,6 +49,15 @@ def get_schedule_embed(schedule_db: pd.DataFrame) -> Embed:
                 f"Max number of delays: **{row.max_num_delays}**\nSilent: **{row.silent}**"
             ).replace('True', '✅').replace('False', '❌'),
             inline=False
+        )
+
+    if creation:
+        embed.add_field(
+            name="Roles Check",
+            value=(
+                f"Use the `/check-schedule-roles` command to check <#{row.channel}> for"
+                " any roles for which the schedule will not apply."
+            )
         )
 
     return embed
@@ -328,14 +338,16 @@ def get_warning_embed(
 
 
 def get_schedule_overwrites_embed(
-    roles_allow: List[Union[Role, Member]],
-    roles_deny: List[Union[Role, Member]]
+    roles_allow: list[Union[Role, Member]],
+    roles_deny: list[Union[Role, Member]],
+    channel: TextChannel
 ) -> Embed:
     """Produces the warning embed of roles that will not be affected by a schedule.
 
     Args:
         roles_allow: List or roles or members with explicit 'True' send_messages.
         roles_deny: List or roles or members with explicit 'False' send_messages.
+        channel: THe channel for which the overwrites apply to.
 
     Returns:
         The warning embed containing the roles.
@@ -343,7 +355,8 @@ def get_schedule_overwrites_embed(
     embed = Embed(
         title="️⚠️  Roles Will Ignore Schedule",
         description=(
-            "The following roles will not respect the created schedule due to their 'send messages' permission."
+            f"The following roles will not respect any schedule in {channel.mention}"
+            " due to their `send messages` permission."
         ),
         color=15105570,
         timestamp=utcnow(),
@@ -374,6 +387,27 @@ def get_schedule_overwrites_embed(
     embed.add_field(
         name="How to fix?",
         value="Change the 'send messages' permission to neutral so it follows the @everybody role."
+    )
+
+    return embed
+
+
+def get_schedule_overwrites_embed_all_ok(channel: TextChannel) -> Embed:
+    """Produces an embed to communicate that no roles will schedule doge.
+
+    Args:
+        channel: The channel checked.
+
+    Returns:
+        The information embed.
+    """
+    embed = Embed(
+        title="️✅  All Roles Ok",
+        description=(
+            f"Any schedule in {channel.mention} will apply to all roles!"
+        ),
+        color=3066993,
+        timestamp=utcnow(),
     )
 
     return embed

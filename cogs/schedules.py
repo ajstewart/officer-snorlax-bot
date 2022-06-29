@@ -4,13 +4,13 @@ import discord
 import os
 import logging
 
-from discord import SelectOption, TextChannel, User, Role, PermissionOverwrite, Interaction, app_commands, Guild
+from discord import TextChannel, User, Role, PermissionOverwrite, Interaction, app_commands, Guild
 from discord.errors import DiscordServerError, Forbidden
 from discord.abc import GuildChannel
 from discord.ext import commands, tasks
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional, List
+from typing import Optional
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
@@ -107,10 +107,11 @@ class Schedules(commands.Cog):
             logger.error(f'Failed activate schedule attempt in {interaction.guild.name}: {e}.')
             return
 
+        # TODO: Move this check sequence to checks. It is used often.
         exists = await snorlax_checks.check_schedule_exists(schedule)
 
         if not exists:
-            msg = f'Schedule ID {schedule} does not exist!'
+            msg = 'That schedule does not exist!'
 
             await interaction.response.send_message(msg)
 
@@ -220,47 +221,45 @@ class Schedules(commands.Cog):
         else:
             await interaction.response.send_message(f"Activation failed.")
 
-    @commands.command(
-        help=(
-            "Create an opening and closing schedule for a channel"
-            " in the guild. Times must be provided in 24 hour format"
-            " e.g. '21:00'. Custom messages will appear under the"
-            " default Snorlax message. Schedules created will be"
-            " activated by default."
-        ),
-        brief="Create an opening and closing schedule for a channel."
+    @app_commands.command(
+        name='create-schedule',
+        description="Create an open, close schedule for a channel.",
     )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
     async def createSchedule(
         self,
-        ctx: commands.context,
-        channel: TextChannel,
+        interaction: Interaction,
         open_time: str,
         close_time: str,
-        open_message: Optional[str] = "None",
-        close_message: Optional[str] = "None",
-        warning: Optional[str] = "False",
-        dynamic: Optional[str] = "True",
-        max_num_delays: Optional[int] = 1,
-        silent: Optional[str] = "False"
+        channel: Optional[TextChannel] = None,
+        open_message: Optional[str] = None,
+        close_message: Optional[str] = None,
+        warning: Optional[bool] = False,
+        dynamic: Optional[bool] = False,
+        max_num_delays: app_commands.Range[int, 0, 10] = 0,
+        silent: Optional[bool] = False
     ) -> None:
         """
         Method to create a channel opening and closing schedule.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            channel: The Discord channel object representing the channel that
-                the schedule applies to.
+            interaction: The interaction that triggered the request.
             open_time: The time to open the channel in 24 hour %H:%m format,
-                e.g.  '06:00'.
+                e.g. `06:00`.
             close_time: The time to close the channel in 24 hour %H:%m format,
-                e.g. '21:00'.
+                e.g. `21:00`.
+            channel: The Discord channel that the schedule should apply to.
+                Defaults to the current channel.
             open_message: A custom message to send to the channel when it is
                 opened.
             close_message: A custom message to send to the channel when it is
                 closed.
-            warning: Whether a closure warning should be sent to the channel.
-            dynamic: Whether dynamic closing is active for the schedule.
+            warning: Whether a closure warning message should be sent to the channel.
+            dynamic: Whether dynamic closing is active for the schedule. I.e. if the channel
+                still has activity (as per the guild inactive setting), the channel closing will
+                be delayed.
             max_num_delays: The maximum number of times the closing of the
                 channel can be delayed when using dynamic mode.
             silent: If True then no messages are sent to the channel when it is
@@ -269,8 +268,16 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
+        # Get the current channel if not passed.
+        if channel is None:
+            channel = get(interaction.guild.channels, id=interaction.channel.id)
+            ephemeral = True
+        else:
+            ephemeral = False
+
         # check that the bot has access to the channel
-        bot_member = ctx.guild.get_member(self.bot.user.id)
+        # TODO: Remove this and just set the permissions.
+        bot_member = interaction.guild.get_member(self.bot.user.id)
         ok_perms = snorlax_checks.check_schedule_perms(bot_member, channel)
 
         # Cancel schedule creation if channel permissions not correct.
@@ -280,38 +287,32 @@ class Schedules(commands.Cog):
                 f'Snorlax does not have the correct permissions for {channel.mention}!'
                 "\n\nThe following permissions are required:"
                 "\n```"
-                "\nview_channel\nread_messages\nread_message_history\nsend_messages\nmanage_roles"
+                "\nview_channel\nread_messages\nread_message_history\nmanage_roles"
                 "\n```"
             )
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg, ephemeral=ephemeral)
             return
 
         time_ok, f_open_time = snorlax_checks.check_time_format(open_time)
         if not time_ok:
-            msg = (
-                "{} is not a valid time.".format(
-                    open_time
-                )
-            )
-            await ctx.channel.send(msg)
+            msg = f"{open_time} is not a valid time."
+            await interaction.response.send_message(msg)
             return
+
         # this just checks for single hour inputs, e.g. 6:00
         open_time = f_open_time
 
         time_ok, f_close_time = snorlax_checks.check_time_format(close_time)
         if not time_ok:
-            msg = (
-                "{} is not a valid time.".format(
-                    close_time
-                )
-            )
-            await ctx.channel.send(msg)
+            msg = f"{close_time} is not a valid time."
+            await interaction.response.send_message(msg, ephemeral=ephemeral)
             return
+
         close_time = f_close_time
 
         if close_time == open_time:
             msg = "The open and close time cannot be the same!"
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg, ephemeral=ephemeral)
             return
 
         # Replace empty strings
@@ -321,59 +322,27 @@ class Schedules(commands.Cog):
         if close_message == "":
             close_message = "None"
 
+        # Give bot permission to always send messages to channel
+        bot_role = interaction.guild.self_role
+        await channel.set_permissions(bot_role, send_messages=True)
+
         # Could support different roles in future.
-        role = ctx.guild.default_role
+        role = interaction.guild.default_role
 
         ok, rowid = await snorlax_db.create_schedule(
-            ctx.guild.id, channel.id, channel.name, role.id, role.name,
+            interaction.guild.id, channel.id, channel.name, role.id, role.name,
             open_time, close_time, open_message, close_message, warning,
             dynamic, max_num_delays, silent
         )
 
         if ok:
-            msg = "Schedule set successfully."
-            await self.listSchedules(ctx, schedule_id=rowid)
+            msg = f"Schedule for {channel.mention} created successfully!"
+            schedule_df = await snorlax_db.load_schedule_db(rowid=rowid)
+            embed = snorlax_embeds.get_schedule_embed(schedule_df, creation=True)
+
+            await interaction.response.send_message(msg, embed=embed, ephemeral=ephemeral)
         else:
-            msg = "Error when setting schedule."
-
-        await ctx.channel.send(msg)
-
-        if ok:
-            # Check for roles that won't respect the schedule.
-            await snorlax_checks.check_schedule_overwrites(channel, ctx.channel, self.bot.user)
-
-    @createSchedule.error
-    async def createSchedule_error(
-        self,
-        ctx: commands.context,
-        error
-    ) -> None:
-        """
-        Method to pass the errors from the createSchedule method.
-
-        Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            error (Exception): The actual exception that could be a range of
-                error types.
-        Returns:
-            None
-        """
-        if isinstance(error, commands.InvalidEndOfQuotedStringError):
-            msg = (
-                "Error in setting schedule."
-                " Were the open and close messages entered correctly?"
-                f"\n```{error}```\n"
-            )
-            await ctx.send(msg)
-        elif isinstance(error, commands.CheckFailure):
-            pass
-        else:
-            msg = (
-                "Unknown error in setting schedule."
-                f"\n```{error}```\n"
-            )
-            await ctx.send(msg)
+            await interaction.response.send_message("Error when creating the schedule!", ephemeral=ephemeral)
 
     @app_commands.command(
         name='deactivate-schedule',
@@ -800,7 +769,7 @@ class Schedules(commands.Cog):
             ok = await snorlax_db.drop_schedule(schedule)
             if ok:
                 msg = f'<#{schedule_channel_id}> schedule deleted successfully.'
-                logger.info(f'Schedule {schedule} delete in guild {interaction.guild.name}.')
+                logger.info(f'Schedule {schedule} deleted in guild {interaction.guild.name}.')
             else:
                 msg = f'Error ocurred while attempting to delete the <#{schedule_channel_id}> schedule!.'
                 logger.error(f'Schedule {schedule} delete failed in guild {interaction.guild.name}!')
@@ -964,29 +933,26 @@ class Schedules(commands.Cog):
 
         await interaction.followup.send(msg)
 
-    @commands.command(
-        help=(
-            "Updates a specific parameter of an existing schedule."
-            " The columns to use are:"
-            "\nopen"
-            "\nclose"
-            "\nopen_message"
-            "\nclose_message"
-            "\nwarning"
-            "\ndynamic"
-            "\nmax_num_delays"
-            "\nsilent"
-        ),
-        brief=(
-            "Update a parameter in an existing schedule. "
-            "See full help for details."
-        )
+    @app_commands.command(
+        name='update-schedule',
+        description="Update an existing schedule.",
     )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
     async def updateSchedule(
         self,
-        ctx: commands.context,
-        id: int,
-        *args: str
+        interaction: Interaction,
+        schedule: str,
+        open_time: Optional[str] = None,
+        close_time: Optional[str] = None,
+        open_message: Optional[str] = None,
+        close_message: Optional[str] = None,
+        warning: Optional[bool] = None,
+        dynamic: Optional[bool] = None,
+        max_num_delays: Optional[app_commands.Range[int, 0, 10]] = None,
+        silent: Optional[bool] = None
     ) -> None:
         """
         Method to update an existing schedule.
@@ -995,102 +961,97 @@ class Schedules(commands.Cog):
         close 21:00'.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            id: The schedule id to be updated.
-            args: The list of key and values of the settings to update.
+            open_time: The time to open the channel in 24 hour %H:%m format,
+                e.g. `06:00`.
+            close_time: The time to close the channel in 24 hour %H:%m format,
+                e.g. `21:00`.
+            channel: The Discord channel that the schedule should apply to.
+                Defaults to the current channel.
+            open_message: A custom message to send to the channel when it is
+                opened.
+            close_message: A custom message to send to the channel when it is
+                closed.
+            warning: Whether a closure warning message should be sent to the channel.
+            dynamic: Whether dynamic closing is active for the schedule. I.e. if the channel
+                still has activity (as per the guild inactive setting), the channel closing will
+                be delayed.
+            max_num_delays: The maximum number of times the closing of the
+                channel can be delayed when using dynamic mode.
+            silent: If True then no messages are sent to the channel when it is
+                opened or closed.
 
         Returns:
             None
         """
-        exists = await snorlax_checks.check_schedule_exists(id)
+        try:
+            schedule = int(schedule)
+        except Exception as e:
+            await interaction.response.send_message(
+                f"'{schedule}' is not a valid schedule. Please select a schedule from the options provided.",
+                ephemeral=True
+            )
+            logger.error(f'Failed view schedule attempt in {interaction.guild.name}: {e}.')
+            return
+
+        exists = await snorlax_checks.check_schedule_exists(schedule)
 
         if not exists:
-            msg = 'Schedule ID {} does not exist!'.format(
-                id
-            )
+            msg = f'That schedule does not exist!'
 
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        allowed = await snorlax_checks.check_remove_schedule(ctx, id)
+        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
 
         if not allowed:
-            msg = 'You do not have permission to update this schedule'
+            msg = f'You do not have permission to deactivate schedule {schedule}.'
 
-            await ctx.channel.send(msg)
-
-            return
-
-        if len(args) % 2 != 0:
-            msg = 'Error! There are an odd number of columns and values!'
-
-            await ctx.channel.send(msg)
+            await interaction.response.send_message(msg)
 
             return
 
-        valid_columns = [
-            "active",
-            "open",
-            "close",
-            "open_message",
-            "close_message",
-            "warning",
-            "dynamic",
-            "max_num_delays",
-            "silent",
-        ]
+        args = {
+            "open": open_time,
+            "close": close_time,
+            "open_message": open_message,
+            "close_message": close_message,
+            "warning": warning,
+            "dynamic": dynamic,
+            "max_num_delays": max_num_delays,
+            "silent": silent,
+        }
 
         to_update = {}
+        for column in args:
 
-        for i in range(0, len(args), 2):
-            column = args[i]
-            value = args[i+1]
+            value = args[column]
 
-            if column not in valid_columns:
-                msg = (
-                    "'{}' is not a valid column to update."
-                    " Valid columns are: {}".format(
-                        column, ", ".join(valid_columns)
-                    )
-                )
-                await ctx.channel.send(msg)
-                return
-
-            elif column in to_update:
-                msg = f"'{column}' has been entered multiple times!"
-                await ctx.channel.send(msg)
-                return
+            if args[column] is None:
+                continue
 
             elif column in ['open', 'close']:
                 time_ok, f_value = snorlax_checks.check_time_format(value)
                 if not time_ok:
-                    msg = "{} is not a valid time.".format(value)
-                    await ctx.channel.send(msg)
+                    msg = f"{value} is not a valid time."
+                    await interaction.response.send_message(msg)
                     return
 
                 if column == 'open':
                     if 'close' in to_update:
                         if f_value == to_update['close']:
                             msg = "The open and close time cannot be the same!"
-                            await ctx.channel.send(msg)
+                            await interaction.response.send_message(msg)
                             return
 
                 elif column == 'close':
                     if 'open' in to_update:
                         if f_value == to_update['open']:
                             msg = "The open and close time cannot be the same!"
-                            await ctx.channel.send(msg)
+                            await interaction.response.send_message(msg)
                             return
 
                 value = f_value
-
-            elif column == 'max_num_delays':
-                value = int(value)
-
-            elif column in ['active', 'warning', 'dynamic', 'silent']:
-                value = snorlax_utils.str2bool(value)
 
             to_update[column] = value
 
@@ -1098,60 +1059,36 @@ class Schedules(commands.Cog):
         # where both are to be updated above
         if sum(('open' in to_update, 'close' in to_update)) == 1:
             if 'open' in to_update:
-                curr_close = await snorlax_db.get_schedule_close(id)
+                curr_close = await snorlax_db.get_schedule_close(schedule)
                 the_same = curr_close == to_update['open']
 
             elif 'close' in to_update:
-                curr_open = await snorlax_db.get_schedule_open(id)
+                curr_open = await snorlax_db.get_schedule_open(schedule)
                 the_same = curr_open == to_update['close']
 
             if the_same:
-                msg = "The open and close time cannot be the same!"
-                await ctx.channel.send(msg)
+                await interaction.response.send_message("The open and close time cannot be the same!")
                 return
 
-        errored = False
-
+        all_ok = True
         for column in to_update:
-            ok = await snorlax_db.update_schedule(id, column, to_update[column])
+            ok = await snorlax_db.update_schedule(schedule, column, to_update[column])
             if not ok:
-                errored = True
-                msg = (
-                    f'Error during update of schedule with ID {id} on'
-                    f' column {column}. Check inputs and try again.'
-                )
-                await ctx.send(msg)
-        if not errored:
-            msg = f'Schedule ID {id} updated successfully.'
+                all_ok = False
+                logger.error(f'Update on schedule {schedule} errored for column {column}')
+
+        if all_ok:
+            logger.info(f'Schedule {schedule} updated.')
+            schedule_df = await snorlax_db.load_schedule_db(rowid=schedule)
+            msg = f"Schedule for <#{schedule_df['channel'].iloc[0]}> updated successfully!"
+            embed = snorlax_embeds.get_schedule_embed(schedule_df)
+
+            await interaction.response.send_message(msg, embed=embed, ephemeral=True)
         else:
-            msg = (
-                f'Schedule ID {id} updated, however some columns were not.'
-                'Refer to the error message above and check input.'
+            await interaction.response.send_message(
+                "Error when creating the schedule! Please check the schedule details.",
+                ephemeral=True
             )
-        await ctx.channel.send(msg)
-        await self.listSchedules(ctx, schedule_id=id)
-
-    @updateSchedule.error
-    async def updateSchedule_error(self, ctx: commands.context, error) -> None:
-        """
-        Handles any errors from updateSchedule.
-
-        Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            error (Exception): The error passed from updateSchedule.
-
-        Returns:
-            None
-        """
-        if isinstance(error, commands.CheckFailure):
-            pass
-        else:
-            msg = (
-                "Unknown error in updating schedule."
-                f"\n```{error}```\n"
-            )
-            await ctx.send(msg)
 
     async def close_channel(
         self,
@@ -1375,6 +1312,30 @@ class Schedules(commands.Cog):
             embed = snorlax_embeds.get_schedule_embed(schedule_df)
 
             await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(
+        name='check-schedule-roles',
+        description=(
+            "Check a channel to see if there any roles where the schedule will not apply."
+        ),
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def checkScheduleRoles(self, interaction: Interaction, channel: TextChannel) -> None:
+        """
+        Check the channel for roles that a schedule won't apply to.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            channel: The channel to check.
+
+        Returns:
+            None
+        """
+        embed = await snorlax_checks.check_schedule_overwrites(channel, interaction.channel, self.bot.user)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: GuildChannel, after: GuildChannel) -> None:

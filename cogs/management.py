@@ -12,6 +12,7 @@ from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
+from typing import Optional, Literal
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
@@ -511,6 +512,56 @@ class Management(commands.Cog):
             "Snorlax is shutting down."
         )
         await interaction.client.close()
+
+    @commands.command(
+        help=(
+            "Sync the command tree."
+            "\n Examples:\n"
+            "!sync -> global sync\n"
+            "!sync ~ -> sync current guild\n"
+            "!sync * -> copies all global app commands to current guild and syncs\n"
+            "!sync ^ -> clears all commands from the current guild target and syncs (removes guild commands)\n"
+            "!sync id_1 id_2 -> syncs guilds with id 1 and 2"
+        ),
+        brief="Sync the command tree."
+    )
+    @commands.guild_only()
+    @commands.check(snorlax_checks.check_bot)
+    @commands.is_owner()
+    async def sync(
+        self,
+        ctx: commands.context,
+        guilds: commands.Greedy[discord.Object],
+        spec: Optional[Literal["~", "*", "^"]] = None
+    ) -> None:
+        if not guilds:
+            if spec == "~":
+                synced = await ctx.bot.tree.sync(guild=ctx.guild)
+            elif spec == "*":
+                ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                synced = await ctx.bot.tree.sync(guild=ctx.guild)
+            elif spec == "^":
+                ctx.bot.tree.clear_commands(guild=ctx.guild)
+                await ctx.bot.tree.sync(guild=ctx.guild)
+                synced = []
+            else:
+                synced = await ctx.bot.tree.sync()
+
+            await ctx.send(
+                f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+            )
+            return
+
+        ret = 0
+        for guild in guilds:
+            try:
+                await ctx.bot.tree.sync(guild=guild)
+            except discord.HTTPException:
+                pass
+            else:
+                ret += 1
+
+        await ctx.send(f"Synced the tree to {ret} / {len(guilds)}.")
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: Guild) -> None:

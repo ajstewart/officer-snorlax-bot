@@ -13,7 +13,7 @@ import pandas as pd
 from discord import Client, Message, User
 from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
 
 load_dotenv(find_dotenv())
@@ -159,7 +159,7 @@ def get_hour_emoji(time: str) -> str:
     return emojis[key]
 
 
-async def get_prefix(client: User, message: Message) -> Callable[[Client], List[str]]:
+async def get_prefix(client: User, message: Message) -> Callable[[Client], list[str]]:
     """
     Fetch the current prefix of the guild and check whether it has been called.
 

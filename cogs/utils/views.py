@@ -1,11 +1,10 @@
 """Contains the views used throughout the bot
 """
 import discord
-from typing import List
 
 
 class ScheduleDropdown(discord.ui.Select):
-    def __init__(self, options: List[discord.SelectOption], context: str):
+    def __init__(self, options: list[discord.SelectOption], context: str):
 
         self.context_verbs = {
             'activate': 'activated',
@@ -46,7 +45,7 @@ class ScheduleDropdownView(discord.ui.View):
     def __init__(
         self,
         user: discord.User,
-        options: List[discord.SelectOption],
+        options: list[discord.SelectOption],
         context: str,
         timeout: int = 60
     ):

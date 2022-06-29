@@ -33,12 +33,6 @@ class MyBot(commands.Bot):
         for ext in self.initial_extensions:
             await self.load_extension(ext)
 
-        if self.test_guild is None:
-            foo = await self.tree.sync()
-        else:
-            foo = await self.tree.sync(guild=discord.Object(id=self.test_guild))
-        print(foo)
-
     async def on_ready(self):
         print('Ready!')
 

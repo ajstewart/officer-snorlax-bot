@@ -3,11 +3,10 @@ Contains all the various checks that the commands need to perform.
 """
 
 import numpy as np
-import pytz
 import re
 import time
 
-from discord import Message, TextChannel, Member, Interaction
+from discord import Embed, Message, TextChannel, Member, Interaction
 from discord.abc import User
 from discord.ext import commands
 from typing import Iterable, Tuple
@@ -253,7 +252,6 @@ def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
         perms.view_channel,
         perms.read_messages,
         perms.read_message_history,
-        perms.send_messages,
         perms.manage_roles
     ])
 
@@ -264,7 +262,7 @@ async def check_schedule_overwrites(
     channel: TextChannel,
     command_channel: TextChannel,
     bot_user: User
-) -> None:
+) -> Embed:
     """Checks the overwrites on a channel for which a schedule is to be created.
 
     If any role explicitly has send_messages set to `True` a warning will be sent to the command
@@ -282,13 +280,12 @@ async def check_schedule_overwrites(
     overwrites = channel.overwrites
     bot_role = channel.guild.self_role
     bot_member = channel.guild.get_member(bot_user.id)
+    default_role = channel.guild.default_role
 
     # Loop over overwrites checking for explicit send_messages in the allow overwrites.
     for role in overwrites:
-        # Skip self role/member
-        if role == bot_role:
-            continue
-        if role == bot_member:
+        # Skip self role/member and default role (@everyone)
+        if role == bot_role or role == bot_member or role == default_role:
             continue
 
         allow, deny = overwrites[role].pair()
@@ -298,5 +295,12 @@ async def check_schedule_overwrites(
             no_effect_roles_deny.append(role)
 
     if len(no_effect_roles_allow + no_effect_roles_deny) > 0:
-        embed = snorlax_embeds.get_schedule_overwrites_embed(no_effect_roles_allow, no_effect_roles_deny)
-        await command_channel.send(embed=embed)
+        embed = snorlax_embeds.get_schedule_overwrites_embed(
+            no_effect_roles_allow,
+            no_effect_roles_deny,
+            channel
+        )
+    else:
+        embed = snorlax_embeds.get_schedule_overwrites_embed_all_ok(channel)
+
+    return embed
