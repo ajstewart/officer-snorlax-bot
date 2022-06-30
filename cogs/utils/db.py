@@ -702,6 +702,24 @@ async def get_schedule_close(schedule_id: int) -> str:
     return close[0]
 
 
+async def get_schedule_channel(schedule_id: int) -> str:
+    """
+    Fetches the channel id of the requested schedule.
+
+    Args:
+        schedule_id: The id of the schedule to obtain the close time for.
+
+    Returns:
+        The schedule channel id.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT channel FROM schedules WHERE rowid = ?;"
+        async with db.execute(query, (schedule_id,)) as cursor:
+            channel = await cursor.fetchone()
+
+    return channel[0]
+
+
 async def get_schedule_ids_by_channel_id(channel_id: int) -> list[tuple[int]]:
     """Fetches the schedule(s) of the requested channel id.
 
@@ -717,6 +735,25 @@ async def get_schedule_ids_by_channel_id(channel_id: int) -> list[tuple[int]]:
             schedule_ids = await cursor.fetchall()
 
     return schedule_ids
+
+
+async def check_schedule_exists_with_times(channel_id: int, open: str, close: str) -> bool:
+    """Checks if the schedule with the channel and open and close times exists.
+
+    Args:
+        channel_id: The channel id to check.
+        open: The open time to check.
+        close: The close time to check
+
+    Returns:
+        'True' if exists, 'False' if not.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT EXISTS(SELECT 1 FROM schedules WHERE channel = ? AND open = ? and close = ?)"
+        async with db.execute(query, (channel_id, open, close)) as cursor:
+            exists = await cursor.fetchone()
+
+    return bool(exists[0])
 
 
 async def check_schedule_exists(schedule_id: int) -> bool:

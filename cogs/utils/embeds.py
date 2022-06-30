@@ -19,14 +19,14 @@ INACTIVE_TIME = os.getenv('INACTIVE_TIME')
 DELAY_TIME = os.getenv('DELAY_TIME')
 
 
-def get_schedule_embed(schedule_db: pd.DataFrame, creation: bool = False) -> Embed:
+def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
     """
     Create an embed to show the saved schedules.
 
     Args:
         schedule_db: The schedule database table as a pandas dataframe.
-        creation: If 'True' the check channel permissions note is added
-            to the embed.
+        num_warning_roles: If greater than 0 then a warning field will be placed in the
+            creation embed to warn of the number of roles with overwrites.
 
     Returns:
         The embed containing the list of schedules.
@@ -51,12 +51,12 @@ def get_schedule_embed(schedule_db: pd.DataFrame, creation: bool = False) -> Emb
             inline=False
         )
 
-    if creation:
+    if num_warning_roles > 0:
         embed.add_field(
-            name="Roles Check",
+            name="⚠️  Roles Warning",
             value=(
-                f"Use the `/check-schedule-roles` command to check <#{row.channel}> for"
-                " any roles for which the schedule will not apply."
+                f"There are {num_warning_roles} roles(s) in <#{row.channel}> that the schedule will not apply to."
+                " Use the `/check-schedule-roles` command for more information!"
             )
         )
 

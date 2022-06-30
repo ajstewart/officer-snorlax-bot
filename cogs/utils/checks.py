@@ -260,7 +260,6 @@ def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
 
 async def check_schedule_overwrites(
     channel: TextChannel,
-    command_channel: TextChannel,
     bot_user: User
 ) -> Embed:
     """Checks the overwrites on a channel for which a schedule is to be created.
@@ -270,7 +269,6 @@ async def check_schedule_overwrites(
 
     Args:
         channel: The channel for which a schedule is to be created.
-        command_channel: The channel where the schedule creation command was issued.
         bot_user: The bot user.
     """
     no_effect_roles_allow = []
@@ -294,13 +292,4 @@ async def check_schedule_overwrites(
         if deny.send_messages:
             no_effect_roles_deny.append(role)
 
-    if len(no_effect_roles_allow + no_effect_roles_deny) > 0:
-        embed = snorlax_embeds.get_schedule_overwrites_embed(
-            no_effect_roles_allow,
-            no_effect_roles_deny,
-            channel
-        )
-    else:
-        embed = snorlax_embeds.get_schedule_overwrites_embed_all_ok(channel)
-
-    return embed
+    return no_effect_roles_allow, no_effect_roles_deny

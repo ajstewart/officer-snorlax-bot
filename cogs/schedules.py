@@ -315,6 +315,11 @@ class Schedules(commands.Cog):
             await interaction.response.send_message(msg, ephemeral=ephemeral)
             return
 
+        if await snorlax_db.check_schedule_exists_with_times(channel.id, open_time, close_time):
+            msg = "That schedule already exists!"
+            await interaction.response.send_message(msg, ephemeral=ephemeral)
+            return
+
         # Replace empty strings
         if open_message == "":
             open_message = "None"
@@ -338,7 +343,15 @@ class Schedules(commands.Cog):
         if ok:
             msg = f"Schedule for {channel.mention} created successfully!"
             schedule_df = await snorlax_db.load_schedule_db(rowid=rowid)
-            embed = snorlax_embeds.get_schedule_embed(schedule_df, creation=True)
+
+            no_effect_roles_allow, no_effect_roles_deny = await snorlax_checks.check_schedule_overwrites(
+                channel,
+                self.bot.user
+            )
+
+            overwrite_roles = len(no_effect_roles_allow + no_effect_roles_deny)
+
+            embed = snorlax_embeds.get_schedule_embed(schedule_df, num_warning_roles=overwrite_roles)
 
             await interaction.response.send_message(msg, embed=embed, ephemeral=ephemeral)
         else:
@@ -1057,18 +1070,44 @@ class Schedules(commands.Cog):
 
         # Check if one or the other is in to_update, already checked the case
         # where both are to be updated above
-        if sum(('open' in to_update, 'close' in to_update)) == 1:
-            if 'open' in to_update:
-                curr_close = await snorlax_db.get_schedule_close(schedule)
-                the_same = curr_close == to_update['open']
+        open_close_sum = sum(('open' in to_update, 'close' in to_update))
 
-            elif 'close' in to_update:
-                curr_open = await snorlax_db.get_schedule_open(schedule)
-                the_same = curr_open == to_update['close']
+        if open_close_sum > 0:
+            channel_id = await snorlax_db.get_schedule_channel(schedule)
 
-            if the_same:
-                await interaction.response.send_message("The open and close time cannot be the same!")
-                return
+            if open_close_sum == 1:
+                # Fetch the channel id to fetch for duplicates
+
+                if 'open' in to_update:
+                    curr_close = await snorlax_db.get_schedule_close(schedule)
+                    the_same = curr_close == to_update['open']
+
+                    if await snorlax_db.check_schedule_exists_with_times(channel_id, to_update['open'], curr_close):
+                        msg = "That schedule already exists!"
+                        await interaction.response.send_message(msg, ephemeral=True)
+                        return
+
+                elif 'close' in to_update:
+                    curr_open = await snorlax_db.get_schedule_open(schedule)
+                    the_same = curr_open == to_update['close']
+
+                    if await snorlax_db.check_schedule_exists_with_times(channel_id, curr_open, to_update['close']):
+                        msg = "That schedule already exists!"
+                        await interaction.response.send_message(msg, ephemeral=True)
+                        return
+
+                if the_same:
+                    await interaction.response.send_message(
+                        "The open and close time cannot be the same!",
+                        ephemeral=True
+                    )
+                    return
+
+            if open_close_sum == 2:
+                if await snorlax_db.check_schedule_exists_with_times(channel_id, to_update['open'], to_update['close']):
+                    msg = "That schedule already exists!"
+                    await interaction.response.send_message(msg, ephemeral=True)
+                    return
 
         all_ok = True
         for column in to_update:
@@ -1333,7 +1372,19 @@ class Schedules(commands.Cog):
         Returns:
             None
         """
-        embed = await snorlax_checks.check_schedule_overwrites(channel, interaction.channel, self.bot.user)
+        no_effect_roles_allow, no_effect_roles_deny = await snorlax_checks.check_schedule_overwrites(
+            channel,
+            self.bot.user
+        )
+
+        if len(no_effect_roles_allow + no_effect_roles_deny) > 0:
+            embed = snorlax_embeds.get_schedule_overwrites_embed(
+                no_effect_roles_allow,
+                no_effect_roles_deny,
+                channel
+            )
+        else:
+            embed = snorlax_embeds.get_schedule_overwrites_embed_all_ok(channel)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
