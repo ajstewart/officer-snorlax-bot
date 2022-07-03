@@ -2,14 +2,14 @@
 """
 
 import datetime
+import discord
 import os
 import pandas as pd
 
-from discord import Embed, User, Member, Role, Interaction, TextChannel
+from discord import Embed
 from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
 from typing import Union
-
 
 load_dotenv(find_dotenv())
 DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
@@ -63,6 +63,60 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
     return embed
 
 
+def get_schedule_embed_for_user(schedule_db: pd.DataFrame, channel: discord.TextChannel) -> Embed:
+    """
+    Create an embed to show the channel schedule to the user.
+
+    Args:
+        schedule_db: The schedule database table as a pandas dataframe.
+        channel: The channel object for the interaction channel.
+
+    Returns:
+        The embed containing the list of schedules.
+    """
+    embed_title = f"⏰ Schedule for #{channel.name}"
+
+    embed = Embed(
+        title=embed_title,
+        timestamp=utcnow(),
+        color=2061822
+    )
+
+    if schedule_db.empty:
+        embed.add_field(
+            name="No schedule!",
+            value=f"There is no schedule set for {channel.mention}."
+        )
+    else:
+        for _, row in schedule_db.iterrows():
+            open_hour = int(row['open'].split(":")[0])
+            p_open = "PM" if open_hour >= 12 else "AM"
+
+            close_hour = int(row['close'].split(":")[0])
+            p_close = "PM" if close_hour >= 12 else "AM"
+
+            embed.add_field(
+                name=f'Open ✅',
+                value=f"{row['open']} {p_open}",
+                inline=True
+            )
+
+            embed.add_field(
+                name=f'Close ❌',
+                value=f"{row['close']} {p_close}",
+                inline=True
+            )
+
+            # Dummy field to push any other schedules to next row.
+            embed.add_field(
+                name='\u200b',
+                value='\u200b',
+                inline=True
+            )
+
+    return embed
+
+
 def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
     """
     Create an embed to show the allowed friend code channels.
@@ -94,7 +148,7 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
 
 
 def get_settings_embed(
-    interaction: Interaction,
+    interaction: discord.Interaction,
     guild_settings: pd.DataFrame
 ) -> Embed:
     """
@@ -179,7 +233,7 @@ def get_open_embed(
     close: str,
     now: datetime.datetime,
     custom_open_message: str,
-    client_user: User,
+    client_user: discord.User,
     time_format_fill: str
 ) -> Embed:
     """Produces the open embed that is sent when a channel opens.
@@ -229,7 +283,7 @@ def get_close_embed(
     open: str,
     now: datetime.datetime,
     custom_close_message: str,
-    client_user: User,
+    client_user: discord.User,
     time_format_fill: str
 ) -> Embed:
     """Produces the open embed that is sent when a channel opens.
@@ -278,7 +332,7 @@ def get_close_embed(
 def get_warning_embed(
     close: str,
     now: datetime.datetime,
-    client_user: User,
+    client_user: discord.User,
     time_format_fill: str,
     dynamic: bool,
     delay: bool
@@ -338,9 +392,9 @@ def get_warning_embed(
 
 
 def get_schedule_overwrites_embed(
-    roles_allow: list[Union[Role, Member]],
-    roles_deny: list[Union[Role, Member]],
-    channel: TextChannel
+    roles_allow: list[Union[discord.Role, discord.Member]],
+    roles_deny: list[Union[discord.Role, discord.Member]],
+    channel: discord.TextChannel
 ) -> Embed:
     """Produces the warning embed of roles that will not be affected by a schedule.
 
@@ -392,7 +446,7 @@ def get_schedule_overwrites_embed(
     return embed
 
 
-def get_schedule_overwrites_embed_all_ok(channel: TextChannel) -> Embed:
+def get_schedule_overwrites_embed_all_ok(channel: discord.TextChannel) -> Embed:
     """Produces an embed to communicate that no roles will schedule doge.
 
     Args:

@@ -8,8 +8,6 @@ from discord import Guild, TextChannel
 from dotenv import load_dotenv, find_dotenv
 from typing import Optional, Union
 
-from .utils import str2bool
-
 
 load_dotenv(find_dotenv())
 DATABASE = os.getenv('DATABASE')

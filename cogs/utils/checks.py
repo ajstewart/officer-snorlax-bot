@@ -13,7 +13,6 @@ from typing import Iterable, Tuple
 
 from . import db as snorlax_db
 from . import utils as snorlax_utils
-from . import embeds as snorlax_embeds
 
 
 def check_bot(ctx: commands.context) -> bool:

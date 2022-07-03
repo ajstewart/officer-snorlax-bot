@@ -2,9 +2,10 @@
 Contains the embeds that are used as part of the logging.
 """
 import datetime
+import discord
 import pytz
 
-from discord import TextChannel, Embed, Message, User, app_commands
+from discord import app_commands
 from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
 from typing import Optional
@@ -14,9 +15,9 @@ load_dotenv(find_dotenv())
 
 
 def filter_delete_log_embed(
-    message: Message,
+    message: discord.Message,
     reason: Optional[str] = "None"
-) -> Embed:
+) -> discord.Embed:
     """
     Create an embed to send to the logging channel upon a filter message
     deletion.
@@ -30,7 +31,7 @@ def filter_delete_log_embed(
     """
     now = utcnow()
     user = message.author
-    embed = Embed(
+    embed = discord.Embed(
         description=(
             f'**Message from {user.mention} deleted in '
             f'{message.channel.mention}**\n{message.content}'
@@ -55,10 +56,10 @@ def filter_delete_log_embed(
 
 
 def ban_log_embed(
-    user: User,
+    user: discord.User,
     tz: str,
     reason: Optional[str] = "None"
-) -> Embed:
+) -> discord.Embed:
     """
     Create an embed to send to the logging channel on the event of a member
     being banned using the join name filter.
@@ -73,7 +74,7 @@ def ban_log_embed(
     """
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
-    embed = Embed(
+    embed = discord.Embed(
         description=f'**New joiner {user.mention} banned**',
         timestamp=now,
         color=10038562
@@ -94,13 +95,13 @@ def ban_log_embed(
 
 
 def schedule_log_embed(
-    channel: TextChannel,
+    channel: discord.TextChannel,
     tz: str,
     stype: str,
     delay_mins: int = -1,
     delay_num: int = -1,
     max_delay_num: int = -1
-) -> Embed:
+) -> discord.Embed:
     """
     Create an embed to send to the logging channel for channel schedule events.
 
@@ -157,7 +158,7 @@ def schedule_log_embed(
 
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
-    embed = Embed(
+    embed = discord.Embed(
         title=titles[stype],
         description=descriptions[stype],
         timestamp=now,
@@ -172,7 +173,7 @@ def schedule_log_embed(
     return embed
 
 
-def fc_channel_removed_log_embed(channel: TextChannel) -> Embed:
+def fc_channel_removed_log_embed(channel: discord.TextChannel) -> discord.Embed:
     """
     Create an embed to send to the logging channel upon a filter message
     deletion.
@@ -184,7 +185,7 @@ def fc_channel_removed_log_embed(channel: TextChannel) -> Embed:
         The Discord Embed object to send to the log channel.
     """
     now = utcnow()
-    embed = Embed(
+    embed = discord.Embed(
         description=(
             f'Channel **#{channel.name}** has been removed from the allowed friend codes list.'
         ),
@@ -204,7 +205,7 @@ def fc_channel_removed_log_embed(channel: TextChannel) -> Embed:
     return embed
 
 
-def time_channel_reset_log_embed(channel: TextChannel) -> Embed:
+def time_channel_reset_log_embed(channel: discord.TextChannel) -> discord.Embed:
     """
     Create an embed to send to the logging channel upon a time channel deletion.
 
@@ -215,7 +216,7 @@ def time_channel_reset_log_embed(channel: TextChannel) -> Embed:
         The Discord Embed object to send to the log channel.
     """
     now = utcnow()
-    embed = Embed(
+    embed = discord.Embed(
         description=(
             f'Time channel has been reset.'
         ),
@@ -235,7 +236,7 @@ def time_channel_reset_log_embed(channel: TextChannel) -> Embed:
     return embed
 
 
-def schedules_deleted_log_embed(channel: TextChannel, id: int) -> Embed:
+def schedules_deleted_log_embed(channel: discord.TextChannel, id: int) -> discord.Embed:
     """
     Create an embed to send to the logging channel upon a channel deletion that had a schedule.
 
@@ -247,7 +248,7 @@ def schedules_deleted_log_embed(channel: TextChannel, id: int) -> Embed:
         The Discord Embed object to send to the log channel.
     """
     now = utcnow()
-    embed = Embed(
+    embed = discord.Embed(
         description=(
             f'Schedule ID {id} has been deleted.'
         ),
@@ -267,7 +268,11 @@ def schedules_deleted_log_embed(channel: TextChannel, id: int) -> Embed:
     return embed
 
 
-def attempted_app_command_embed(command: app_commands.Command, channel: TextChannel, user: User) -> Embed:
+def attempted_app_command_embed(
+    command: app_commands.Command,
+    channel: discord.TextChannel,
+    user: discord.User
+) -> discord.Embed:
     """
     Create an embed to send to the logging channel that a user attempted to use an admin command.
 
@@ -280,7 +285,7 @@ def attempted_app_command_embed(command: app_commands.Command, channel: TextChan
         The Discord Embed object to send to the log channel.
     """
     now = utcnow()
-    embed = Embed(
+    embed = discord.Embed(
         description=(
             f'Unauthorised command attempted!'
         ),

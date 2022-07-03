@@ -4,7 +4,7 @@ import discord
 import os
 import logging
 
-from discord import TextChannel, User, Role, PermissionOverwrite, Interaction, app_commands, Guild
+from discord import app_commands
 from discord.errors import DiscordServerError, Forbidden
 from discord.abc import GuildChannel
 from discord.ext import commands, tasks
@@ -86,7 +86,7 @@ class Schedules(commands.Cog):
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
-    async def activateSchedule(self, interaction: Interaction, schedule: str) -> None:
+    async def activateSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
         """
         Toggles a saved schedule to active.
 
@@ -141,7 +141,7 @@ class Schedules(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def activateSchedules(
         self,
-        interaction: Interaction
+        interaction: discord.Interaction
     ) -> None:
         """
         Toggles all schedules provided to active.
@@ -195,7 +195,7 @@ class Schedules(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def activateAllSchedules(self, interaction: Interaction) -> None:
+    async def activateAllSchedules(self, interaction: discord.Interaction) -> None:
         """
         Toggles all schedules to active.
 
@@ -230,10 +230,10 @@ class Schedules(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def createSchedule(
         self,
-        interaction: Interaction,
+        interaction: discord.Interaction,
         open_time: str,
         close_time: str,
-        channel: Optional[TextChannel] = None,
+        channel: Optional[discord.TextChannel] = None,
         open_message: Optional[str] = None,
         close_message: Optional[str] = None,
         warning: Optional[bool] = False,
@@ -353,7 +353,7 @@ class Schedules(commands.Cog):
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
-    async def deactivateSchedule(self, interaction: Interaction, schedule: str) -> None:
+    async def deactivateSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
         """Toggles a saved schedule to deactivated.
 
         Args:
@@ -404,7 +404,7 @@ class Schedules(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def deactivateSchedules(self, interaction: Interaction) -> None:
+    async def deactivateSchedules(self, interaction: discord.Interaction) -> None:
         """
         Toggles the provided schedules to not active.
 
@@ -457,7 +457,7 @@ class Schedules(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def deactivateAllSchedules(self, interaction: Interaction) -> None:
+    async def deactivateAllSchedules(self, interaction: discord.Interaction) -> None:
         """
         Toggles all schedules to deactivated.
 
@@ -496,8 +496,8 @@ class Schedules(commands.Cog):
     @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualClose(
         self,
-        interaction: Interaction,
-        channel: Optional[TextChannel] = None,
+        interaction: discord.Interaction,
+        channel: Optional[discord.TextChannel] = None,
         silent: bool = False
     ) -> None:
         """
@@ -603,8 +603,8 @@ class Schedules(commands.Cog):
     @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualOpen(
         self,
-        interaction: Interaction,
-        channel: Optional[TextChannel] = None,
+        interaction: discord.Interaction,
+        channel: Optional[discord.TextChannel] = None,
         silent: bool = False
     ) -> None:
         """
@@ -705,7 +705,7 @@ class Schedules(commands.Cog):
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
-    async def deleteSchedule(self, interaction: Interaction, schedule: str) -> None:
+    async def deleteSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
         """Deletes the requested schedule.
 
         Args:
@@ -786,7 +786,7 @@ class Schedules(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def deleteSchedules(self, interaction: Interaction) -> None:
+    async def deleteSchedules(self, interaction: discord.Interaction) -> None:
         """
         Deletes the schedules selected by the user. A maximum of 25 schedules can be shown.
 
@@ -873,7 +873,7 @@ class Schedules(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def deleteAllSchedules(self, interaction: Interaction) -> None:
+    async def deleteAllSchedules(self, interaction: discord.Interaction) -> None:
         """
         Attempts to delete all schedules from the command origin server from
         the database.
@@ -944,7 +944,7 @@ class Schedules(commands.Cog):
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
     async def updateSchedule(
         self,
-        interaction: Interaction,
+        interaction: discord.Interaction,
         schedule: str,
         open_time: Optional[str] = None,
         close_time: Optional[str] = None,
@@ -1119,17 +1119,17 @@ class Schedules(commands.Cog):
 
     async def close_channel(
         self,
-        channel: TextChannel,
-        role: Role,
-        overwrites: PermissionOverwrite,
+        channel: discord.TextChannel,
+        role: discord.Role,
+        overwrites: discord.PermissionOverwrite,
         open: str,
         custom_close_message: str,
         silent: bool,
-        log_channel: Optional[TextChannel],
+        log_channel: Optional[discord.TextChannel],
         tz: str,
         time_format_fill: str,
         rowid: int,
-        client_user: User
+        client_user: discord.User
     ) -> None:
         """
         The opening channel process.
@@ -1188,16 +1188,16 @@ class Schedules(commands.Cog):
 
     async def open_channel(
         self,
-        channel: TextChannel,
-        role: Role,
-        overwrites: PermissionOverwrite,
+        channel: discord.TextChannel,
+        role: discord.Role,
+        overwrites: discord.PermissionOverwrite,
         close: str,
         custom_open_message: str,
         silent: bool,
-        log_channel: Optional[TextChannel],
+        log_channel: Optional[discord.TextChannel],
         tz: str,
         time_format_fill: str,
-        client_user: User
+        client_user: discord.User
     ) -> None:
         """
         The opening channel process.
@@ -1255,7 +1255,7 @@ class Schedules(commands.Cog):
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
-    async def viewSchedule(self, interaction: Interaction, schedule: str) -> None:
+    async def viewSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
         """Sends an embed to the interacting user that shows the details of the selected schedule.
 
         Args:
@@ -1306,7 +1306,7 @@ class Schedules(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def viewSchedules(self, interaction: Interaction, active: Optional[bool] = None) -> None:
+    async def viewSchedules(self, interaction: discord.Interaction, active: Optional[bool] = None) -> None:
         """
         Sends an embed to the interacting user that shows all the schedules.
 
@@ -1349,7 +1349,7 @@ class Schedules(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def checkScheduleRoles(self, interaction: Interaction, channel: TextChannel) -> None:
+    async def checkScheduleRoles(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         """
         Check the channel for roles that a schedule won't apply to.
 
@@ -1373,6 +1373,32 @@ class Schedules(commands.Cog):
             )
         else:
             embed = snorlax_embeds.get_schedule_overwrites_embed_all_ok(channel)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(
+        name='schedule',
+        description="Display the schedule for the current channel."
+    )
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    async def checkScheduleRoles(self, interaction: discord.Interaction) -> None:
+        """
+        Communicates the schedule for the current channel to the user.
+
+        Args:
+            interaction: The interaction that triggered the request.
+
+        Returns:
+            None
+        """
+        schedule_df = await snorlax_db.load_schedule_db(
+            guild_id=interaction.guild.id,
+            active=True
+        )
+
+        schedule_df = schedule_df.loc[schedule_df['channel'] == interaction.channel.id]
+
+        embed = snorlax_embeds.get_schedule_embed_for_user(schedule_df, interaction.channel)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

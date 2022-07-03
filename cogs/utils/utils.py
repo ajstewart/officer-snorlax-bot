@@ -8,7 +8,6 @@ import os
 import re
 import logging
 import string
-import pandas as pd
 
 from discord import Client, Message, User
 from discord.ext import commands
@@ -174,17 +173,3 @@ async def get_prefix(client: User, message: Message) -> Callable[[Client], list[
     prefix = await get_guild_prefix(message.guild.id)
 
     return commands.when_mentioned_or(*prefix)(client, message)
-
-
-def str2bool(v: str) -> bool:
-    """
-    Converts a string representation of True entry to a bool.
-
-    Args:
-        v: The string to convert. True will be recognised by: 'yes', 'true',
-            't', '1' or 'on'.
-
-    Returns:
-        Bool representation of the string.
-    """
-    return v.lower() in ["yes", "true", "t", "1", "on"]

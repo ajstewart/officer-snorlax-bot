@@ -5,7 +5,6 @@ import datetime
 import discord
 import logging
 
-
 from discord.ext import commands, tasks
 from discord import app_commands
 from discord.abc import GuildChannel

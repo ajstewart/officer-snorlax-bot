@@ -1,8 +1,6 @@
 """
 Contains all the options used in dropdown commands.
 """
-import pandas as pd
-
 from discord import Guild, SelectOption
 from typing import Optional
 

@@ -2,7 +2,6 @@
 The management cog which contains commands related to the management
 and set up of the bot.
 """
-
 import discord
 import os
 import logging
