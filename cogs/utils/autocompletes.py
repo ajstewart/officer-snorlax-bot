@@ -13,6 +13,17 @@ async def timezones_autocomplete(
     interaction: Interaction,
     current: str
 ) -> list[app_commands.Choice[str]]:
+    """The searchable choices for the timezone entry.
+
+    Uses pytz.common_timezones() to populate the list.
+
+    Args:
+        interaction: The interaction that triggered the command and choice call.
+        current: The current typed entry by the user.
+
+    Returns:
+        The list of filtered choices.
+    """
     choices = [
         app_commands.Choice(name=tz, value=tz)
         for tz in common_timezones if current.lower() in tz.lower()
@@ -28,7 +39,17 @@ async def schedule_selection_autocomplete(
     interaction: Interaction,
     current: str
 ) -> list[app_commands.Choice[str]]:
-    """Fetches schedules to present to user.
+    """Fetches schedules to present to the user.
+
+    A string is built from the schedule information so the user can recognise the
+    schedule they want. This is linked to the database id value.
+
+    Args:
+        interaction: The interaction that triggered the command and choice call.
+        current: The current typed entry by the user.
+
+    Returns:
+        The list of filtered schedule choices.
     """
     if interaction.command.name in ['activate-schedule']:
         active = False

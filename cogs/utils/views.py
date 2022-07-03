@@ -4,8 +4,28 @@ import discord
 
 
 class ScheduleDropdown(discord.ui.Select):
-    def __init__(self, options: list[discord.SelectOption], context: str):
+    """A schedule dropdown class that displays the passed in options.
 
+    Sets the context relative to the command type.
+
+    Attributes:
+        context: The context of the command, either 'activate', 'deactivate',
+            'update', 'list' or 'delete'.
+    """
+    def __init__(self, options: list[discord.SelectOption], context: str) -> None:
+        """A schedule dropdown class that displays the passed in options.
+
+        Sets the context relative to the command type.
+
+        Args:
+            options: The list of pre-prepared discord SelectOptions containing
+                the schedules.
+            context: The context of the command, either 'activate', 'deactivate',
+                'update', 'list' or 'delete'.
+
+        Raises:
+            ValueError: If the context is not a valid choice.
+        """
         self.context_verbs = {
             'activate': 'activated',
             'deactivate': 'deactivated',
@@ -13,6 +33,7 @@ class ScheduleDropdown(discord.ui.Select):
             'list': 'listed',
             'delete': 'deleted'
         }
+
         if context not in self.context_verbs:
             raise ValueError(f'context {context} is not valid!')
 
@@ -21,9 +42,6 @@ class ScheduleDropdown(discord.ui.Select):
         if context in ['activate', 'deactivate', 'delete']:
             max_values = len(options)
 
-        # The placeholder is what will be shown when no option is chosen
-        # The min and max values indicate we can only pick one of the three options
-        # The options parameter defines the dropdown options. We defined this above
         super().__init__(
             placeholder='Select the schedule(s)...',
             min_values=1,
@@ -31,7 +49,13 @@ class ScheduleDropdown(discord.ui.Select):
             options=options
         )
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """The callback function upon interaction.
+
+        The selected values are passed to the parent view and a confirmation
+        message is sent through the interaction. The children (i.e. the selector)
+        are then disabled and the view stopped.
+        """
         # Use the interaction object to send a response message containing
         # the user's selected schedules.
         self.view.values = self.values
@@ -42,13 +66,32 @@ class ScheduleDropdown(discord.ui.Select):
 
 
 class ScheduleDropdownView(discord.ui.View):
+    """The view for the schedule dropdown options.
+
+    Creates the view and attaches the ScheduleDropdown object
+    from the provided options.
+
+    Attributes:
+        values: The final view values.
+        user: The interaction user.
+    """
     def __init__(
         self,
         user: discord.User,
         options: list[discord.SelectOption],
         context: str,
         timeout: int = 60
-    ):
+    ) -> None:
+        """The initialisation function of the view.
+
+        Args:
+            user: The discord user who triggered the interaction for which the view
+                will be sent - and only they can reply.
+            options: The schedule options to be passed to the Schedule dropdown.
+            context: The context of the schedule command either 'activate', 'deactivate',
+                'update', 'list' or 'delete'.
+            timeout: The value, in seconds, to set as the timeout.
+        """
         super().__init__(timeout=timeout)
         self.values = None
         self.user = user

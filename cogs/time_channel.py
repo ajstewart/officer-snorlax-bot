@@ -1,11 +1,13 @@
-
-import logging
+"""The time channel cog.
+"""
+import asyncio
 import datetime
 import discord
-import asyncio
+import logging
+
 
 from discord.ext import commands, tasks
-from discord import VoiceChannel, app_commands, Interaction
+from discord import app_commands
 from discord.abc import GuildChannel
 from discord.utils import get
 from discord.errors import DiscordServerError, Forbidden
@@ -57,7 +59,7 @@ class TimeChannel(commands.Cog):
     @app_commands.checks.bot_has_permissions(manage_channels=True)
     async def createTimeChannel(
         self,
-        interaction: Interaction,
+        interaction: discord.Interaction,
         category: Optional[discord.CategoryChannel] = None
     ) -> None:
         """Creates a voice channel that will display the local server time.

@@ -1,13 +1,11 @@
 import discord
 import logging
 
-from discord import TextChannel, Message, Thread, app_commands, Interaction
+from discord import app_commands
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.utils import get
 from typing import Optional
-
-from sqlalchemy import desc
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
@@ -42,8 +40,8 @@ class FriendCodeFilter(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def addFriendChannel(
         self,
-        interaction: Interaction,
-        channel: TextChannel,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel,
         secret: Optional[bool] = False
     ) -> None:
         """
@@ -87,7 +85,7 @@ class FriendCodeFilter(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def listFriendChannels(self, interaction: Interaction) -> None:
+    async def listFriendChannels(self, interaction: discord.Interaction) -> None:
         """
         Method to send an embed to the request channel listing all the
         friend code channels for that server.
@@ -121,8 +119,8 @@ class FriendCodeFilter(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def removeFriendChannel(
         self,
-        interaction: Interaction,
-        channel: TextChannel
+        interaction: discord.Interaction,
+        channel: discord.TextChannel
     ) -> None:
         """
         Method for the command to remove a channel from the allowed friend
@@ -158,7 +156,7 @@ class FriendCodeFilter(commands.Cog):
         await interaction.response.send_message(msg, ephemeral=True)
 
     @commands.Cog.listener()
-    async def on_message(self, message: Message) -> None:
+    async def on_message(self, message: discord.Message) -> None:
         """
         Method run for each message received which checks for friend code
         content and takes the appropriate action.
@@ -182,7 +180,7 @@ class FriendCodeFilter(commands.Cog):
                     if allowed_channels.empty:
                         return
                     else:
-                        if isinstance(message.channel, Thread):
+                        if isinstance(message.channel, discord.Thread):
                             origin_channel_id = message.channel.parent_id
                         else:
                             origin_channel_id = message.channel.id

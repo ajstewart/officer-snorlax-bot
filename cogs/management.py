@@ -7,7 +7,7 @@ import discord
 import os
 import logging
 
-from discord import Guild, TextChannel, app_commands, Interaction, CategoryChannel
+from discord import app_commands
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.utils import get
@@ -47,7 +47,7 @@ class Management(commands.Cog):
 
     async def on_app_command_error(
         self,
-        interaction: Interaction,
+        interaction: discord.Interaction,
         error: app_commands.AppCommandError
     ):
         if isinstance(error, discord.app_commands.errors.MissingPermissions):
@@ -88,11 +88,6 @@ class Management(commands.Cog):
                             "You can't use that here.",
                             ephemeral=True
                         )
-            elif interaction.command.name == 'shutdown':
-                await interaction.response.send_message(
-                        "Only the bot owner can shutdown the bot.",
-                        ephemeral=True
-                    )
             else:
                 await interaction.response.send_message(
                         "You can't use that here.",
@@ -122,7 +117,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def activateAnyRaidsFilter(self, interaction: Interaction) -> None:
+    async def activateAnyRaidsFilter(self, interaction: discord.Interaction) -> None:
         """
         Method to activate the any raids filter on the guild.
 
@@ -153,7 +148,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def deactivateAnyRaidsFilter(self, interaction: Interaction):
+    async def deactivateAnyRaidsFilter(self, interaction: discord.Interaction):
         """
         Command to deactivate the any raids filter.
 
@@ -184,7 +179,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def activateJoinNameFilter(self, interaction: Interaction) -> None:
+    async def activateJoinNameFilter(self, interaction: discord.Interaction) -> None:
         """
         Command to activate the join name filter.
 
@@ -213,7 +208,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def deactivateJoinNameFilter(self, interaction: Interaction) -> None:
+    async def deactivateJoinNameFilter(self, interaction: discord.Interaction) -> None:
         """
         Command to deactivate the join name filter.
 
@@ -242,7 +237,7 @@ class Management(commands.Cog):
         description="Shows the current local time for the guild."
     )
     @app_commands.check(snorlax_checks.interaction_check_bot)
-    async def currentTime(self, interaction: Interaction) -> None:
+    async def currentTime(self, interaction: discord.Interaction) -> None:
         """
         Command to ask the bot to send a message containing the current time.
 
@@ -269,7 +264,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def ping(self, interaction: Interaction) -> None:
+    async def ping(self, interaction: discord.Interaction) -> None:
         """
         Command to return a pong to a ping.
 
@@ -290,8 +285,8 @@ class Management(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def setLogChannel(
         self,
-        interaction: Interaction,
-        channel: TextChannel
+        interaction: discord.Interaction,
+        channel: discord.TextChannel
     ) -> None:
         """
         Sets the log channel for a guild.
@@ -329,8 +324,8 @@ class Management(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def setPokenavRaidCategory(
         self,
-        interaction: Interaction,
-        category: CategoryChannel
+        interaction: discord.Interaction,
+        category: discord.CategoryChannel
     ) -> None:
         """
         Sets the Pokenav raid category for a guild.
@@ -365,7 +360,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def resetPokenavRaidCategory(self, interaction: Interaction) -> None:
+    async def resetPokenavRaidCategory(self, interaction: discord.Interaction) -> None:
         """
         Resets the Pokenav raid category for a guild.
 
@@ -395,7 +390,7 @@ class Management(commands.Cog):
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(tz=snorlax_autocompletes.timezones_autocomplete)
-    async def setTimezone(self, interaction: Interaction, tz: str) -> None:
+    async def setTimezone(self, interaction: discord.Interaction, tz: str) -> None:
         """
         Sets the timezone for a guild.
 
@@ -428,7 +423,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def setPrefix(self, interaction: Interaction, prefix: str) -> None:
+    async def setPrefix(self, interaction: discord.Interaction, prefix: str) -> None:
         """
         Sets the command prefix for a guild.
 
@@ -469,7 +464,7 @@ class Management(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def showSettings(self, interaction: Interaction) -> None:
+    async def showSettings(self, interaction: discord.Interaction) -> None:
         """
         Shows the bot settings for the guild using an embed.
 
@@ -492,26 +487,29 @@ class Management(commands.Cog):
 
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(
-        name='shutdown',
-        description="Shutdown the bot (only the bot owner can use)."
+    @commands.command(
+        help=(
+            "Shutdown the bot."
+        ),
+        brief="Shutdown the bot."
     )
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.check(snorlax_checks.interaction_check_owner)
-    async def shutdown(self, interaction: Interaction) -> None:
+    @commands.guild_only()
+    @commands.check(snorlax_checks.check_bot)
+    @commands.is_owner()
+    async def shutdown(self, ctx: commands.context) -> None:
         """
         Function to force the bot to shutdown.
-
         Args:
-            interaction: The interaction containing the request.
-
+            ctx: The command context containing the message content and other
+                metadata.
         Returns:
             None
         """
-        await interaction.response.send_message(
+
+        await ctx.channel.send(
             "Snorlax is shutting down."
         )
-        await interaction.client.close()
+        await self.bot.close()
 
     @commands.command(
         help=(
@@ -534,6 +532,20 @@ class Management(commands.Cog):
         guilds: commands.Greedy[discord.Object],
         spec: Optional[Literal["~", "*", "^"]] = None
     ) -> None:
+        """"A normal command to sync the command tree.
+
+        Examples:
+            "!sync -> global sync"
+            "!sync ~ -> sync current guild"
+            "!sync * -> copies all global app commands to current guild and syncs"
+            "!sync ^ -> clears all commands from the current guild target and syncs (removes guild commands)"
+            "!sync id_1 id_2 -> syncs guilds with id 1 and 2"
+
+        Args:
+            ctx: The command context.
+            guilds: The list of guilds to sync the tree to.
+            spec: What 'spec' to sync the command tree to. See examples.
+        """
         if not guilds:
             if spec == "~":
                 synced = await ctx.bot.tree.sync(guild=ctx.guild)
@@ -564,7 +576,7 @@ class Management(commands.Cog):
         await ctx.send(f"Synced the tree to {ret} / {len(guilds)}.")
 
     @commands.Cog.listener()
-    async def on_guild_join(self, guild: Guild) -> None:
+    async def on_guild_join(self, guild: discord.Guild) -> None:
         """
         Process to complete when the bot joins a new guild.
 
@@ -616,7 +628,7 @@ class Management(commands.Cog):
             ok = await snorlax_db.add_guild(guild)
 
     @commands.Cog.listener()
-    async def on_guild_remove(self, guild: Guild) -> None:
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
         """
         Process to complete when a guild is removed.
 

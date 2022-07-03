@@ -14,9 +14,20 @@ async def schedule_options(
     active: Optional[bool] = None
 ) -> list[SelectOption]:
     """Fetches schedules to present to user.
+
+    The options are formed by creating strings for the user to recognise the schedule
+    while these are attached to the database id value.
+
+    Args:
+        guild: The guild of the interaction request.
+        active: The active parameter that is passed to the load_schedule_db function.
+
+    Returns:
+        The list of SelectOptions with the schedule choices.
     """
     schedules_db = await snorlax_db.load_schedule_db(guild_id=guild.id, active=active)
     options = []
+
     if schedules_db.empty:
         return options
 
