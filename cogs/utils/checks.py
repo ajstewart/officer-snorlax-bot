@@ -1,12 +1,11 @@
 """
 Contains all the various checks that the commands need to perform.
 """
-
+import discord
 import numpy as np
 import re
 import time
 
-from discord import Embed, Message, TextChannel, Member, Interaction
 from discord.abc import User
 from discord.ext import commands
 from typing import Iterable, Tuple
@@ -32,7 +31,7 @@ def check_bot(ctx: commands.context) -> bool:
         return True
 
 
-def interaction_check_bot(interaction: Interaction) -> bool:
+def interaction_check_bot(interaction: discord.Interaction) -> bool:
     """Checks whether the interaction came from a bot.
 
     Args:
@@ -44,7 +43,7 @@ def interaction_check_bot(interaction: Interaction) -> bool:
     return not interaction.user.bot
 
 
-def interaction_check_owner(interaction: Interaction):
+def interaction_check_owner(interaction: discord.Interaction):
     """Checks whether the interaction is coming from the bot owner.
 
     Args:
@@ -72,7 +71,7 @@ def check_admin(ctx: commands.context) -> bool:
 
 
 def check_if_channel_active(
-    messages: Iterable[Message], client_user: User
+    messages: Iterable[discord.Message], client_user: User
 ) -> bool:
     """
     Check if the list of messaged passed contains any non-bot activity.
@@ -233,7 +232,7 @@ async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
         return False
 
 
-def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
+def check_schedule_perms(member: discord.Member, channel: discord.TextChannel) -> bool:
     """Checks the permissions for the bot for the channel that a schedule is to be created.
 
     Will return False if the bot does not have the required permissions to correctly apply
@@ -258,9 +257,9 @@ def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
 
 
 async def check_schedule_overwrites(
-    channel: TextChannel,
+    channel: discord.TextChannel,
     bot_user: User
-) -> Embed:
+) -> discord.Embed:
     """Checks the overwrites on a channel for which a schedule is to be created.
 
     If any role explicitly has send_messages set to `True` a warning will be sent to the command
