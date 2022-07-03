@@ -5,7 +5,6 @@ from discord import app_commands
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.utils import get
-from typing import Optional
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
@@ -42,7 +41,7 @@ class FriendCodeFilter(commands.Cog):
         self,
         interaction: discord.Interaction,
         channel: discord.TextChannel,
-        secret: Optional[bool] = False
+        secret: bool = False
     ) -> None:
         """
         Method for the command to add a channel where friend codes are allowed.
@@ -137,9 +136,7 @@ class FriendCodeFilter(commands.Cog):
         present = await snorlax_db.check_friend_code_channel(channel.id)
 
         if not present:
-            msg = (
-                "Channel is not in the whitelist."
-            )
+            msg = "Channel is not in the whitelist."
         else:
             ok = await snorlax_db.drop_allowed_friend_code_channel(guild, channel)
             if ok:

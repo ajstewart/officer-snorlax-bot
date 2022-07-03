@@ -104,15 +104,11 @@ class TimeChannel(commands.Cog):
 
             if ok:
                 msg = (
-                    "{} set as the Snorlax time channel successfully."
-                    " The time is updated every 10 minutes.".format(
-                        time_channel.mention
-                    )
+                    f"{time_channel.mention} set as the Snorlax time channel successfully."
+                    " The time is updated every 10 minutes."
                 )
             else:
-                msg = (
-                    "Error when setting the time channel."
-                )
+                msg = "Error when setting the time channel."
 
             await interaction.response.send_message(msg, ephemeral=True)
 

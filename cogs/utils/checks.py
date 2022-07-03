@@ -43,15 +43,6 @@ def interaction_check_bot(interaction: discord.Interaction) -> bool:
     return not interaction.user.bot
 
 
-def interaction_check_owner(interaction: discord.Interaction):
-    """Checks whether the interaction is coming from the bot owner.
-
-    Args:
-        interaction: The interaction passed.
-    """
-    return interaction.client.is_owner(interaction.user)
-
-
 def check_admin(ctx: commands.context) -> bool:
     """
     Checks whether the user is an admin.

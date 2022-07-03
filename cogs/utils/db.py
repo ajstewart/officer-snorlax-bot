@@ -6,7 +6,7 @@ import pandas as pd
 
 from discord import Guild, TextChannel
 from dotenv import load_dotenv, find_dotenv
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 
 load_dotenv(find_dotenv())
@@ -15,7 +15,13 @@ DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 DEFAULT_PREFIX = os.getenv('DEFAULT_PREFIX')
 
 
-async def _get_schedule_db():
+async def _get_schedule_db() -> tuple[tuple[Any], tuple[str]]:
+    """Loads entire schedule database table.
+
+    Returns:
+        The rows of the database table.
+        The columns of the database table.
+    """
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute(f'PRAGMA table_info(schedules);') as cursor:
             columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
@@ -25,7 +31,16 @@ async def _get_schedule_db():
     return rows, columns
 
 
-async def _get_single_schedule(rowid: int):
+async def _get_single_schedule(rowid: int) -> tuple[tuple[Any], tuple[str]]:
+    """Gets a single schedule from the database schedules table.
+
+    Args:
+        rowid: The rowid to fetch.
+
+    Returns:
+        The rows of the database table.
+        The columns of the database table.
+    """
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute(f'PRAGMA table_info(schedules);') as cursor:
             columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
@@ -37,6 +52,12 @@ async def _get_single_schedule(rowid: int):
 
 
 async def _get_guild_db():
+    """Loads entire guild database table.
+
+    Returns:
+        The rows of the database table.
+        The columns of the database table.
+    """
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute(f'PRAGMA table_info(guilds);') as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
@@ -47,6 +68,12 @@ async def _get_guild_db():
 
 
 async def _get_fc_channels_db():
+    """Loads the friend code filter database table.
+
+    Returns:
+        The rows of the database table.
+        The columns of the database table.
+    """
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute(f'PRAGMA table_info(fc_channels);') as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
@@ -618,11 +645,10 @@ async def add_guild(guild: Guild) -> bool:
     """
     try:
         async with aiosqlite.connect(DATABASE) as db:
-            sql_command = "INSERT INTO guilds VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            sql_command = "INSERT INTO guilds VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
             params = (
                 guild.id,
                 DEFAULT_TZ,
-                -1,
                 -1,
                 False,
                 -1,
