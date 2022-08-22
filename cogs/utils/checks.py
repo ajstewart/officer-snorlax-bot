@@ -1,23 +1,21 @@
 """
 Contains all the various checks that the commands need to perform.
 """
-
+import discord
 import numpy as np
-import pytz
 import re
 import time
 
-from discord import Message, TextChannel, Member
+from discord import app_commands
 from discord.abc import User
 from discord.ext import commands
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Union
 
 from . import db as snorlax_db
 from . import utils as snorlax_utils
-from . import embeds as snorlax_embeds
 
 
-def check_bot(ctx: commands.context) -> bool:
+def check_bot(ctx: Union[commands.Context, discord.Interaction]) -> bool:
     """
     Checks whether the context came from a bot.
 
@@ -34,7 +32,19 @@ def check_bot(ctx: commands.context) -> bool:
         return True
 
 
-def check_admin(ctx: commands.context) -> bool:
+def interaction_check_bot(interaction: discord.Interaction) -> bool:
+    """Checks whether the interaction came from a bot.
+
+    Args:
+        interaction: The interaction passed.
+
+    Returns:
+        'True' when the context originated from a bot account. 'False' if not.
+    """
+    return not interaction.user.bot
+
+
+def check_admin(ctx: Union[commands.Context, discord.Interaction]) -> bool:
     """
     Checks whether the user is an admin.
 
@@ -52,33 +62,30 @@ def check_admin(ctx: commands.context) -> bool:
         return False
 
 
-async def check_admin_channel(ctx: commands.context) -> bool:
+class AdminChannelError(app_commands.CheckFailure):
+    pass
+
+
+async def check_admin_channel(ctx: Union[commands.Context, discord.Interaction]) -> bool:
     """
     Checks if the channel of the command is the set admin channel.
-
     Args:
-        ctx: The command context containing the message content and other
-            metadata.
+        ctx: The command context containing the message content and other metadata.
 
     Returns:
         'True' when the context originated from the set admin channel.
         'False' if not.
     """
-    guild_db = await snorlax_db.load_guild_db()
-    if ctx.guild.id in guild_db.index:
-        admin_channel = guild_db.loc[
-            ctx.guild.id, 'admin_channel'
-        ]
-        if ctx.channel.id == admin_channel:
-            return True
-        else:
-            return False
+    admin_channel = await snorlax_db.get_guild_admin_channel(ctx.guild.id)
+
+    if ctx.channel.id == admin_channel:
+        return True
     else:
-        return False
+        raise AdminChannelError("This must be used in an admin channel!")
 
 
 def check_if_channel_active(
-    messages: Iterable[Message], client_user: User
+    messages: Iterable[discord.Message], client_user: User
 ) -> bool:
     """
     Check if the list of messaged passed contains any non-bot activity.
@@ -125,22 +132,6 @@ def check_for_friend_code(content: str) -> bool:
     match = re.search(pattern, content)
 
     if match:
-        return True
-    else:
-        return False
-
-
-def check_valid_timezone(tz: str) -> bool:
-    """
-    Checks whether the tz sting is a valid timezone using pytz.
-
-    Args:
-        tz: The string timezone. E.g. 'Australia/Sydney'.
-
-    Returns:
-        'True' when the tz is valid. 'False' if not.
-    """
-    if tz in pytz.all_timezones:
         return True
     else:
         return False
@@ -199,13 +190,12 @@ async def check_schedule_exists(sched_id: int) -> bool:
     Returns:
         'True' when the content contains a match. 'False' if not.
     """
-    schedules = await snorlax_db.load_schedule_db()
-    exists = sched_id in schedules['rowid'].astype(int).tolist()
+    exists = await snorlax_db.check_schedule_exists(schedule_id=sched_id)
 
     return exists
 
 
-async def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
+async def check_remove_schedule(ctx: Union[commands.Context, discord.Interaction], sched_id: int) -> bool:
     """
     Checks whether the provided schedule id is attached to the guild where
     the command originated.
@@ -219,10 +209,9 @@ async def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
         'True' when the schedule id is from the same guild as the command.
         'False' if not.
     """
-    schedules = await snorlax_db.load_schedule_db()
-    schedules = schedules.set_index('rowid')
+    schedules = await snorlax_db.load_schedule_db(rowid=sched_id)
 
-    schedule_guild = schedules.loc[sched_id]['guild']
+    schedule_guild = schedules.iloc[0]['guild']
     ctx_guild_id = ctx.guild.id
 
     allowed = schedule_guild == ctx_guild_id
@@ -257,7 +246,7 @@ async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
         return False
 
 
-def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
+def check_schedule_perms(member: discord.Member, channel: discord.TextChannel) -> bool:
     """Checks the permissions for the bot for the channel that a schedule is to be created.
 
     Will return False if the bot does not have the required permissions to correctly apply
@@ -275,7 +264,6 @@ def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
         perms.view_channel,
         perms.read_messages,
         perms.read_message_history,
-        perms.send_messages,
         perms.manage_roles
     ])
 
@@ -283,10 +271,9 @@ def check_schedule_perms(member: Member, channel: TextChannel) -> bool:
 
 
 async def check_schedule_overwrites(
-    channel: TextChannel,
-    command_channel: TextChannel,
+    channel: discord.TextChannel,
     bot_user: User
-) -> None:
+) -> discord.Embed:
     """Checks the overwrites on a channel for which a schedule is to be created.
 
     If any role explicitly has send_messages set to `True` a warning will be sent to the command
@@ -294,7 +281,6 @@ async def check_schedule_overwrites(
 
     Args:
         channel: The channel for which a schedule is to be created.
-        command_channel: The channel where the schedule creation command was issued.
         bot_user: The bot user.
     """
     no_effect_roles_allow = []
@@ -304,13 +290,12 @@ async def check_schedule_overwrites(
     overwrites = channel.overwrites
     bot_role = channel.guild.self_role
     bot_member = channel.guild.get_member(bot_user.id)
+    default_role = channel.guild.default_role
 
     # Loop over overwrites checking for explicit send_messages in the allow overwrites.
     for role in overwrites:
-        # Skip self role/member
-        if role == bot_role:
-            continue
-        if role == bot_member:
+        # Skip self role/member and default role (@everyone)
+        if role == bot_role or role == bot_member or role == default_role:
             continue
 
         allow, deny = overwrites[role].pair()
@@ -319,6 +304,4 @@ async def check_schedule_overwrites(
         if deny.send_messages:
             no_effect_roles_deny.append(role)
 
-    if len(no_effect_roles_allow + no_effect_roles_deny) > 0:
-        embed = snorlax_embeds.get_schedule_overwrites_embed(no_effect_roles_allow, no_effect_roles_deny)
-        await command_channel.send(embed=embed)
+    return no_effect_roles_allow, no_effect_roles_deny

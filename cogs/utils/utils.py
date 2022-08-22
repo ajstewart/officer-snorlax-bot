@@ -8,12 +8,11 @@ import os
 import re
 import logging
 import string
-import pandas as pd
 
 from discord import Client, Message, User
 from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
 
 load_dotenv(find_dotenv())
@@ -159,7 +158,7 @@ def get_hour_emoji(time: str) -> str:
     return emojis[key]
 
 
-async def get_prefix(client: User, message: Message) -> Callable[[Client], List[str]]:
+async def get_prefix(client: User, message: Message) -> Callable[[Client], list[str]]:
     """
     Fetch the current prefix of the guild and check whether it has been called.
 
@@ -174,17 +173,3 @@ async def get_prefix(client: User, message: Message) -> Callable[[Client], List[
     prefix = await get_guild_prefix(message.guild.id)
 
     return commands.when_mentioned_or(*prefix)(client, message)
-
-
-def str2bool(v: str) -> bool:
-    """
-    Converts a string representation of True entry to a bool.
-
-    Args:
-        v: The string to convert. True will be recognised by: 'yes', 'true',
-            't', '1' or 'on'.
-
-    Returns:
-        Bool representation of the string.
-    """
-    return v.lower() in ["yes", "true", "t", "1", "on"]

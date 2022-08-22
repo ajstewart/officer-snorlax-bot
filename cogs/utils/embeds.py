@@ -2,16 +2,14 @@
 """
 
 import datetime
+import discord
 import os
 import pandas as pd
-import pytz
 
-from discord import Embed, User, Member, Role
-from discord.ext import commands
+from discord import Embed
 from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
-from typing import List, Union
-
+from typing import Union
 
 load_dotenv(find_dotenv())
 DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
@@ -21,40 +19,100 @@ INACTIVE_TIME = os.getenv('INACTIVE_TIME')
 DELAY_TIME = os.getenv('DELAY_TIME')
 
 
-def get_schedule_embed(schedule_db: pd.DataFrame, tz: str) -> Embed:
+def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
     """
     Create an embed to show the saved schedules.
 
     Args:
         schedule_db: The schedule database table as a pandas dataframe.
-        tz: The guild timezone, e.g., 'Australia/Sydney'.
+        num_warning_roles: If greater than 0 then a warning field will be placed in the
+            creation embed to warn of the number of roles with overwrites.
 
     Returns:
         The embed containing the list of schedules.
     """
-    tz = pytz.timezone(tz)
-    now = datetime.datetime.now(tz=tz)
+    embed_title = "Schedules Details" if len(schedule_db) > 1 else "Schedule Details"
+
     embed = Embed(
-        title='Schedules',
-        timestamp=now,
+        title=embed_title,
+        timestamp=utcnow(),
         color=2061822
     )
-    for i, row in schedule_db.iterrows():
+    for _, row in schedule_db.iterrows():
         embed.add_field(
-            name='ID: {}'.format(row.rowid),
+            name=f'Channel: #{row.channel_name}',
             value=(
-                "Active: **{}**\n"
-                "Channel: <#{}>\nOpen: **{}**\nOpen Custom Message: **{}**\n"
-                "Close: **{}**\nClose Custom Message: **{}**"
-                "\nWarning: **{}**\nDynamic: **{}**\n"
-                "Max number of delays: **{}**\nSilent: **{}**".format(
-                    row.active, row.channel, row.open, row.open_message,
-                    row.close, row.close_message, row.warning, row.dynamic,
-                    row.max_num_delays, row.silent
-                )
+                f"Active: **{row.active}**\n"
+                f"Open: **{row.open}**\nOpen Custom Message: **{row.open_message}**\n"
+                f"Close: **{row.close}**\nClose Custom Message: **{row.close_message}**"
+                f"\nWarning: **{row.warning}**\nDynamic: **{row.dynamic}**\n"
+                f"Max number of delays: **{row.max_num_delays}**\nSilent: **{row.silent}**"
             ).replace('True', '✅').replace('False', '❌'),
             inline=False
         )
+
+    if num_warning_roles > 0:
+        embed.add_field(
+            name="⚠️  Roles Warning",
+            value=(
+                f"There are {num_warning_roles} roles(s) in <#{row.channel}> that the schedule will not apply to."
+                " Use the `/check-schedule-roles` command for more information!"
+            )
+        )
+
+    return embed
+
+
+def get_schedule_embed_for_user(schedule_db: pd.DataFrame, channel: discord.TextChannel) -> Embed:
+    """
+    Create an embed to show the channel schedule to the user.
+
+    Args:
+        schedule_db: The schedule database table as a pandas dataframe.
+        channel: The channel object for the interaction channel.
+
+    Returns:
+        The embed containing the list of schedules.
+    """
+    embed_title = f"⏰ Schedule for #{channel.name}"
+
+    embed = Embed(
+        title=embed_title,
+        timestamp=utcnow(),
+        color=2061822
+    )
+
+    if schedule_db.empty:
+        embed.add_field(
+            name="No schedule!",
+            value=f"There is no schedule set for {channel.mention}."
+        )
+    else:
+        for _, row in schedule_db.iterrows():
+            open_hour = int(row['open'].split(":")[0])
+            p_open = "PM" if open_hour >= 12 else "AM"
+
+            close_hour = int(row['close'].split(":")[0])
+            p_close = "PM" if close_hour >= 12 else "AM"
+
+            embed.add_field(
+                name=f'Open ✅',
+                value=f"{row['open']} {p_open}",
+                inline=True
+            )
+
+            embed.add_field(
+                name=f'Close ❌',
+                value=f"{row['close']} {p_close}",
+                inline=True
+            )
+
+            # Dummy field to push any other schedules to next row.
+            embed.add_field(
+                name='\u200b',
+                value='\u200b',
+                inline=True
+            )
 
     return embed
 
@@ -90,7 +148,7 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
 
 
 def get_settings_embed(
-    ctx: commands.context,
+    guild: discord.Guild,
     guild_settings: pd.DataFrame
 ) -> Embed:
     """
@@ -98,15 +156,14 @@ def get_settings_embed(
     was used from.
 
     Args:
-        ctx: The command context containing the message content and other
-            metadata.
+        interaction: The interaction that triggered the request.
         guild_settings: The guild settings database table as a pandas dataframe.
 
     Returns:
         The embed containing the guild settings.
     """
     if guild_settings['meowth_raid_category'] != -1:
-        cat_name = ctx.guild.get_channel(
+        cat_name = guild.get_channel(
             guild_settings['meowth_raid_category']
         ).name
     else:
@@ -116,6 +173,12 @@ def get_settings_embed(
         title='Settings',
         color=16756290
     )
+
+    admin_channel_id = guild_settings['admin_channel']
+    if admin_channel_id == -1:
+        admin_channel = "Not set"
+    else:
+        admin_channel = "<#{}>".format(admin_channel_id)
 
     log_channel_id = guild_settings['log_channel']
     if log_channel_id == -1:
@@ -132,16 +195,16 @@ def get_settings_embed(
     embed.add_field(
         name="Guild Settings",
         value=(
-            'TZ: **{}**\n'
-            'Admin Channel: **<#{}>**\n'
+            'Timezone: **{}**\n'
+            'Admin Channel: **{}**\n'
             'Log Channel: **{}**\n'
             'Time Channel: **{}**\n'
-            'Meowth Raid Category: **{}**\n'
+            'Pokenav Raid Category: **{}**\n'
             'Any raids filter: **{}**\n'
             'Join name filter: **{}**\n'
             'Prefix: **{}**'.format(
                 guild_settings['tz'],
-                guild_settings['admin_channel'],
+                admin_channel,
                 log_channel,
                 time_channel,
                 cat_name,
@@ -178,7 +241,7 @@ def get_open_embed(
     close: str,
     now: datetime.datetime,
     custom_open_message: str,
-    client_user: User,
+    client_user: discord.User,
     time_format_fill: str
 ) -> Embed:
     """Produces the open embed that is sent when a channel opens.
@@ -228,7 +291,7 @@ def get_close_embed(
     open: str,
     now: datetime.datetime,
     custom_close_message: str,
-    client_user: User,
+    client_user: discord.User,
     time_format_fill: str
 ) -> Embed:
     """Produces the open embed that is sent when a channel opens.
@@ -277,7 +340,7 @@ def get_close_embed(
 def get_warning_embed(
     close: str,
     now: datetime.datetime,
-    client_user: User,
+    client_user: discord.User,
     time_format_fill: str,
     dynamic: bool,
     delay: bool
@@ -337,14 +400,16 @@ def get_warning_embed(
 
 
 def get_schedule_overwrites_embed(
-    roles_allow: List[Union[Role, Member]],
-    roles_deny: List[Union[Role, Member]]
+    roles_allow: list[Union[discord.Role, discord.Member]],
+    roles_deny: list[Union[discord.Role, discord.Member]],
+    channel: discord.TextChannel
 ) -> Embed:
     """Produces the warning embed of roles that will not be affected by a schedule.
 
     Args:
         roles_allow: List or roles or members with explicit 'True' send_messages.
         roles_deny: List or roles or members with explicit 'False' send_messages.
+        channel: THe channel for which the overwrites apply to.
 
     Returns:
         The warning embed containing the roles.
@@ -352,7 +417,8 @@ def get_schedule_overwrites_embed(
     embed = Embed(
         title="️⚠️  Roles Will Ignore Schedule",
         description=(
-            "The following roles will not respect the created schedule due to their 'send messages' permission."
+            f"The following roles will not respect any schedule in {channel.mention}"
+            " due to their `send messages` permission."
         ),
         color=15105570,
         timestamp=utcnow(),
@@ -383,6 +449,54 @@ def get_schedule_overwrites_embed(
     embed.add_field(
         name="How to fix?",
         value="Change the 'send messages' permission to neutral so it follows the @everybody role."
+    )
+
+    return embed
+
+
+def get_schedule_overwrites_embed_all_ok(channel: discord.TextChannel) -> Embed:
+    """Produces an embed to communicate that no roles will schedule doge.
+
+    Args:
+        channel: The channel checked.
+
+    Returns:
+        The information embed.
+    """
+    embed = Embed(
+        title="️✅  All Roles Ok",
+        description=(
+            f"Any schedule in {channel.mention} will apply to all roles!"
+        ),
+        color=3066993,
+        timestamp=utcnow(),
+    )
+
+    return embed
+
+
+def get_admin_channel_embed(
+    admin_channel
+) -> Embed:
+    """Produces the open embed that is sent when a channel opens.
+
+    Args:
+        admin_channel: The admin channel for the guild.
+
+    Returns:
+        The embed that says that the admin channel must be used.
+    """
+    if admin_channel == -1:
+        admin_mention = "admin channel not set, use the '/set-admin-channel command!'"
+    else:
+        admin_mention = f"<#{admin_channel}>."
+
+    description = f"This command must be used in the admin channel: {admin_mention}"
+
+    embed = Embed(
+        title="️Command cannot be used here!",
+        description=description,
+        color=15158332
     )
 
     return embed

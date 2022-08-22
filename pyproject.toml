@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "officer-snorlax-bot"
+version = "1.0.0-dev"
+description = "Officer Snorlax Discord bot created to open and close channels on a schedule."
+authors = ["Adam Stewart"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+"discord.py" = "^2.0.0"
+pandas = "^1.4.3"
+alembic = "^1.8.1"
+python-dotenv = "^0.20.0"
+aiosqlite = "^0.17.0"
+
+[tool.poetry.dev-dependencies]
+pycodestyle = "^2.9.1"
+pytest = "^7.1.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
