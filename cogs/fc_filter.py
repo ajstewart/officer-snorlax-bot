@@ -15,7 +15,7 @@ from .utils import log_msgs as snorlax_log
 logger = logging.getLogger()
 
 
-class FriendCodeFilter(commands.Cog):
+class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
     """Cog for the FriendCode Filter feature."""
     def __init__(self, bot: commands.bot) -> None:
         """
@@ -31,11 +31,12 @@ class FriendCodeFilter(commands.Cog):
         self.bot = bot
 
     @app_commands.command(
-        name='add-friend-code-channel',
+        name='add-channel',
         description="Add a channel to the friend code whitelist."
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def addFriendChannel(
         self,
@@ -62,6 +63,7 @@ class FriendCodeFilter(commands.Cog):
             msg = (
                 "Channel is already in the whitelist."
             )
+            ephemeral = True
         else:
             ok = await snorlax_db.add_allowed_friend_code_channel(guild, channel, secret)
             if ok:
@@ -70,19 +72,22 @@ class FriendCodeFilter(commands.Cog):
                         channel.mention
                     )
                 )
+                ephemeral = False
             else:
                 msg = (
                     "Error when adding the channel to the friend code whitelist."
                 )
+                ephemeral = True
 
-        await interaction.response.send_message(msg, ephemeral=True)
+        await interaction.response.send_message(msg, ephemeral=ephemeral)
 
     @app_commands.command(
-        name='list-friend-channels',
+        name='list',
         description="Shows the list of channels where friend codes are allowed."
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def listFriendChannels(self, interaction: discord.Interaction) -> None:
         """
@@ -107,14 +112,15 @@ class FriendCodeFilter(commands.Cog):
             ]
             embed = get_friend_channels_embed(guild_friend_channels)
 
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
-        name='remove-friend-code-channel',
+        name='remove-channel',
         description="Remove a channel from the friend code whitelist."
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def removeFriendChannel(
         self,
@@ -137,6 +143,7 @@ class FriendCodeFilter(commands.Cog):
 
         if not present:
             msg = "Channel is not in the whitelist."
+            ephemeral = True
         else:
             ok = await snorlax_db.drop_allowed_friend_code_channel(guild, channel)
             if ok:
@@ -144,13 +151,15 @@ class FriendCodeFilter(commands.Cog):
                     f"{channel.mention} removed from the friend code"
                     " whitelist successfully."
                 )
+                ephemeral = False
             else:
                 msg = (
                     f"Error when removing {channel.mention} from the friend code"
                     " whitelist."
                 )
+                ephemeral = True
 
-        await interaction.response.send_message(msg, ephemeral=True)
+        await interaction.response.send_message(msg, ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:

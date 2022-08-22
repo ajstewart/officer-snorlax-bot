@@ -7,11 +7,12 @@ import os
 import logging
 
 from discord.ext import commands
-from discord import Forbidden, Member
+from discord import Forbidden, Member, app_commands
 from discord.utils import get
 from dotenv import load_dotenv, find_dotenv
 
-from .utils.db import load_guild_db
+from .utils import checks as snorlax_checks
+from .utils import db as snorlax_db
 from .utils.log_msgs import ban_log_embed
 
 
@@ -20,7 +21,7 @@ BAN_NAMES = os.getenv('BAN_NAMES').split(",")
 logger = logging.getLogger()
 
 
-class JoinNameFilter(commands.Cog):
+class JoinNameFilter(commands.GroupCog, name="join-name-filter"):
     """
     Cog for immediately banning a user that joins the server that matches a
     specified name.
@@ -37,6 +38,72 @@ class JoinNameFilter(commands.Cog):
         """
         super(JoinNameFilter, self).__init__()
         self.bot = bot
+
+    @app_commands.command(
+        name='activate-join-name-filter',
+        description="Turns on the 'join name' filter."
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def activateJoinNameFilter(self, interaction: discord.Interaction) -> None:
+        """
+        Command to activate the join name filter.
+
+        Args:
+            interaction: The interaction that triggered the request.
+
+        Returns:
+            None
+        """
+        join_filter = snorlax_db.get_guild_join_name_active(interaction.guild.id)
+        if join_filter:
+            msg = "The 'join name' filter is already activated."
+            ephemeral = True
+        else:
+            ok = await snorlax_db.toggle_join_name_filter(interaction.guild, True)
+            if ok:
+                msg = "'Join name' filter activated."
+                ephemeral = False
+            else:
+                msg = "Error when attempting to activate the 'Join name' filter"
+                ephemeral = True
+
+        await interaction.response.send_message(msg, ephemeral=ephemeral)
+
+    @app_commands.command(
+        name='deactivate-join-name-filter',
+        description="Turns off the 'join name' filter."
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def deactivateJoinNameFilter(self, interaction: discord.Interaction) -> None:
+        """
+        Command to deactivate the join name filter.
+
+        Args:
+            interaction: The interaction that triggered the request.
+
+        Returns:
+            None
+        """
+        join_filter = snorlax_db.get_guild_join_name_active(interaction.guild.id)
+        if not join_filter:
+            msg = "The 'join name' filter is already deactivated."
+            ephemeral = True
+        else:
+            ok = await snorlax_db.toggle_join_name_filter(interaction.guild, False)
+            if ok:
+                msg = "'Join name' filter deactivated."
+                ephemeral = False
+            else:
+                msg = "Error when attempting to deactivate the 'Join name' filter"
+                ephemeral = True
+
+        await interaction.response.send_message(msg, ephemeral=ephemeral)
 
     # Handle new members
     @commands.Cog.listener()
@@ -55,7 +122,7 @@ class JoinNameFilter(commands.Cog):
         """
         member_guild_id = member.guild.id
         member_guild_name = member.guild.name
-        guild_db = await load_guild_db()
+        guild_db = await snorlax_db.load_guild_db()
 
         if guild_db.loc[member.guild.id]['join_name_filter']:
 

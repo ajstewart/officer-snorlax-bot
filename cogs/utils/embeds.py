@@ -148,7 +148,7 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
 
 
 def get_settings_embed(
-    interaction: discord.Interaction,
+    guild: discord.Guild,
     guild_settings: pd.DataFrame
 ) -> Embed:
     """
@@ -163,7 +163,7 @@ def get_settings_embed(
         The embed containing the guild settings.
     """
     if guild_settings['meowth_raid_category'] != -1:
-        cat_name = interaction.guild.get_channel(
+        cat_name = guild.get_channel(
             guild_settings['meowth_raid_category']
         ).name
     else:
@@ -173,6 +173,12 @@ def get_settings_embed(
         title='Settings',
         color=16756290
     )
+
+    admin_channel_id = guild_settings['admin_channel']
+    if admin_channel_id == -1:
+        admin_channel = "Not set"
+    else:
+        admin_channel = "<#{}>".format(admin_channel_id)
 
     log_channel_id = guild_settings['log_channel']
     if log_channel_id == -1:
@@ -189,7 +195,8 @@ def get_settings_embed(
     embed.add_field(
         name="Guild Settings",
         value=(
-            'TZ: **{}**\n'
+            'Timezone: **{}**\n'
+            'Admin Channel: **{}**\n'
             'Log Channel: **{}**\n'
             'Time Channel: **{}**\n'
             'Pokenav Raid Category: **{}**\n'
@@ -197,6 +204,7 @@ def get_settings_embed(
             'Join name filter: **{}**\n'
             'Prefix: **{}**'.format(
                 guild_settings['tz'],
+                admin_channel,
                 log_channel,
                 time_channel,
                 cat_name,
@@ -462,6 +470,33 @@ def get_schedule_overwrites_embed_all_ok(channel: discord.TextChannel) -> Embed:
         ),
         color=3066993,
         timestamp=utcnow(),
+    )
+
+    return embed
+
+
+def get_admin_channel_embed(
+    admin_channel
+) -> Embed:
+    """Produces the open embed that is sent when a channel opens.
+
+    Args:
+        admin_channel: The admin channel for the guild.
+
+    Returns:
+        The embed that says that the admin channel must be used.
+    """
+    if admin_channel == -1:
+        admin_mention = "admin channel not set, use the '/set-admin-channel command!'"
+    else:
+        admin_mention = f"<#{admin_channel}>."
+
+    description = f"This command must be used in the admin channel: {admin_mention}"
+
+    embed = Embed(
+        title="️Command cannot be used here!",
+        description=description,
+        color=15158332
     )
 
     return embed

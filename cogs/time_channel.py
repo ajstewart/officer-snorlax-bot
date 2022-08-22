@@ -53,9 +53,9 @@ class TimeChannel(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
-    # TODO: Add connect back in
-    @app_commands.checks.bot_has_permissions(manage_channels=True)
+    @app_commands.checks.bot_has_permissions(manage_channels=True, connect=True)
     async def createTimeChannel(
         self,
         interaction: discord.Interaction,
@@ -110,7 +110,7 @@ class TimeChannel(commands.Cog):
             else:
                 msg = "Error when setting the time channel."
 
-            await interaction.response.send_message(msg, ephemeral=True)
+            await interaction.response.send_message(msg)
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:

@@ -6,15 +6,16 @@ import numpy as np
 import re
 import time
 
+from discord import app_commands
 from discord.abc import User
 from discord.ext import commands
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Union
 
 from . import db as snorlax_db
 from . import utils as snorlax_utils
 
 
-def check_bot(ctx: commands.context) -> bool:
+def check_bot(ctx: Union[commands.Context, discord.Interaction]) -> bool:
     """
     Checks whether the context came from a bot.
 
@@ -43,7 +44,7 @@ def interaction_check_bot(interaction: discord.Interaction) -> bool:
     return not interaction.user.bot
 
 
-def check_admin(ctx: commands.context) -> bool:
+def check_admin(ctx: Union[commands.Context, discord.Interaction]) -> bool:
     """
     Checks whether the user is an admin.
 
@@ -59,6 +60,28 @@ def check_admin(ctx: commands.context) -> bool:
         return True
     else:
         return False
+
+
+class AdminChannelError(app_commands.CheckFailure):
+    pass
+
+
+async def check_admin_channel(ctx: Union[commands.Context, discord.Interaction]) -> bool:
+    """
+    Checks if the channel of the command is the set admin channel.
+    Args:
+        ctx: The command context containing the message content and other metadata.
+
+    Returns:
+        'True' when the context originated from the set admin channel.
+        'False' if not.
+    """
+    admin_channel = await snorlax_db.get_guild_admin_channel(ctx.guild.id)
+
+    if ctx.channel.id == admin_channel:
+        return True
+    else:
+        raise AdminChannelError("This must be used in an admin channel!")
 
 
 def check_if_channel_active(
@@ -172,7 +195,7 @@ async def check_schedule_exists(sched_id: int) -> bool:
     return exists
 
 
-async def check_remove_schedule(ctx: commands.context, sched_id: int) -> bool:
+async def check_remove_schedule(ctx: Union[commands.Context, discord.Interaction], sched_id: int) -> bool:
     """
     Checks whether the provided schedule id is attached to the guild where
     the command originated.

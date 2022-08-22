@@ -1,6 +1,5 @@
 """
-The management cog which contains commands related to the management
-and set up of the bot.
+The admin cog which contains commands related to administrating the bot.
 """
 import discord
 import os
@@ -17,18 +16,16 @@ from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
 from .utils import autocompletes as snorlax_autocompletes
 from .utils import log_msgs as snorlax_logs
-from .utils.embeds import get_settings_embed
-from .utils.utils import get_current_time
+from .utils.embeds import get_admin_channel_embed, get_settings_embed
 
 
 logger = logging.getLogger()
 load_dotenv(find_dotenv())
-DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 
 
-class Management(commands.Cog):
+class Admin(commands.GroupCog, name="admin"):
     """
-    Cog for the management commands.
+    Cog for the admin commands.
     """
     def __init__(self, bot: commands.bot) -> None:
         """
@@ -40,7 +37,7 @@ class Management(commands.Cog):
         Returns:
             None.
         """
-        super(Management, self).__init__()
+        super(Admin, self).__init__()
         self.bot = bot
         bot.tree.on_error = self.on_app_command_error
 
@@ -48,7 +45,7 @@ class Management(commands.Cog):
         self,
         interaction: discord.Interaction,
         error: app_commands.AppCommandError
-    ):
+    ) -> None:
         if isinstance(error, discord.app_commands.errors.MissingPermissions):
             if 'administrator' in error.missing_permissions:
                 await interaction.response.send_message(
@@ -71,6 +68,19 @@ class Management(commands.Cog):
                     "You do not have the correct permissions to use this command.",
                     ephemeral=True
                 )
+
+        elif isinstance(error, snorlax_checks.AdminChannelError):
+            logger.error(
+                f"Command '{interaction.command.name}' attempted in non-admin channel ({interaction.guild.name})."
+            )
+            admin_channel_id = await snorlax_db.get_guild_admin_channel(interaction.guild.id)
+            embed = get_admin_channel_embed(admin_channel_id)
+            if interaction.command.name == 'create-schedule':
+                embed.set_footer(text=(
+                    "Does not apply when '/schedules create-schedule' is used to create a schedule for "
+                    "the channel where the command is issued."
+                ))
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
         elif isinstance(error, app_commands.CheckFailure):
             if interaction.command.name == 'create-time-channel':
@@ -108,172 +118,35 @@ class Management(commands.Cog):
             logger.error(error, exc_info=True)
 
     @app_commands.command(
-        name='activate-any-raids-filter',
-        description=(
-            "Turn on the 'any raids' filter. Filters messages containing 'any raids?'."
-        ),
+        name="set-admin-channel",
+        description="Set the channel for where snorlax admin commands can be used."
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.checks.has_permissions(administrator=True)
-    async def activateAnyRaidsFilter(self, interaction: discord.Interaction) -> None:
+    async def setAdminChannel(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel
+    ) -> None:
         """
-        Method to activate the any raids filter on the guild.
-
-        Args:
-            interaction: The interaction triggering the request.
-
-        Returns:
-            None
-        """
-        any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
-        if any_filter:
-            msg = ("The 'any raids' filter is already activated.")
-        else:
-            ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, True)
-            if ok:
-                msg = ("'Any raids' filter activated.")
-            else:
-                msg = (
-                    "Error when attempting to activate the 'Any raids' filter"
-                )
-
-        await interaction.response.send_message(msg, ephemeral=True)
-
-    @app_commands.command(
-        name="deactivate-any-raids-filter",
-        description="Turns off the 'any raids' filter."
-    )
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.check(snorlax_checks.interaction_check_bot)
-    @app_commands.checks.has_permissions(administrator=True)
-    async def deactivateAnyRaidsFilter(self, interaction: discord.Interaction):
-        """
-        Command to deactivate the any raids filter.
+        Sets the admin channel for a guild.
 
         Args:
             interaction: The interaction that triggered the request.
+            channel: The channel to be used as the admin channel.
 
         Returns:
             None
         """
-        any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
-        if not any_filter:
-            msg = ("The 'any raids' filter is already deactivated.")
+        guild = interaction.guild
+        ok = await snorlax_db.add_guild_admin_channel(guild, channel)
+        if ok:
+            msg = f"{channel.mention} set as the Snorlax admin channel successfully."
         else:
-            ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, False)
-            if ok:
-                msg = ("'Any raids' filter deactivated.")
-            else:
-                msg = (
-                    "Error when attempting to deactivate the 'Any raids' filter"
-                )
-
-        await interaction.response.send_message(msg, ephemeral=True)
-
-    @app_commands.command(
-        name='activate-join-name-filter',
-        description="Turns on the 'join name' filter."
-    )
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.check(snorlax_checks.interaction_check_bot)
-    @app_commands.checks.has_permissions(administrator=True)
-    async def activateJoinNameFilter(self, interaction: discord.Interaction) -> None:
-        """
-        Command to activate the join name filter.
-
-        Args:
-            interaction: The interaction that triggered the request.
-
-        Returns:
-            None
-        """
-        join_filter = snorlax_db.get_guild_join_name_active(interaction.guild.id)
-        if join_filter:
-            msg = ("The 'join name' filter is already activated.")
-        else:
-            ok = await snorlax_db.toggle_join_name_filter(interaction.guild, True)
-            if ok:
-                msg = ("'Join name' filter activated.")
-            else:
-                msg = ("Error when attempting to activate the 'Join name' filter")
-
-        await interaction.response.send_message(msg, ephemeral=True)
-
-    @app_commands.command(
-        name='deactivate-join-name-filter',
-        description="Turns off the 'join name' filter."
-    )
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.check(snorlax_checks.interaction_check_bot)
-    @app_commands.checks.has_permissions(administrator=True)
-    async def deactivateJoinNameFilter(self, interaction: discord.Interaction) -> None:
-        """
-        Command to deactivate the join name filter.
-
-        Args:
-            interaction: The interaction that triggered the request.
-
-        Returns:
-            None
-        """
-        join_filter = snorlax_db.get_guild_join_name_active(interaction.guild.id)
-        if not join_filter:
-            msg = ("The 'join name' filter is already deactivated.")
-        else:
-            ok = await snorlax_db.toggle_join_name_filter(interaction.guild, False)
-            if ok:
-                msg = ("'Join name' filter deactivated.")
-            else:
-                msg = (
-                    "Error when attempting to deactivate the 'Join name' filter"
-                )
-
-        await interaction.response.send_message(msg, ephemeral=True)
-
-    @app_commands.command(
-        name='current-time',
-        description="Shows the current local time for the guild."
-    )
-    @app_commands.check(snorlax_checks.interaction_check_bot)
-    async def currentTime(self, interaction: discord.Interaction) -> None:
-        """
-        Command to ask the bot to send a message containing the current time.
-
-        Args:
-            interaction: The interaction that triggered the request.
-
-        Returns:
-            None
-        """
-        guild_tz = await snorlax_db.get_guild_tz(interaction.guild.id)
-        the_time = get_current_time(guild_tz)
-        msg = (
-            "The current time is {}.".format(
-                the_time.strftime("%I:%M %p %Z")
-            )
-        )
+            msg = "Error when setting the admin channel."
 
         await interaction.response.send_message(msg)
-
-    @app_commands.command(
-        name='ping',
-        description="Get a pong!"
-    )
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.check(snorlax_checks.interaction_check_bot)
-    @app_commands.checks.has_permissions(administrator=True)
-    async def ping(self, interaction: discord.Interaction) -> None:
-        """
-        Command to return a pong to a ping.
-
-        Args:
-            interaction: The interaction that triggered the request.
-
-        Returns:
-            None
-        """
-        await interaction.response.send_message("Pong!", ephemeral=True)
 
     @app_commands.command(
         name="set-log-channel",
@@ -281,6 +154,7 @@ class Management(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def setLogChannel(
         self,
@@ -300,16 +174,11 @@ class Management(commands.Cog):
         guild = interaction.guild
         ok = await snorlax_db.add_guild_log_channel(guild, channel)
         if ok:
-            msg = (
-                "{} set as the Snorlax log channel successfully.".format(
-                    channel.mention
-                )
-            )
+            msg = f"{channel.mention} set as the Snorlax log channel successfully."
         else:
-            msg = (
-                "Error when setting the log channel."
-            )
-        await interaction.response.send_message(msg, ephemeral=True)
+            msg = "Error when setting the log channel."
+
+        await interaction.response.send_message(msg)
 
     @app_commands.command(
         name='set-pokenav-raid-category',
@@ -320,6 +189,7 @@ class Management(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def setPokenavRaidCategory(
         self,
@@ -341,16 +211,13 @@ class Management(commands.Cog):
         ok = await snorlax_db.add_guild_meowth_raid_category(guild, category)
         if ok:
             msg = (
-                "**{}** set as the Pokenav raid category successfully."
-                " Make sure Snorlax has the correct permissions!".format(
-                    cat_name.upper()
-                )
+                f"**{cat_name.upper()}** set as the Pokenav raid category successfully."
+                " Make sure Snorlax has the correct permissions!"
             )
         else:
-            msg = (
-                "Error when setting the Pokenav raid channel."
-            )
-        await interaction.response.send_message(msg, ephemeral=True)
+            msg = "Error when setting the Pokenav raid channel."
+
+        await interaction.response.send_message(msg)
 
     @app_commands.command(
         name='reset-pokenav-raid-category',
@@ -358,6 +225,7 @@ class Management(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def resetPokenavRaidCategory(self, interaction: discord.Interaction) -> None:
         """
@@ -372,12 +240,11 @@ class Management(commands.Cog):
         guild = interaction.guild
         ok = await snorlax_db.add_guild_meowth_raid_category(guild)
         if ok:
-            msg = ("Pokenav raid category has been reset.")
+            msg = "Pokenav raid category has been reset."
         else:
-            msg = (
-                "Error when setting the Pokenav raid channel."
-            )
-        await interaction.response.send_message(msg, ephemeral=True)
+            msg = "Error when setting the Pokenav raid channel."
+
+        await interaction.response.send_message(msg)
 
     @app_commands.command(
         name="set-timezone",
@@ -387,6 +254,7 @@ class Management(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(tz=snorlax_autocompletes.timezones_autocomplete)
     async def setTimezone(self, interaction: discord.Interaction, tz: str) -> None:
@@ -403,15 +271,9 @@ class Management(commands.Cog):
         """
         ok = await snorlax_db.add_guild_tz(interaction.guild, tz)
         if ok:
-            msg = (
-                "{} set as the timezone successfully.".format(
-                    tz
-                )
-            )
+            msg = f"{tz} set as the timezone successfully."
         else:
-            msg = (
-                "Error when setting the timezone."
-            )
+            msg = "Error when setting the timezone."
 
         await interaction.response.send_message(msg)
 
@@ -421,6 +283,7 @@ class Management(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def setPrefix(self, interaction: discord.Interaction, prefix: str) -> None:
         """
@@ -443,15 +306,10 @@ class Management(commands.Cog):
 
         ok = await snorlax_db.set_guild_prefix(guild_id, prefix)
         if ok:
-            msg = (
-                "`{}` set as the prefix for Snorlax successfully.".format(
-                    prefix
-                )
-            )
+            msg = f"`{prefix}` set as the prefix for Snorlax successfully."
         else:
-            msg = (
-                "Error when setting the prefix."
-            )
+            msg = "Error when setting the prefix."
+
         await interaction.response.send_message(msg)
 
     @app_commands.command(
@@ -462,6 +320,7 @@ class Management(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def showSettings(self, interaction: discord.Interaction) -> None:
         """
@@ -482,9 +341,9 @@ class Management(commands.Cog):
             )
         else:
             guild_settings = guild_db.loc[guild_id]
-            embed = get_settings_embed(interaction, guild_settings)
+            embed = get_settings_embed(interaction.guild, guild_settings)
 
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed)
 
     @commands.command(
         help=(
@@ -505,9 +364,8 @@ class Management(commands.Cog):
             None
         """
 
-        await ctx.channel.send(
-            "Snorlax is shutting down."
-        )
+        await ctx.channel.send("Snorlax is shutting down.")
+
         await self.bot.close()
 
     @commands.command(
@@ -589,8 +447,15 @@ class Management(commands.Cog):
         if await snorlax_checks.check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to active.')
             ok = await snorlax_db.set_guild_active(guild.id, 1)
-            # Then go through log_channel, time_channel, schedules
+            # Then go through admin_channel, log_channel, time_channel, schedules
             # and raid category to see if the channels still exist. Reset or drop if they don't.
+            admin_channel_id = await snorlax_db.get_guild_admin_channel(guild.id)
+            if admin_channel_id != -1:
+                admin_channel = get(guild.channels, id=int(admin_channel_id))
+                if admin_channel is None:
+                    logger.warning(f'Admin channel not found for {guild.name}, resetting.')
+                    await snorlax_db.add_guild_admin_channel(guild)
+
             log_channel_id = await snorlax_db.get_guild_log_channel(guild.id)
             if log_channel_id != -1:
                 log_channel = get(guild.channels, id=int(log_channel_id))
@@ -625,6 +490,42 @@ class Management(commands.Cog):
         else:
             logger.info(f'Adding {guild.name} to database.')
             ok = await snorlax_db.add_guild(guild)
+            # create admin channel
+            overwrites = {}
+
+            bot_role = guild.self_role
+            overwrites[bot_role] = discord.PermissionOverwrite(
+                read_messages=True,
+                send_messages=True
+            )
+
+            # block everybody from viewing channel
+            default_role = guild.default_role
+            overwrites[default_role] = discord.PermissionOverwrite(
+                read_messages=False
+            )
+
+            admin_channel = await guild.create_text_channel(
+                'snorlax-admin',
+                overwrites=overwrites,
+                reason='Admin channel for the snorlax bot.'
+            )
+
+            ok = await snorlax_db.add_guild_admin_channel(guild, admin_channel)
+
+            welcome_message = (
+                "Hi! This is where admin commands for Snorlax can be used.\n\n"
+                "If you would like to use an existing channel instead, use the the '/admin set-admin-channel' slash "
+                "command to change it.\n\nAvailable commands can be seen using the slash command interface or by "
+                f"visiting the documentation available here: {self.bot.docs}.\n\nBelow are the default settings for "
+                "the server."
+            )
+
+            guild_db = await snorlax_db.load_guild_db(active_only=True)
+            guild_settings = guild_db.loc[int(guild.id)]
+            embed = get_settings_embed(guild, guild_settings)
+
+            await admin_channel.send(welcome_message, embed=embed)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild) -> None:
@@ -660,6 +561,12 @@ class Management(commands.Cog):
         Returns:
             None
         """
+        admin_channel = await snorlax_db.get_guild_admin_channel(channel.guild.id)
+
+        if admin_channel == channel.id:
+            await snorlax_db.add_guild_admin_channel(channel.guild)
+            logger.info(f'admin channel reset for guild {channel.guild.name}.')
+
         log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
 
         if log_channel == channel.id:
@@ -675,8 +582,8 @@ async def setup(bot: commands.bot) -> None:
     """
     if bot.test_guild is not None:
         await bot.add_cog(
-            Management(bot),
+            Admin(bot),
             guild=discord.Object(id=bot.test_guild)
         )
     else:
-        await bot.add_cog(Management(bot))
+        await bot.add_cog(Admin(bot))

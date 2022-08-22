@@ -33,7 +33,7 @@ DELAY_TIME = int(os.getenv('DELAY_TIME'))
 logger = logging.getLogger()
 
 
-class Schedules(commands.Cog):
+class Schedules(commands.GroupCog, name='schedules'):
     """
     The schedules Cog of the bot that takes care of everything to do with
     opening and closing channels.
@@ -84,6 +84,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
     async def activateSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
@@ -138,6 +139,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def activateSchedules(
         self,
@@ -189,11 +191,12 @@ class Schedules(commands.Cog):
                 await interaction.followup.send(f"Activation failed.")
 
     @app_commands.command(
-        name='activate-all-schedules',
+        name='activate-all',
         description="Set all schedules to active.",
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def activateAllSchedules(self, interaction: discord.Interaction) -> None:
         """
@@ -273,6 +276,7 @@ class Schedules(commands.Cog):
             channel = get(interaction.guild.channels, id=interaction.channel.id)
             ephemeral = True
         else:
+            await snorlax_checks.check_admin_channel(interaction)
             ephemeral = False
 
         time_ok, f_open_time = snorlax_checks.check_time_format(open_time)
@@ -351,6 +355,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
     async def deactivateSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
@@ -403,6 +408,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def deactivateSchedules(self, interaction: discord.Interaction) -> None:
         """
@@ -451,11 +457,12 @@ class Schedules(commands.Cog):
                 await interaction.followup.send(f"Deactivation failed.")
 
     @app_commands.command(
-        name='deactivate-all-schedules',
+        name='deactivate-all',
         description="Set all schedules to deactivated.",
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def deactivateAllSchedules(self, interaction: discord.Interaction) -> None:
         """
@@ -484,7 +491,7 @@ class Schedules(commands.Cog):
             await interaction.response.send_message(f"Deactivation failed.")
 
     @app_commands.command(
-        name='manual-close-channel',
+        name='manual-close',
         description=(
             "Manually close a channel early. The channel must have an active schedule"
             " for the command to work!"
@@ -492,6 +499,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualClose(
@@ -566,7 +574,7 @@ class Schedules(commands.Cog):
             self.bot.user
         )
 
-        await interaction.response.send_message(f"Closed {channel.mention}!", ephemeral=True)
+        await interaction.response.send_message(f"Closed {channel.mention}!")
 
     @manualClose.error
     async def manualClose_error(self, ctx: commands.context, error):
@@ -591,7 +599,7 @@ class Schedules(commands.Cog):
             )
 
     @app_commands.command(
-        name='manual-open-channel',
+        name='manual-open',
         description=(
             "Manually open a channel early. The channel must have an active schedule"
             " for the command to work!"
@@ -599,6 +607,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualOpen(
@@ -673,7 +682,7 @@ class Schedules(commands.Cog):
             self.bot.user
         )
 
-        await interaction.response.send_message(f"Opened {channel.mention}!", ephemeral=True)
+        await interaction.response.send_message(f"Opened {channel.mention}!")
 
     @manualOpen.error
     async def manualOpen_error(self, ctx: commands.context, error) -> None:
@@ -703,6 +712,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
     async def deleteSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
@@ -785,6 +795,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def deleteSchedules(self, interaction: discord.Interaction) -> None:
         """
@@ -867,11 +878,12 @@ class Schedules(commands.Cog):
             await interaction.followup.send(msg)
 
     @app_commands.command(
-        name='delete-all-schedules',
+        name='delete-all',
         description="Delete all the schedules in the guild, use with caution!",
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def deleteAllSchedules(self, interaction: discord.Interaction) -> None:
         """
@@ -940,6 +952,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
     async def updateSchedule(
@@ -1110,7 +1123,7 @@ class Schedules(commands.Cog):
             msg = f"Schedule for <#{schedule_df['channel'].iloc[0]}> updated successfully!"
             embed = snorlax_embeds.get_schedule_embed(schedule_df)
 
-            await interaction.response.send_message(msg, embed=embed, ephemeral=True)
+            await interaction.response.send_message(msg, embed=embed)
         else:
             await interaction.response.send_message(
                 "Error when creating the schedule! Please check the schedule details.",
@@ -1253,6 +1266,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(schedule=snorlax_autocompletes.schedule_selection_autocomplete)
     async def viewSchedule(self, interaction: discord.Interaction, schedule: str) -> None:
@@ -1297,7 +1311,7 @@ class Schedules(commands.Cog):
         schedule_df = await snorlax_db.load_schedule_db(rowid=schedule)
         embed = snorlax_embeds.get_schedule_embed(schedule_df)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name='view-schedules',
@@ -1305,6 +1319,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def viewSchedules(self, interaction: discord.Interaction, active: Optional[bool] = None) -> None:
         """
@@ -1338,7 +1353,7 @@ class Schedules(commands.Cog):
         else:
             embed = snorlax_embeds.get_schedule_embed(schedule_df)
 
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name='check-schedule-roles',
@@ -1348,6 +1363,7 @@ class Schedules(commands.Cog):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def checkScheduleRoles(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         """
@@ -1374,33 +1390,7 @@ class Schedules(commands.Cog):
         else:
             embed = snorlax_embeds.get_schedule_overwrites_embed_all_ok(channel)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(
-        name='schedule',
-        description="Display the schedule for the current channel."
-    )
-    @app_commands.check(snorlax_checks.interaction_check_bot)
-    async def checkScheduleRoles(self, interaction: discord.Interaction) -> None:
-        """
-        Communicates the schedule for the current channel to the user.
-
-        Args:
-            interaction: The interaction that triggered the request.
-
-        Returns:
-            None
-        """
-        schedule_df = await snorlax_db.load_schedule_db(
-            guild_id=interaction.guild.id,
-            active=True
-        )
-
-        schedule_df = schedule_df.loc[schedule_df['channel'] == interaction.channel.id]
-
-        embed = snorlax_embeds.get_schedule_embed_for_user(schedule_df, interaction.channel)
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed)
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: GuildChannel, after: GuildChannel) -> None:

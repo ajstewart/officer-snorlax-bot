@@ -1,5 +1,6 @@
 """Contains all the database operations performed by the bot."""
 
+from asyncio.log import logger
 import aiosqlite
 import os
 import pandas as pd
@@ -218,9 +219,38 @@ async def add_allowed_friend_code_channel(
                 await cursor.execute(query, (guild.id, channel.id))
                 data = await cursor.fetchone()
                 if not data:
-                    insert_cmd = "INSERT INTO fc_channels VALUES (?, ?, ?, ?);"
+                    insert_cmd = "INSERT INTO fc_channels(guild, channel, channel_name, secret) VALUES (?, ?, ?, ?);"
                     await cursor.execute(insert_cmd, (guild.id, channel.id, channel.name, secret))
 
+            await db.commit()
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+async def add_guild_admin_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
+    """
+    Records the admin channel for the guild to the database.
+
+    Args:
+        guild: The discord guild object.
+        channel: The discord textchannel object.
+
+    Returns:
+        A bool to signify that the database transaction was successful
+        ('True') or not ('False').
+    """
+    if channel is None:
+        channel_id = -1
+    else:
+        channel_id = channel.id
+
+    try:
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "UPDATE guilds SET admin_channel = ? WHERE id = ?"
+            await db.execute(sql_command, (channel_id, guild.id))
             await db.commit()
 
         return True
@@ -390,7 +420,12 @@ async def create_schedule(
 
     try:
         async with aiosqlite.connect(DATABASE) as db:
-            sql_command = "INSERT INTO schedules VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            sql_command = (
+                "INSERT INTO schedules(guild, channel, role, channel_name, role_name, open, close, "
+                "open_message, close_message, warning, dynamic, dynamic_close, max_num_delays, "
+                "current_delay_num, silent, active) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            )
             params = (
                 guild_id,
                 channel_id,
@@ -645,7 +680,10 @@ async def add_guild(guild: Guild) -> bool:
     """
     try:
         async with aiosqlite.connect(DATABASE) as db:
-            sql_command = "INSERT INTO guilds VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            sql_command = (
+                "INSERT INTO guilds(id, tz, meowth_raid_category, any_raids_filter, log_channel, time_channel, "
+                "join_name_filter, active, prefix, admin_channel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            )
             params = (
                 guild.id,
                 DEFAULT_TZ,
@@ -655,7 +693,8 @@ async def add_guild(guild: Guild) -> bool:
                 -1,
                 False,
                 True,
-                DEFAULT_PREFIX
+                DEFAULT_PREFIX,
+                -1
             )
             await db.execute(sql_command, params)
             await db.commit()
@@ -663,6 +702,7 @@ async def add_guild(guild: Guild) -> bool:
         return True
 
     except Exception as e:
+        logger.error(e)
         return False
 
 
@@ -795,6 +835,24 @@ async def check_schedule_exists(schedule_id: int) -> bool:
             exists = await cursor.fetchone()
 
     return bool(exists[0])
+
+
+async def get_guild_admin_channel(guild_id: int) -> str:
+    """
+    Fetches the admin channel of the requested guild.
+
+    Args:
+        guild_id: The id of the guild to obtain the admin channel for.
+
+    Returns:
+        The guild admin channel.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT admin_channel FROM guilds WHERE id = ?;"
+        async with db.execute(query, (guild_id,)) as cursor:
+            admin_channel = await cursor.fetchone()
+
+    return admin_channel[0]
 
 
 async def get_guild_log_channel(guild_id: int) -> str:

@@ -2,10 +2,15 @@
 
 import discord
 import os
+
 from dotenv import load_dotenv
 from discord.ext import commands
 from cogs.utils.checks import check_admin
 from cogs.utils.utils import get_logger, get_prefix
+
+
+__version__ = '1.0.0-dev'
+DOCS_URL = 'placeholder'
 
 
 class MyBot(commands.Bot):
@@ -18,23 +23,25 @@ class MyBot(commands.Bot):
         )
         self.initial_extensions = [
             'cogs.initial',
-            'cogs.management',
+            'cogs.admin',
+            'cogs.any_raids_filter',
             'cogs.fc_filter',
             'cogs.join_name_filter',
+            'cogs.misc',
             'cogs.time_channel',
             'cogs.schedules',
-            'cogs.any_raids_filter'
         ]
         self.help_command.add_check(check_admin)
         self.my_version = version
         self.test_guild = test_guild
+        self.docs = DOCS_URL
 
     async def setup_hook(self):
         for ext in self.initial_extensions:
             await self.load_extension(ext)
 
     async def on_ready(self):
-        print('Ready!')
+        logger.info('Bot is ready!')
 
 
 # LOADS THE .ENV FILE THAT RESIDES ON THE SAME LEVEL AS THE SCRIPT.
@@ -50,8 +57,6 @@ try:
 except Exception as e:
     TEST_GUILD = None
 
-version = '1.0.0dev'
-
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
@@ -59,5 +64,5 @@ intents.message_content = True
 logger = get_logger(logfile='snorlax.log')
 logger.info('Starting bot...')
 
-bot = MyBot((get_prefix), intents, version, test_guild=TEST_GUILD)
+bot = MyBot((get_prefix), intents, __version__, test_guild=TEST_GUILD)
 bot.run(DISCORD_TOKEN, log_handler=None)

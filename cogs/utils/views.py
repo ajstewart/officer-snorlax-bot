@@ -60,7 +60,7 @@ class ScheduleDropdown(discord.ui.Select):
         # the user's selected schedules.
         self.view.values = self.values
         msg = f"The {len(self.values)} selected schedule(s) will be {self.context_verbs[self.context]}."
-        await interaction.response.send_message(msg, ephemeral=True)
+        await interaction.response.send_message(msg)
         await self.view.disable_children()
         self.view.stop()
 
@@ -171,7 +171,7 @@ class Confirm(discord.ui.View):
             interaction: The interaction instance.
             button: The button instance.
         """
-        await interaction.response.send_message('Confirmed!', ephemeral=True)
+        await interaction.response.send_message('Confirmed!')
         self.value = True
         await self.disable_children()
         self.stop()
