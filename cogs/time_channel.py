@@ -21,6 +21,7 @@ from .utils.log_msgs import time_channel_reset_log_embed
 logger = logging.getLogger()
 
 
+@app_commands.default_permissions(administrator=True)
 class TimeChannel(commands.Cog):
     """
     The cog that manages all aspects of the Time channel, for which there

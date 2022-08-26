@@ -33,6 +33,7 @@ DELAY_TIME = int(os.getenv('DELAY_TIME'))
 logger = logging.getLogger()
 
 
+@app_commands.default_permissions(administrator=True)
 class Schedules(commands.GroupCog, name='schedules'):
     """
     The schedules Cog of the bot that takes care of everything to do with
@@ -499,7 +500,6 @@ class Schedules(commands.GroupCog, name='schedules'):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
-    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualClose(
@@ -521,6 +521,10 @@ class Schedules(commands.GroupCog, name='schedules'):
         """
         if channel is None:
             channel = get(interaction.guild.channels, id=interaction.channel.id)
+
+        # Allow this to be used outside the admin channel but hide response if it is.
+        ephemeral = interaction.channel.id != await snorlax_db.get_guild_admin_channel(interaction.guild.id)
+
         # check if in schedule
         # check if already closed
         # close
@@ -574,7 +578,7 @@ class Schedules(commands.GroupCog, name='schedules'):
             self.bot.user
         )
 
-        await interaction.response.send_message(f"Closed {channel.mention}!")
+        await interaction.response.send_message(f"Closed {channel.mention}!", ephemeral=ephemeral)
 
     @manualClose.error
     async def manualClose_error(self, ctx: commands.context, error):
@@ -607,7 +611,6 @@ class Schedules(commands.GroupCog, name='schedules'):
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
-    @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.checks.bot_has_permissions(manage_roles=True)
     async def manualOpen(
@@ -629,6 +632,10 @@ class Schedules(commands.GroupCog, name='schedules'):
         """
         if channel is None:
             channel = get(interaction.guild.channels, id=interaction.channel.id)
+
+        # Allow this to be used outside the admin channel but hide response if it is.
+        ephemeral = interaction.channel.id != await snorlax_db.get_guild_admin_channel(interaction.guild.id)
+
         # check if in schedule
         # check if already open
         # open
@@ -682,7 +689,7 @@ class Schedules(commands.GroupCog, name='schedules'):
             self.bot.user
         )
 
-        await interaction.response.send_message(f"Opened {channel.mention}!")
+        await interaction.response.send_message(f"Opened {channel.mention}!", ephemeral=ephemeral)
 
     @manualOpen.error
     async def manualOpen_error(self, ctx: commands.context, error) -> None:

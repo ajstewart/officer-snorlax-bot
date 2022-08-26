@@ -21,6 +21,7 @@ BAN_NAMES = os.getenv('BAN_NAMES').split(",")
 logger = logging.getLogger()
 
 
+@app_commands.default_permissions(administrator=True)
 class JoinNameFilter(commands.GroupCog, name="join-name-filter"):
     """
     Cog for immediately banning a user that joins the server that matches a

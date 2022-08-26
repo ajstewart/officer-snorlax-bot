@@ -23,6 +23,7 @@ logger = logging.getLogger()
 load_dotenv(find_dotenv())
 
 
+@app_commands.default_permissions(administrator=True)
 class Admin(commands.GroupCog, name="admin"):
     """
     Cog for the admin commands.

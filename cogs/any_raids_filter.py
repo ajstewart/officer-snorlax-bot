@@ -10,6 +10,7 @@ from .utils.log_msgs import filter_delete_log_embed
 from .utils.utils import strip_mentions
 
 
+@app_commands.default_permissions(administrator=True)
 class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
     """Cog for the Any raids filter feature."""
     def __init__(self, bot: commands.bot) -> None:

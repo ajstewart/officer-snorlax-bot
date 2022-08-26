@@ -15,6 +15,7 @@ from .utils import log_msgs as snorlax_log
 logger = logging.getLogger()
 
 
+@app_commands.default_permissions(administrator=True)
 class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
     """Cog for the FriendCode Filter feature."""
     def __init__(self, bot: commands.bot) -> None:
