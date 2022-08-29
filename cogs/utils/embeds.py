@@ -14,9 +14,9 @@ from typing import Union
 load_dotenv(find_dotenv())
 DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
 DEFAULT_CLOSE_MESSAGE = os.getenv('DEFAULT_CLOSE_MESSAGE')
-WARNING_TIME = os.getenv('WARNING_TIME')
-INACTIVE_TIME = os.getenv('INACTIVE_TIME')
-DELAY_TIME = os.getenv('DELAY_TIME')
+DEFAULT_WARNING_TIME = os.getenv('DEFAULT_WARNING_TIME')
+DEFAULT_INACTIVE_TIME = os.getenv('DEFAULT_INACTIVE_TIME')
+DEFAULT_DELAY_TIME = os.getenv('DEFAULT_DELAY_TIME')
 
 
 def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:

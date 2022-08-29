@@ -448,6 +448,7 @@ class Admin(commands.GroupCog, name="admin"):
         if await snorlax_checks.check_guild_exists(guild.id):
             logger.info(f'Setting guild {guild.name} to active.')
             ok = await snorlax_db.set_guild_active(guild.id, 1)
+
             # Then go through admin_channel, log_channel, time_channel, schedules
             # and raid category to see if the channels still exist. Reset or drop if they don't.
             admin_channel_id = await snorlax_db.get_guild_admin_channel(guild.id)
