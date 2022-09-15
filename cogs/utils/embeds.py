@@ -339,7 +339,9 @@ def get_warning_embed(
     client_user: discord.User,
     time_format_fill: str,
     dynamic: bool,
-    delay: bool
+    delay: bool,
+    delay_time: int,
+    warning_time: int
 ) -> Embed:
     """Produces the warning embed that is sent when a is to close and warnings are enabled.
 
@@ -363,7 +365,7 @@ def get_warning_embed(
 
     close_time_str = datetime.datetime.strptime(close, '%H:%M').strftime('%I:%M %p')
 
-    buffer_time = DELAY_TIME if delay else WARNING_TIME
+    buffer_time = delay_time if delay else warning_time
 
     warning_string = f"Channel is due to close in {buffer_time} minute"
 

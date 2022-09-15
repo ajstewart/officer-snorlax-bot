@@ -1644,7 +1644,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                                 channel,
                                 tz,
                                 'delay',
-                                DELAY_TIME,
+                                delay_time,
                                 row.current_delay_num + 1,
                                 row.max_num_delays
                             )
@@ -1692,7 +1692,7 @@ class Schedules(commands.GroupCog, name='schedules'):
 
                         continue
 
-                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
+                    then = now_utc - datetime.timedelta(minutes=inactive_time)
 
                     messages = [message async for message in channel.history(after=then)]
 
@@ -1701,7 +1701,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                         and row.current_delay_num < row.max_num_delays
                     ):
                         new_close_time = (
-                            now + datetime.timedelta(minutes=DELAY_TIME)
+                            now + datetime.timedelta(minutes=delay_time)
                         ).strftime("%H:%M")
 
                         await snorlax_db.update_dynamic_close(row.rowid, new_close_time=new_close_time)
@@ -1712,7 +1712,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                                 channel,
                                 tz,
                                 'delay',
-                                DELAY_TIME,
+                                delay_time,
                                 row.current_delay_num + 1,
                                 row.max_num_delays
                             )
@@ -1730,7 +1730,9 @@ class Schedules(commands.GroupCog, name='schedules'):
                                 client_user,
                                 time_format_fill,
                                 False,
-                                True
+                                True,
+                                delay_time,
+                                warning_time
                             )
 
                             await channel.send(embed=warning_embed)
