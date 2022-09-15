@@ -1526,9 +1526,9 @@ class Schedules(commands.GroupCog, name='schedules'):
                         raise ValueError(f'Schedule settings not found for guild {guild_id}!')
                     guild_schedule_settings = guild_schedule_settings.iloc[0]
 
-                    warning_time = guild_schedule_settings['warning_time']
-                    inactive_time = guild_schedule_settings['inactive_time']
-                    delay_time = guild_schedule_settings['delay_time']
+                    warning_time = int(guild_schedule_settings['warning_time'])
+                    inactive_time = int(guild_schedule_settings['inactive_time'])
+                    delay_time = int(guild_schedule_settings['delay_time'])
 
                 channel = self.bot.get_channel(row.channel)
                 role = get(channel.guild.roles, id=row.role)
