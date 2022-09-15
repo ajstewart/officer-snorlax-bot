@@ -342,9 +342,16 @@ class Admin(commands.GroupCog, name="admin"):
             )
         else:
             guild_settings = guild_db.loc[guild_id]
-            embed = get_settings_embed(interaction.guild, guild_settings)
+            guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(guild_id)
+            if guild_schedule_settings.empty:
+                await interaction.response.send_message(
+                    'Guild schedule settings failed to load! Contact admin.',
+                    ephemeral=True
+                )
+            else:
+                embed = get_settings_embed(interaction.guild, guild_settings, guild_schedule_settings)
 
-            await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message(embed=embed)
 
     @commands.command(
         help=(

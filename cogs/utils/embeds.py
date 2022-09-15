@@ -11,13 +11,6 @@ from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
 from typing import Union
 
-load_dotenv(find_dotenv())
-DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
-DEFAULT_CLOSE_MESSAGE = os.getenv('DEFAULT_CLOSE_MESSAGE')
-DEFAULT_WARNING_TIME = os.getenv('DEFAULT_WARNING_TIME')
-DEFAULT_INACTIVE_TIME = os.getenv('DEFAULT_INACTIVE_TIME')
-DEFAULT_DELAY_TIME = os.getenv('DEFAULT_DELAY_TIME')
-
 
 def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
     """
@@ -149,7 +142,8 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
 
 def get_settings_embed(
     guild: discord.Guild,
-    guild_settings: pd.DataFrame
+    guild_settings: pd.DataFrame,
+    guild_schedule_settings: pd.DataFrame
 ) -> Embed:
     """
     Create an embed to show the settings of the bot on the guild the command
@@ -158,10 +152,13 @@ def get_settings_embed(
     Args:
         interaction: The interaction that triggered the request.
         guild_settings: The guild settings database table as a pandas dataframe.
+        guild_schedule_settings: The server schedule settings for the guild.
 
     Returns:
         The embed containing the guild settings.
     """
+    guild_schedule_settings = guild_schedule_settings.iloc[0]
+
     if guild_settings['meowth_raid_category'] != -1:
         cat_name = guild.get_channel(
             guild_settings['meowth_raid_category']
@@ -217,18 +214,18 @@ def get_settings_embed(
     )
 
     embed.add_field(
-        name="Bot Settings",
+        name="Server Schedules Settings",
         value=(
-            'Default Open Message: **{}**\n'
-            'Default Close Message: **{}**\n'
+            'Open Message: **{}**\n'
+            'Close Message: **{}**\n'
             'Warning Time: **{}** min\n'
             'Inactive Time: **{}** min\n'
             'Delay Time: **{}** min'.format(
-                DEFAULT_OPEN_MESSAGE,
-                DEFAULT_CLOSE_MESSAGE,
-                WARNING_TIME,
-                INACTIVE_TIME,
-                DELAY_TIME
+                guild_schedule_settings['base_open_message'],
+                guild_schedule_settings['base_close_message'],
+                guild_schedule_settings['warning_time'],
+                guild_schedule_settings['inactive_time'],
+                guild_schedule_settings['delay_time'],
             )
         ),
         inline=False
@@ -240,6 +237,7 @@ def get_settings_embed(
 def get_open_embed(
     close: str,
     now: datetime.datetime,
+    base_open_message: str,
     custom_open_message: str,
     client_user: discord.User,
     time_format_fill: str
@@ -249,6 +247,7 @@ def get_open_embed(
     Args:
         close: The string representation of the future closing time, e.g. '12:00'.
         now: The datetime object of the opening time.
+        base_open_message: The base open message for the server.
         custom_open_message: The custom open message of the schedule.
         client_user: The bot user object.
         time_format_fill: The string time channel mention, or 'Unavailable' if the time channel
@@ -257,14 +256,12 @@ def get_open_embed(
     Returns:
         The open channel embed containing the next close time and the current time.
     """
-    open_message = DEFAULT_OPEN_MESSAGE
-
     if custom_open_message != "None":
-        open_message += f"\n\n{custom_open_message}"
+        base_open_message += f"\n\n{custom_open_message}"
 
     embed = Embed(
         title="✅  Channel Open!",
-        description=open_message,
+        description=base_open_message,
         color=3066993
     )
 
@@ -290,6 +287,7 @@ def get_open_embed(
 def get_close_embed(
     open: str,
     now: datetime.datetime,
+    base_close_message: str,
     custom_close_message: str,
     client_user: discord.User,
     time_format_fill: str
@@ -307,14 +305,12 @@ def get_close_embed(
     Returns:
         The close channel embed containing the next open time and the current time.
     """
-    close_message = DEFAULT_CLOSE_MESSAGE
-
     if custom_close_message != "None":
-        close_message += f"\n\n{custom_close_message}"
+        base_close_message += f"\n\n{custom_close_message}"
 
     embed = Embed(
         title="️⛔  Channel Closed!",
-        description=close_message,
+        description=base_close_message,
         color=15158332
     )
 

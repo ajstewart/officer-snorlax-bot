@@ -70,7 +70,7 @@ async def _get_guild_schedule_settings(guild_id: int) -> tuple[tuple[Any], tuple
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute(f'PRAGMA table_info(guild_schedule_settings);') as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
-        query = "SELECT * FROM guild_schedules_settings WHERE guild = ?"
+        query = "SELECT * FROM guild_schedule_settings WHERE guild = ?"
         async with db.execute(query, (guild_id,)) as cursor:
             rows = await cursor.fetchall()
 
