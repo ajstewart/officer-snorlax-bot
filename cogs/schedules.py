@@ -1589,7 +1589,9 @@ class Schedules(commands.GroupCog, name='schedules'):
                                 client_user,
                                 time_format_fill,
                                 row['dynamic'],
-                                False
+                                False,
+                                delay_time,
+                                warning_time
                             )
 
                             await channel.send(embed=warning_embed)

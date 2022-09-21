@@ -374,16 +374,9 @@ def get_warning_embed(
     else:
         warning_string += " at"
 
-    embed.add_field(
-        name=warning_string,
-        value=f"{close_time_str} {now.tzname()}"
-    )
+    embed.add_field(name=warning_string, value=f"{close_time_str}")
 
-    embed.add_field(
-        name="Current Time",
-        value=time_format_fill,
-        inline=False
-    )
+    embed.add_field(name="Current Time", value=time_format_fill, inline=False)
 
     if dynamic:
         embed.add_field(
