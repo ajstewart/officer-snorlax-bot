@@ -297,6 +297,7 @@ def get_close_embed(
     Args:
         open: The string representation of the future opening time, e.g. '12:00'.
         now: The datetime object of the closing time.
+        base_close_message: The guild base close message.
         custom_close_message: The custom close message of the schedule.
         client_user: The bot user object.
         time_format_fill: The string time channel mention, or 'Unavailable' if the time channel
@@ -335,7 +336,6 @@ def get_close_embed(
 
 def get_warning_embed(
     close: str,
-    now: datetime.datetime,
     client_user: discord.User,
     time_format_fill: str,
     dynamic: bool,
@@ -347,13 +347,14 @@ def get_warning_embed(
 
     Args:
         close: The string representation of the future closing time, e.g. '12:00'.
-        now: The datetime object of the warning time.
         client_user: The bot user object.
         time_format_fill: The string time channel mention, or 'Unavailable' if the time channel
             is not configured.
         dynamic: Whether dynamic mode is activated on the schedule (True) or not (False).
         delay: Whether the warning is because of a previous delay. No dynamic addition
             will be made if True.
+        delay_time: The guild delay time in minutes.
+        warning_time: The guild warning time in minutes.
 
     Returns:
         The warning embed containing the next close time and the current time.

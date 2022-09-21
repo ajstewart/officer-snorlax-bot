@@ -1585,7 +1585,6 @@ class Schedules(commands.GroupCog, name='schedules'):
                         if snorlax_checks.check_if_channel_active(messages, client_user):
                             warning_embed = snorlax_embeds.get_warning_embed(
                                 row['close'],
-                                now_utc,
                                 client_user,
                                 time_format_fill,
                                 row['dynamic'],
@@ -1728,7 +1727,6 @@ class Schedules(commands.GroupCog, name='schedules'):
                         if row.current_delay_num + 1 == row.max_num_delays:
                             warning_embed = snorlax_embeds.get_warning_embed(
                                 row['dynamic_close'],
-                                now_utc,
                                 client_user,
                                 time_format_fill,
                                 False,
