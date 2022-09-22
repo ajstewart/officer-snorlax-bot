@@ -6,7 +6,7 @@ import logging
 from discord.ext import commands
 
 from .utils.checks import check_guild_exists
-from .utils.db import add_guild
+from .utils.db import add_guild, check_schedule_settings_exists, add_default_schedule_settings
 
 
 logger = logging.getLogger()
@@ -53,6 +53,11 @@ class Initial(commands.Cog):
                 # ADD TO DB IF DOES NOT EXIST
                 logger.info(f'Adding {guild.name} to database.')
                 ok = await add_guild(guild)
+
+            # CHECK THAT IT HAS ASSOCIATED GUILD_SCHEDULE_SETTINGS ENTRY
+            if not await check_schedule_settings_exists(guild.id):
+                logger.info(f"Adding default schedule settings for {guild.name}.")
+                ok = await add_default_schedule_settings(guild.id)
 
         # PRINTS HOW MANY GUILDS / SERVERS THE BOT IS IN.
         logger.info("Snorlax is in " + str(guild_count) + " guilds.")

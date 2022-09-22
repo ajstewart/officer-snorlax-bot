@@ -26,9 +26,9 @@ from .utils import views as snorlax_views
 load_dotenv(find_dotenv())
 DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
 DEFAULT_CLOSE_MESSAGE = os.getenv('DEFAULT_CLOSE_MESSAGE')
-WARNING_TIME = int(os.getenv('WARNING_TIME'))
-INACTIVE_TIME = int(os.getenv('INACTIVE_TIME'))
-DELAY_TIME = int(os.getenv('DELAY_TIME'))
+DEFAULT_WARNING_TIME = int(os.getenv('DEFAULT_WARNING_TIME'))
+DEFAULT_INACTIVE_TIME = int(os.getenv('DEFAULT_INACTIVE_TIME'))
+DEFAULT_DELAY_TIME = int(os.getenv('DEFAULT_DELAY_TIME'))
 
 logger = logging.getLogger()
 
@@ -1172,11 +1172,20 @@ class Schedules(commands.GroupCog, name='schedules'):
         Returns:
             None
         """
+        guild_id = channel.guild.id
+
+        guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(guild_id)
+        if guild_schedule_settings.empty:
+            raise ValueError(f'No schedule settings found for guild {channel.guild.name}!')
+        else:
+            guild_close_message = guild_schedule_settings.iloc[0]['base_close_message']
+
         now = snorlax_utils.get_current_time(tz=tz)
 
         close_embed = snorlax_embeds.get_close_embed(
             open,
             now,
+            guild_close_message,
             custom_close_message,
             client_user,
             time_format_fill
@@ -1239,6 +1248,14 @@ class Schedules(commands.GroupCog, name='schedules'):
         Returns:
             None
         """
+        guild_id = channel.guild.id
+
+        guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(guild_id)
+        if guild_schedule_settings.empty:
+            raise ValueError(f'No schedule settings found for guild {channel.guild.name}!')
+        else:
+            guild_open_message = guild_schedule_settings.iloc[0]['base_open_message']
+
         now = snorlax_utils.get_current_time(tz=tz)
         overwrites.send_messages = None
         overwrites.send_messages_in_threads = None
@@ -1247,6 +1264,7 @@ class Schedules(commands.GroupCog, name='schedules'):
         open_embed = snorlax_embeds.get_open_embed(
             close,
             now,
+            guild_open_message,
             custom_open_message,
             client_user,
             time_format_fill
@@ -1503,6 +1521,15 @@ class Schedules(commands.GroupCog, name='schedules'):
                         time_format_fill = "Unavailable"
                     last_guild_id = guild_id
 
+                    guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(guild_id)
+                    if guild_schedule_settings.empty:
+                        raise ValueError(f'Schedule settings not found for guild {guild_id}!')
+                    guild_schedule_settings = guild_schedule_settings.iloc[0]
+
+                    warning_time = int(guild_schedule_settings['warning_time'])
+                    inactive_time = int(guild_schedule_settings['inactive_time'])
+                    delay_time = int(guild_schedule_settings['delay_time'])
+
                 channel = self.bot.get_channel(row.channel)
                 role = get(channel.guild.roles, id=row.role)
                 # get current overwrites
@@ -1544,13 +1571,13 @@ class Schedules(commands.GroupCog, name='schedules'):
                 close_hour, close_min = row.close.split(":")
 
                 if row.warning:
-                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
+                    then = now_utc - datetime.timedelta(minutes=inactive_time)
 
                     warning = (
                         datetime.datetime(
                             10, 10, 10,
                             hour=int(close_hour), minute=int(close_min)
-                        ) - datetime.timedelta(minutes=WARNING_TIME)
+                        ) - datetime.timedelta(minutes=warning_time)
                     ).strftime("%H:%M")
 
                     if warning == now_compare:
@@ -1558,11 +1585,12 @@ class Schedules(commands.GroupCog, name='schedules'):
                         if snorlax_checks.check_if_channel_active(messages, client_user):
                             warning_embed = snorlax_embeds.get_warning_embed(
                                 row['close'],
-                                now_utc,
                                 client_user,
                                 time_format_fill,
                                 row['dynamic'],
-                                False
+                                False,
+                                delay_time,
+                                warning_time
                             )
 
                             await channel.send(embed=warning_embed)
@@ -1596,7 +1624,7 @@ class Schedules(commands.GroupCog, name='schedules'):
 
                         continue
 
-                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
+                    then = now_utc - datetime.timedelta(minutes=inactive_time)
 
                     messages = [message async for message in channel.history(after=then)]
 
@@ -1606,7 +1634,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                         and row.current_delay_num < row.max_num_delays
                     ):
                         new_close_time = (
-                            now + datetime.timedelta(minutes=DELAY_TIME)
+                            now + datetime.timedelta(minutes=delay_time)
                         ).strftime("%H:%M")
 
                         await snorlax_db.update_dynamic_close(row.rowid, new_close_time=new_close_time)
@@ -1617,7 +1645,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                                 channel,
                                 tz,
                                 'delay',
-                                DELAY_TIME,
+                                delay_time,
                                 row.current_delay_num + 1,
                                 row.max_num_delays
                             )
@@ -1665,7 +1693,7 @@ class Schedules(commands.GroupCog, name='schedules'):
 
                         continue
 
-                    then = now_utc - datetime.timedelta(minutes=INACTIVE_TIME)
+                    then = now_utc - datetime.timedelta(minutes=inactive_time)
 
                     messages = [message async for message in channel.history(after=then)]
 
@@ -1674,7 +1702,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                         and row.current_delay_num < row.max_num_delays
                     ):
                         new_close_time = (
-                            now + datetime.timedelta(minutes=DELAY_TIME)
+                            now + datetime.timedelta(minutes=delay_time)
                         ).strftime("%H:%M")
 
                         await snorlax_db.update_dynamic_close(row.rowid, new_close_time=new_close_time)
@@ -1685,7 +1713,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                                 channel,
                                 tz,
                                 'delay',
-                                DELAY_TIME,
+                                delay_time,
                                 row.current_delay_num + 1,
                                 row.max_num_delays
                             )
@@ -1699,11 +1727,12 @@ class Schedules(commands.GroupCog, name='schedules'):
                         if row.current_delay_num + 1 == row.max_num_delays:
                             warning_embed = snorlax_embeds.get_warning_embed(
                                 row['dynamic_close'],
-                                now_utc,
                                 client_user,
                                 time_format_fill,
                                 False,
-                                True
+                                True,
+                                delay_time,
+                                warning_time
                             )
 
                             await channel.send(embed=warning_embed)
@@ -1747,6 +1776,197 @@ class Schedules(commands.GroupCog, name='schedules'):
         await asyncio.sleep(sleep_time)
 
 
+@app_commands.default_permissions(administrator=True)
+class SchedulesSettings(commands.GroupCog, name='schedules-settings'):
+    """
+    The schedules settings group that contains commands to set
+    the settings that apply to all schedules.
+    """
+    def __init__(self, bot: commands.bot) -> None:
+        """
+        Init method for schedules settings.
+
+        Args:
+            bot: The discord.py bot representation.
+
+        Returns:
+            None.
+        """
+        super(SchedulesSettings, self).__init__()
+        self.bot = bot
+
+    async def cog_check(self, ctx: commands.context) -> bool:
+        """
+        Defines the checks to perform on the received command for all the
+        commands in the cog.
+
+        Args:
+            ctx: The command context containing the message content and other
+                metadata.
+
+        Returns:
+            bool: True of False for whether the checks pass or fail,
+                respectively.
+        """
+        admin_check = snorlax_checks.check_admin(ctx)
+        bot_check = snorlax_checks.check_bot(ctx)
+
+        if not bot_check:
+            return False
+
+        if admin_check:
+            return True
+        else:
+            return False
+
+    @app_commands.command(
+        name='set-server-open-message',
+        description=(
+            "Sets the default open message that is included in every channel open message."
+        ),
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def set_server_open_message(self, interaction: discord.Interaction, open_message: str) -> None:
+        """Sets the default open message that is included in every channel open message.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            open_message: The message to use in the open message. Must be 60 characters or less.
+
+        Returns:
+            None
+        """
+        if len(open_message) > 60:
+            await interaction.response.send_message(
+                "The open message must be less than 60 characters.",
+                ephemeral=True
+            )
+            return
+
+        ok = await snorlax_db.update_guild_schedule_settings(interaction.guild.id, 'base_open_message', open_message)
+
+        await interaction.response.send_message(f"Open message updated to:\n```{open_message}```")
+
+    @app_commands.command(
+        name='set-server-close-message',
+        description=(
+            "Sets the default close message that is included in every channel close message."
+        ),
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def set_server_close_message(self, interaction: discord.Interaction, close_message: str) -> None:
+        """Sets the default close message that is included in every channel close message.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            close_message: The message to use in the close message. Must be 60 characters or less.
+
+        Returns:
+            None
+        """
+        if len(close_message) > 60:
+            await interaction.response.send_message(
+                "The close message must be less than 60 characters.",
+                ephemeral=True
+            )
+            return
+
+        ok = await snorlax_db.update_guild_schedule_settings(interaction.guild.id, 'base_close_message', close_message)
+
+        await interaction.response.send_message(f"Close message updated to:\n```{close_message}```")
+
+    @app_commands.command(
+        name='set-server-warning-time',
+        description=(
+            "Sets the number of minutes before a channel closing that a warning is sent."
+        ),
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def set_server_warning_time(
+        self,
+        interaction: discord.Interaction,
+        warning_mins: app_commands.Range[int, 1, 60]
+    ) -> None:
+        """Updates the warning_time in the guild_schedule_settings db table.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            warning_mins: The number of minutes before closure a warning is issued. Must be between 1 and 60.
+
+        Returns:
+            None
+        """
+        ok = await snorlax_db.update_guild_schedule_settings(interaction.guild.id, 'warning_time', warning_mins)
+
+        await interaction.response.send_message(f"Warning time updated to {warning_mins} min(s).")
+
+    @app_commands.command(
+        name='set-server-inactive-time',
+        description=(
+            "Sets the number of minutes since the last message after which the channel is considered inactive."
+        ),
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def set_server_inactive_time(
+        self,
+        interaction: discord.Interaction,
+        inactive_mins: app_commands.Range[int, 1, 120]
+    ) -> None:
+        """Updates the inactive_time in the guild_schedule_settings db table.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            inactive_mins: The number of minutes since the last message was sent for channel to be considered
+                inactive.
+
+        Returns:
+            None
+        """
+        ok = await snorlax_db.update_guild_schedule_settings(interaction.guild.id, 'inactive_time', inactive_mins)
+
+        await interaction.response.send_message(f"Inactive time updated to {inactive_mins} min(s).")
+
+    @app_commands.command(
+        name='set-server-delay-time',
+        description=(
+            "Sets the number of minutes closure is delayed if the channel is still active."
+        ),
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def set_server_delay_time(
+        self,
+        interaction: discord.Interaction,
+        delay_mins: app_commands.Range[int, 1, 30]
+    ) -> None:
+        """Updates the delay_time in the guild_schedule_settings db table.
+
+        Args:
+            interaction: The interaction that triggered the request.
+            delay_mins: The number of minutes closure is delayed if the channel is still active.
+
+        Returns:
+            None
+        """
+        ok = await snorlax_db.update_guild_schedule_settings(interaction.guild.id, 'delay_time', delay_mins)
+
+        await interaction.response.send_message(f"Delay time updated to {delay_mins} min(s).")
+
+
 async def setup(bot: commands.bot) -> None:
     """The setup function to initiate the cog.
 
@@ -1758,5 +1978,10 @@ async def setup(bot: commands.bot) -> None:
             Schedules(bot),
             guild=discord.Object(id=bot.test_guild)
         )
+        await bot.add_cog(
+            SchedulesSettings(bot),
+            guild=discord.Object(id=bot.test_guild)
+        )
     else:
         await bot.add_cog(Schedules(bot))
+        await bot.add_cog(SchedulesSettings(bot))

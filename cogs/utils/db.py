@@ -14,6 +14,11 @@ load_dotenv(find_dotenv())
 DATABASE = os.getenv('DATABASE')
 DEFAULT_TZ = os.getenv('DEFAULT_TZ')
 DEFAULT_PREFIX = os.getenv('DEFAULT_PREFIX')
+DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
+DEFAULT_CLOSE_MESSAGE = os.getenv('DEFAULT_CLOSE_MESSAGE')
+DEFAULT_WARNING_TIME = os.getenv('DEFAULT_WARNING_TIME')
+DEFAULT_INACTIVE_TIME = os.getenv('DEFAULT_INACTIVE_TIME')
+DEFAULT_DELAY_TIME = os.getenv('DEFAULT_DELAY_TIME')
 
 
 async def _get_schedule_db() -> tuple[tuple[Any], tuple[str]]:
@@ -47,6 +52,26 @@ async def _get_single_schedule(rowid: int) -> tuple[tuple[Any], tuple[str]]:
             columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
         query = "SELECT rowid, * FROM schedules WHERE rowid = ?"
         async with db.execute(query, (rowid,)) as cursor:
+            rows = await cursor.fetchall()
+
+    return rows, columns
+
+
+async def _get_guild_schedule_settings(guild_id: int) -> tuple[tuple[Any], tuple[str]]:
+    """Gets the settings row from the guild schedule settings database table.
+
+    Args:
+        guild_id: The guild to fetch.
+
+    Returns:
+        The rows of the database table.
+        The columns of the database table.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        async with db.execute(f'PRAGMA table_info(guild_schedule_settings);') as cursor:
+            columns = [i[1] for i in await cursor.fetchall()]
+        query = "SELECT * FROM guild_schedule_settings WHERE guild = ?"
+        async with db.execute(query, (guild_id,)) as cursor:
             rows = await cursor.fetchall()
 
     return rows, columns
@@ -128,6 +153,21 @@ async def load_schedule_db(
             schedules = schedules.loc[~schedules['active']]
 
     return schedules
+
+
+async def load_guild_schedule_settings(guild_id: int) -> pd.DataFrame:
+    """Loads the guild_schedule_settings for the required guild.
+
+    Args:
+        guild_id: The guild to load.
+
+    Returns:
+        A pandas dataframe containing the settings.
+    """
+    rows, columns = await _get_guild_schedule_settings(guild_id)
+    guild_schedule_settings = pd.DataFrame(rows, columns=columns)
+
+    return guild_schedule_settings
 
 
 async def load_friend_code_channels_db() -> pd.DataFrame:
@@ -961,3 +1001,85 @@ async def get_guild_raid_category(guild_id: int) -> bool:
             raid_category = await cursor.fetchone()
 
     return raid_category[0]
+
+
+async def check_schedule_settings_exists(guild_id: int) -> bool:
+    """Checks whether an entry exists for the guild in the guild_schedule_settings db.
+
+    Args:
+        guild_id: The guild id to check.
+
+    Returns:
+        'True' if exists, 'False' if not.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT EXISTS(SELECT 1 FROM guild_schedule_settings WHERE guild = ?)"
+        async with db.execute(query, (guild_id,)) as cursor:
+            exists = await cursor.fetchone()
+
+    return bool(exists[0])
+
+
+async def add_default_schedule_settings(guild_id: int) -> bool:
+    """Enters a row into the guild_schedule_settings table with default settings.
+
+    Args:
+        guild_id: The guild to enter.
+
+    Returns:
+        'True' if entry was successful, 'False' if not.
+    """
+    try:
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = (
+                "INSERT INTO guild_schedule_settings(guild, base_open_message, base_close_message, warning_time, "
+                "inactive_time, delay_time) VALUES (?, ?, ?, ?, ?, ?)"
+            )
+            params = (
+                guild_id,
+                DEFAULT_OPEN_MESSAGE,
+                DEFAULT_CLOSE_MESSAGE,
+                DEFAULT_WARNING_TIME,
+                DEFAULT_INACTIVE_TIME,
+                DEFAULT_DELAY_TIME
+            )
+            await db.execute(sql_command, params)
+            await db.commit()
+
+        return True
+
+    except Exception as e:
+        logger.error(e)
+        return False
+
+
+async def update_guild_schedule_settings(
+    guild_id: int,
+    column: str,
+    value: Union[str, bool, int]
+) -> bool:
+    """
+    Update a parameter of the guild schedule settings db.
+
+    Currently entered columns must be valid before use. No checks are
+    performed in the method itself.
+
+    Args:
+        guild_id: The guild_id to update.
+        column: The column name, or key, of the value to update.
+        value: The value to set.
+
+    Returns:
+        A bool to signify that the database transaction was successful
+        ('True') or not ('False').
+    """
+    try:
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = f"UPDATE guild_schedule_settings SET {column} = ? WHERE guild = ?"
+            await db.execute(sql_command, (value, guild_id))
+            await db.commit()
+
+        return True
+
+    except Exception as e:
+        return False
