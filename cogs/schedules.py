@@ -1531,6 +1531,11 @@ class Schedules(commands.GroupCog, name='schedules'):
                     delay_time = int(guild_schedule_settings['delay_time'])
 
                 channel = self.bot.get_channel(row.channel)
+
+                if channel is None:
+                    logger.warning(f"Channel {row.channel} is not found! Skipping schedule.")
+                    continue
+
                 role = get(channel.guild.roles, id=row.role)
                 # get current overwrites
                 overwrites = channel.overwrites_for(role)
