@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import traceback
 import sys
@@ -30,6 +31,7 @@ class Initial(commands.Cog):
         self.version = bot.my_version
 
         self.remove_zombie_schedules.start()
+        self.remove_zombie_guilds.start()
 
     # EVENT LISTENER FOR WHEN THE BOT HAS SWITCHED FROM OFFLINE TO ONLINE.
     @commands.Cog.listener()
@@ -92,7 +94,7 @@ class Initial(commands.Cog):
                 type(error), error, error.__traceback__, file=sys.stderr
             )
 
-    @tasks.loop(seconds=1800)
+    @tasks.loop(seconds=900)
     async def remove_zombie_schedules(self) -> None:
         """Runs a check of schedules to see if a channel has been deleted that was missed.
 
@@ -102,8 +104,12 @@ class Initial(commands.Cog):
 
         removed = 0
         schedules_df = await snorlax_db.load_schedule_db()
+        guilds_df = await snorlax_db.load_guild_db(active_only=True)
 
-        for _, row in schedules_df[['rowid', 'channel']].iterrows():
+        for _, row in schedules_df[['rowid', 'guild', 'channel']].iterrows():
+            # If a guild is not active then don't check.
+            if row['guild'] not in guilds_df.index:
+                continue
             channel = self.bot.get_channel(row['channel'])
             if channel is None:
                 logging.warning(f"Channel {row['channel']} not found! Dropping schedule {row['rowid']}.")
@@ -120,7 +126,51 @@ class Initial(commands.Cog):
 
         logging.info(f"Zombie schedules check completed: {removed} removed.")
 
+    @tasks.loop(seconds=900)
+    async def remove_zombie_guilds(self) -> None:
+        """Runs a check of guilds to see if a guild has left which was missed.
+
+        If a guild is no longer there then it is set to deactive in the DB and schedules deactivated.
+        """
+        logging.info("Performing zombie guilds check.")
+
+        removed = 0
+        guilds_df = await snorlax_db.load_guild_db(active_only=True)
+
+        # Remember that the index of the df is the guild id.
+        for guild_id in guilds_df.index:
+            # Make sure it is an integer
+            guild_id = int(guild_id)
+            guild = self.bot.get_guild(guild_id)
+            if guild is None:
+                logging.warning(f"Guild {guild_id} not found! Deactivating.")
+                # Set guild to inactive
+                ok = await snorlax_db.set_guild_active(guild_id, 0)
+                # Check for schedules and deactivate them all
+                schedules = await snorlax_db.load_schedule_db(guild_id=guild_id)
+                if not schedules.empty:
+                    logger.info(f'Deactivating all schedules for guild {guild_id}.')
+                    for rowid in schedules['rowid']:
+                        logger.info(f"Deactivating schedule: {rowid}.")
+                        ok = await snorlax_db.update_schedule(schedule_id=int(rowid), column='active', value=False)
+
+                removed += 1
+
+        logging.info(f"Zombie guilds check completed: {removed} deactivated.")
+
     @remove_zombie_schedules.before_loop
+    async def before_timer(self) -> None:
+        """
+        Method to process before the zombie check loop is started.
+
+        The purpose is to make sure the bot is ready before starting.
+        """
+        await self.bot.wait_until_ready()
+
+        # Delay by 1 min so zombie guild check can complete.
+        await asyncio.sleep(60)
+
+    @remove_zombie_guilds.before_loop
     async def before_timer(self) -> None:
         """
         Method to process before the zombie check loop is started.
