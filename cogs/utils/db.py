@@ -1102,8 +1102,10 @@ async def get_schedule_last_open_message(schedule_id: int) -> str:
         async with db.execute(query, (schedule_id,)) as cursor:
             last_open_message = await cursor.fetchone()
 
+    last_open_message = last_open_message[0]
+
     if last_open_message is not None:
-        last_open_message = int(last_open_message[0])
+        last_open_message = int(last_open_message)
 
     return last_open_message
 
@@ -1123,7 +1125,9 @@ async def get_schedule_last_close_message(schedule_id: int) -> str:
         async with db.execute(query, (schedule_id,)) as cursor:
             last_close_message = await cursor.fetchone()
 
+    last_close_message = last_close_message[0]
+
     if last_close_message is not None:
-        last_close_message = int(last_close_message[0])
+        last_close_message = int(last_close_message)
 
     return last_close_message
