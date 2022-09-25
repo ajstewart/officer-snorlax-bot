@@ -463,8 +463,8 @@ async def create_schedule(
             sql_command = (
                 "INSERT INTO schedules(guild, channel, role, channel_name, role_name, open, close, "
                 "open_message, close_message, warning, dynamic, dynamic_close, max_num_delays, "
-                "current_delay_num, silent, active) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "current_delay_num, silent, active, last_open_message, last_close_message) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             params = (
                 guild_id,
@@ -482,7 +482,9 @@ async def create_schedule(
                 max_num_delays,
                 0,
                 silent,
-                True
+                True,
+                0,  # last_open_message
+                0   # last_close_message
             )
             async with db.execute(sql_command, params) as cursor:
                 rowid = cursor.lastrowid
@@ -1083,3 +1085,45 @@ async def update_guild_schedule_settings(
 
     except Exception as e:
         return False
+
+
+async def get_schedule_last_open_message(schedule_id: int) -> str:
+    """
+    Fetches the channel id of the requested schedule.
+
+    Args:
+        schedule_id: The id of the schedule to obtain the close time for.
+
+    Returns:
+        The schedule channel id.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT last_open_message FROM schedules WHERE rowid = ?;"
+        async with db.execute(query, (schedule_id,)) as cursor:
+            last_open_message = await cursor.fetchone()
+
+    if last_open_message is not None:
+        last_open_message = int(last_open_message[0])
+
+    return last_open_message
+
+
+async def get_schedule_last_close_message(schedule_id: int) -> str:
+    """
+    Fetches the channel id of the requested schedule.
+
+    Args:
+        schedule_id: The id of the schedule to obtain the close time for.
+
+    Returns:
+        The schedule channel id.
+    """
+    async with aiosqlite.connect(DATABASE) as db:
+        query = "SELECT last_close_message FROM schedules WHERE rowid = ?;"
+        async with db.execute(query, (schedule_id,)) as cursor:
+            last_close_message = await cursor.fetchone()
+
+    if last_close_message is not None:
+        last_close_message = int(last_close_message[0])
+
+    return last_close_message

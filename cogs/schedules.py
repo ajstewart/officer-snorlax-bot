@@ -574,7 +574,7 @@ class Schedules(commands.GroupCog, name='schedules'):
             log_channel,
             guild_tz,
             time_format_fill,
-            row['rowid'],
+            int(row['rowid']),
             self.bot.user
         )
 
@@ -686,6 +686,7 @@ class Schedules(commands.GroupCog, name='schedules'):
             log_channel,
             guild_tz,
             time_format_fill,
+            int(row['rowid']),
             self.bot.user
         )
 
@@ -1192,7 +1193,26 @@ class Schedules(commands.GroupCog, name='schedules'):
         )
 
         if not silent:
-            await channel.send(embed=close_embed)
+            # Check for the previous messages to see if no one has said anything since the last open.
+            # If the last two messages are the previous open and close messages then these are removed
+            # to avoid clutter in the channel.
+            messages = [message async for message in channel.history(limit=2)]
+            messages_ids = [message.id for message in messages]
+
+            last_close_message = await snorlax_db.get_schedule_last_close_message(rowid)
+            last_open_message = await snorlax_db.get_schedule_last_open_message(rowid)
+
+            if last_close_message in messages_ids and last_open_message in messages_ids:
+                logger.info(f"Removing previous open and close messages for schedule: {rowid}.")
+                for message in messages:
+                    await message.delete()
+
+            # Send the new one
+            close_message = await channel.send(embed=close_embed)
+
+            # Update the DB with the new last close message.
+            logger.debug(f"Updating last close message for schedule {rowid} to {close_message.id}.")
+            ok = await snorlax_db.update_schedule(rowid, "last_close_message", close_message.id)
 
         overwrites.send_messages = False
         overwrites.send_messages_in_threads = False
@@ -1226,6 +1246,7 @@ class Schedules(commands.GroupCog, name='schedules'):
         log_channel: Optional[discord.TextChannel],
         tz: str,
         time_format_fill: str,
+        rowid: int,
         client_user: discord.User
     ) -> None:
         """
@@ -1243,6 +1264,7 @@ class Schedules(commands.GroupCog, name='schedules'):
             tz: Guild timezone as a string.
             time_format_fill: The string to fill in the closing time in the
                 open message.
+            rowid: The id of the schedule so the delay time can be reset.
             client_user: The bot user instance.
 
         Returns:
@@ -1271,7 +1293,9 @@ class Schedules(commands.GroupCog, name='schedules'):
         )
 
         if not silent:
-            await channel.send(embed=open_embed)
+            open_message = await channel.send(embed=open_embed)
+            logger.debug(f"Updating last open message for schedule {rowid} to {open_message.id}.")
+            await snorlax_db.update_schedule(rowid, "last_open_message", open_message.id)
 
         logger.info(
             f'Opened {channel.name} in {channel.guild.name}.'
@@ -1568,6 +1592,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                         log_channel,
                         tz,
                         time_format_fill,
+                        int(row['rowid']),
                         client_user
                     )
 
@@ -1674,7 +1699,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                             log_channel,
                             tz,
                             time_format_fill,
-                            row['rowid'],
+                            int(row['rowid']),
                             client_user
                         )
 
@@ -1755,7 +1780,7 @@ class Schedules(commands.GroupCog, name='schedules'):
                             log_channel,
                             tz,
                             time_format_fill,
-                            row['rowid'],
+                            int(row['rowid']),
                             client_user
                         )
 
