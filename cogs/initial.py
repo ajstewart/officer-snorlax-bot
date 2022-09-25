@@ -108,7 +108,7 @@ class Initial(commands.Cog):
 
         for _, row in schedules_df[['rowid', 'guild', 'channel']].iterrows():
             # If a guild is not active then don't check.
-            if row['guild'] not in guilds_df.index:
+            if row['guild'] not in guilds_df.index.to_numpy():
                 continue
             channel = self.bot.get_channel(row['channel'])
             if channel is None:
