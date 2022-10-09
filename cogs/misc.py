@@ -11,8 +11,8 @@ from dotenv import load_dotenv, find_dotenv
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
-from .utils.embeds import get_schedule_embed_for_user
-from .utils.utils import get_current_time
+from .utils.embeds import get_schedule_embed_for_user, get_message_embed
+from .utils.utils import get_current_time, get_hour_emoji
 
 
 logger = logging.getLogger()
@@ -53,9 +53,12 @@ class Miscellaneous(commands.Cog):
         """
         guild_tz = await snorlax_db.get_guild_tz(interaction.guild.id)
         the_time = get_current_time(guild_tz)
-        msg = f"The current time is {the_time.strftime('%I:%M %p %Z')}."
+        emoji = get_hour_emoji(the_time.strftime("%I:%M"))
+        msg = f"{emoji} **{the_time.strftime('%I:%M %p %Z')}**."
 
-        await interaction.response.send_message(msg, ephemeral=True)
+        embed = get_message_embed(msg=msg, msg_type='info')
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
         name='ping',

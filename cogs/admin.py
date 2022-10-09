@@ -2,7 +2,6 @@
 The admin cog which contains commands related to administrating the bot.
 """
 import discord
-import os
 import logging
 
 from discord import app_commands
@@ -16,7 +15,7 @@ from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
 from .utils import autocompletes as snorlax_autocompletes
 from .utils import log_msgs as snorlax_logs
-from .utils.embeds import get_admin_channel_embed, get_settings_embed
+from .utils.embeds import get_admin_channel_embed, get_settings_embed, get_message_embed
 
 
 logger = logging.getLogger()
@@ -49,8 +48,14 @@ class Admin(commands.GroupCog, name="admin"):
     ) -> None:
         if isinstance(error, discord.app_commands.errors.MissingPermissions):
             if 'administrator' in error.missing_permissions:
-                await interaction.response.send_message(
+
+                embed = get_message_embed(
                     "You do not have permission to use this command.",
+                    msg_type='error'
+                )
+
+                await interaction.response.send_message(
+                    embed=embed,
                     ephemeral=True
                 )
                 logger.error(error)
@@ -65,8 +70,14 @@ class Admin(commands.GroupCog, name="admin"):
                     await log_channel.send(embed=embed)
                     logger.info('Unauthorised command attempt notification sent to log channel.')
             else:
-                await interaction.response.send_message(
+
+                embed = get_message_embed(
                     "You do not have the correct permissions to use this command.",
+                    msg_type='error'
+                )
+
+                await interaction.response.send_message(
+                    embed=embed,
                     ephemeral=True
                 )
 
@@ -86,21 +97,39 @@ class Admin(commands.GroupCog, name="admin"):
         elif isinstance(error, app_commands.CheckFailure):
             if interaction.command.name == 'create-time-channel':
                 if 'manage_channels' in error.missing_permissions or 'connect' in error.missing_permissions:
-                    await interaction.response.send_message(
-                        (
+
+                    embed = get_message_embed(
+                        msg=(
                             "Permission error! Snorlax is missing the following permissions to create a time channel:\n"
-                            f"`{', '.join(error.missing_permissions)}` (`connect` may also be required)."
+                            f"`{', '.join(error.missing_permissions)}` (`connect` may also be required).",
                         ),
+                        msg_type='error'
+                    )
+
+                    await interaction.response.send_message(
+                        embed=embed,
                         ephemeral=True
                     )
                 else:
+
+                    embed = get_message_embed(
+                        "You can't use that here.",
+                        msg_type='error'
+                    )
+
                     await interaction.response.send_message(
-                            "You can't use that here.",
+                            embed=embed,
                             ephemeral=True
                         )
             else:
+
+                embed = get_message_embed(
+                    "You can't use that here.",
+                    msg_type='error'
+                )
+
                 await interaction.response.send_message(
-                        "You can't use that here.",
+                        embed=embed,
                         ephemeral=True
                     )
 
