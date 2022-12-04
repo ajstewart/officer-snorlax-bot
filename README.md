@@ -195,6 +195,8 @@ When creating the schedule Snorlax will check that it has the correct permission
 
 ![CloseAndOpen](/screenshots/CloseAndOpen.png)
 
+**Note**: If there is no activity in the channel since the last opening then the bot will self-tidy the opening and close messages in the channel to avoid clutter.
+
 ### Roles Not Affected By Schedule
 
 When creating the schedule, Snorlax will check if any roles have an explicit send message permission. This would mean that the schedule will have no effect for these roles. These will be communicated via a warning message upon creation like that shown below.
