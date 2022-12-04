@@ -1,6 +1,7 @@
 """Contains the views used throughout the bot
 """
 import discord
+from .embeds import get_message_embed
 
 
 class ScheduleDropdown(discord.ui.Select):
@@ -60,7 +61,8 @@ class ScheduleDropdown(discord.ui.Select):
         # the user's selected schedules.
         self.view.values = self.values
         msg = f"The {len(self.values)} selected schedule(s) will be {self.context_verbs[self.context]}."
-        await interaction.response.send_message(msg)
+        embed = get_message_embed(msg, msg_type='info')
+        await interaction.response.send_message(embed=embed)
         await self.view.disable_children()
         self.view.stop()
 
@@ -130,7 +132,9 @@ class ScheduleDropdownView(discord.ui.View):
         check_pass = self.user.id == interaction.user.id
 
         if not check_pass:
-            await interaction.response.send_message("You do not have permission to do that!", ephemeral=True)
+            msg = "You do not have permission to do that!"
+            embed = get_message_embed(msg, msg_type='error')
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
         return check_pass
 
@@ -171,7 +175,8 @@ class Confirm(discord.ui.View):
             interaction: The interaction instance.
             button: The button instance.
         """
-        await interaction.response.send_message('Confirmed!')
+        embed = get_message_embed('Confirmed!', msg_type='success')
+        await interaction.response.send_message(embed=embed)
         self.value = True
         await self.disable_children()
         self.stop()
@@ -187,7 +192,8 @@ class Confirm(discord.ui.View):
             interaction: The interaction instance.
             button: The button instance.
         """
-        await interaction.response.send_message('Cancelled!', ephemeral=True)
+        embed = get_message_embed('Cancelled!', msg_type='error')
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         self.value = False
         await self.disable_children()
         self.stop()
@@ -221,6 +227,8 @@ class Confirm(discord.ui.View):
         check_pass = self.user.id == interaction.user.id
 
         if not check_pass:
-            await interaction.response.send_message("You do not have permission to do that!", ephemeral=True)
+            msg = "You do not have permission to do that!"
+            embed = get_message_embed(msg, msg_type='error')
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
         return check_pass
