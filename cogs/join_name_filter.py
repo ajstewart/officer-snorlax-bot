@@ -42,7 +42,7 @@ class JoinNameFilter(commands.GroupCog, name="join-name-filter"):
         self.bot = bot
 
     @app_commands.command(
-        name='activate-join-name-filter',
+        name='activate',
         description="Turns on the 'join name' filter."
     )
     @app_commands.default_permissions(administrator=True)
@@ -78,7 +78,7 @@ class JoinNameFilter(commands.GroupCog, name="join-name-filter"):
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @app_commands.command(
-        name='deactivate-join-name-filter',
+        name='deactivate',
         description="Turns off the 'join name' filter."
     )
     @app_commands.default_permissions(administrator=True)
