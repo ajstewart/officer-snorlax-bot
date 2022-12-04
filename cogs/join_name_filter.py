@@ -13,6 +13,7 @@ from dotenv import load_dotenv, find_dotenv
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
+from .utils.embeds import get_message_embed
 from .utils.log_msgs import ban_log_embed
 
 
@@ -61,17 +62,20 @@ class JoinNameFilter(commands.GroupCog, name="join-name-filter"):
         join_filter = snorlax_db.get_guild_join_name_active(interaction.guild.id)
         if join_filter:
             msg = "The 'join name' filter is already activated."
+            embed = get_message_embed(msg, msg_type='warning')
             ephemeral = True
         else:
             ok = await snorlax_db.toggle_join_name_filter(interaction.guild, True)
             if ok:
                 msg = "'Join name' filter activated."
+                embed = get_message_embed(msg, msg_type='success')
                 ephemeral = False
             else:
                 msg = "Error when attempting to activate the 'Join name' filter"
+                embed = get_message_embed(msg, msg_type='error')
                 ephemeral = True
 
-        await interaction.response.send_message(msg, ephemeral=ephemeral)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @app_commands.command(
         name='deactivate-join-name-filter',
@@ -94,17 +98,20 @@ class JoinNameFilter(commands.GroupCog, name="join-name-filter"):
         join_filter = snorlax_db.get_guild_join_name_active(interaction.guild.id)
         if not join_filter:
             msg = "The 'join name' filter is already deactivated."
+            embed = get_message_embed(msg, msg_type='warning')
             ephemeral = True
         else:
             ok = await snorlax_db.toggle_join_name_filter(interaction.guild, False)
             if ok:
                 msg = "'Join name' filter deactivated."
+                embed = get_message_embed(msg, msg_type='success')
                 ephemeral = False
             else:
                 msg = "Error when attempting to deactivate the 'Join name' filter"
+                embed = get_message_embed(msg, msg_type='error')
                 ephemeral = True
 
-        await interaction.response.send_message(msg, ephemeral=ephemeral)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     # Handle new members
     @commands.Cog.listener()

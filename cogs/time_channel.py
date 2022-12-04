@@ -15,6 +15,7 @@ from typing import Optional
 from .utils import checks as snorlax_checks
 from .utils import utils as snorlax_utils
 from .utils import db as snorlax_db
+from .utils.embeds import get_message_embed
 from .utils.log_msgs import time_channel_reset_log_embed
 
 
@@ -74,10 +75,13 @@ class TimeChannel(commands.Cog):
 
         if time_channel_id != -1:
             time_channel = self.bot.get_channel(time_channel_id)
-            await interaction.response.send_message(
+
+            msg = (
                 f'Time channel {time_channel.mention} already exists!'
                 ' Delete this channel before creating a new one.'
             )
+            embed = get_message_embed(msg, msg_type='warning')
+            await interaction.response.send_message(embed=embed)
 
         else:
             overwrites = {}
@@ -108,10 +112,12 @@ class TimeChannel(commands.Cog):
                     f"{time_channel.mention} set as the Snorlax time channel successfully."
                     " The time is updated every 10 minutes."
                 )
+                embed = get_message_embed(msg, msg_type='success')
             else:
                 msg = "Error when setting the time channel."
+                embed = get_message_embed(msg, msg_type='error')
 
-            await interaction.response.send_message(msg)
+            await interaction.response.send_message(embed=embed)
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:

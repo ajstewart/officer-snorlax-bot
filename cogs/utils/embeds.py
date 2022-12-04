@@ -1,15 +1,12 @@
-"""Contains all the non-log embed messages used by the bot.
-"""
+"""Contains all the non-log embed messages used by the bot."""
 
 import datetime
 import discord
-import os
 import pandas as pd
 
 from discord import Embed
 from discord.utils import utcnow
-from dotenv import load_dotenv, find_dotenv
-from typing import Union
+from typing import Optional, Union
 
 
 def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
@@ -49,7 +46,7 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
             name="⚠️  Roles Warning",
             value=(
                 f"There are {num_warning_roles} roles(s) in <#{row.channel}> that the schedule will not apply to."
-                " Use the `/check-schedule-roles` command for more information!"
+                " Use the `/schedules check-schedule-roles` command for more information!"
             )
         )
 
@@ -89,13 +86,13 @@ def get_schedule_embed_for_user(schedule_db: pd.DataFrame, channel: discord.Text
             p_close = "PM" if close_hour >= 12 else "AM"
 
             embed.add_field(
-                name=f'Open ✅',
+                name='Open ✅',
                 value=f"{row['open']} {p_open}",
                 inline=True
             )
 
             embed.add_field(
-                name=f'Close ❌',
+                name='Close ❌',
                 value=f"{row['close']} {p_close}",
                 inline=True
             )
@@ -470,7 +467,7 @@ def get_schedule_overwrites_embed_all_ok(channel: discord.TextChannel) -> Embed:
 def get_admin_channel_embed(
     admin_channel
 ) -> Embed:
-    """Produces the open embed that is sent when a channel opens.
+    """Produces the embed message when the admin channel is not set.
 
     Args:
         admin_channel: The admin channel for the guild.
@@ -490,5 +487,45 @@ def get_admin_channel_embed(
         description=description,
         color=15158332
     )
+
+    return embed
+
+
+def get_message_embed(msg: str, msg_type: str, title: Optional[str] = None) -> Embed:
+    """Return a generic embed with the provided message and type.
+
+    Args:
+        msg: The message to display.
+        msg_type: The type of message, one of 'info', 'error', 'warning' or 'success'.
+            This selects the colour of the embed.
+        title: An optional title of the embed.
+
+    Returns:
+        The discord embed object.
+
+    Raises:
+        ValueError: If the msg_type is not valid.
+    """
+    msg_colors = {
+        'info': 2061822,
+        'error': 15158332,
+        'success': 3066993,
+        'warning': 16756290
+    }
+
+    msg_type = msg_type.lower()
+
+    if msg_type not in msg_colors:
+        raise ValueError(
+            f"Message type '{msg_type}' is not valid! (valid: {', '.join(msg_colors.keys())})"
+        )
+
+    embed = Embed(
+        color=msg_colors[msg_type],
+        description=msg
+    )
+
+    if title is not None:
+        embed.title = title
 
     return embed

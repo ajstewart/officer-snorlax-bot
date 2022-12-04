@@ -16,6 +16,8 @@ aiosqlite = "^0.17.0"
 [tool.poetry.dev-dependencies]
 pycodestyle = "^2.9.1"
 pytest = "^7.1.2"
+flake8 = "^5.0.4"
+pydocstyle = "^6.1.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -1,7 +1,7 @@
 """Contains all the database operations performed by the bot."""
 
-from asyncio.log import logger
 import aiosqlite
+import logging
 import os
 import pandas as pd
 
@@ -29,7 +29,7 @@ async def _get_schedule_db() -> tuple[tuple[Any], tuple[str]]:
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute(f'PRAGMA table_info(schedules);') as cursor:
+        async with db.execute('PRAGMA table_info(schedules);') as cursor:
             columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
         async with db.execute("SELECT rowid, * FROM schedules") as cursor:
             rows = await cursor.fetchall()
@@ -48,7 +48,7 @@ async def _get_single_schedule(rowid: int) -> tuple[tuple[Any], tuple[str]]:
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute(f'PRAGMA table_info(schedules);') as cursor:
+        async with db.execute('PRAGMA table_info(schedules);') as cursor:
             columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
         query = "SELECT rowid, * FROM schedules WHERE rowid = ?"
         async with db.execute(query, (rowid,)) as cursor:
@@ -68,7 +68,7 @@ async def _get_guild_schedule_settings(guild_id: int) -> tuple[tuple[Any], tuple
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute(f'PRAGMA table_info(guild_schedule_settings);') as cursor:
+        async with db.execute('PRAGMA table_info(guild_schedule_settings);') as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
         query = "SELECT * FROM guild_schedule_settings WHERE guild = ?"
         async with db.execute(query, (guild_id,)) as cursor:
@@ -85,7 +85,7 @@ async def _get_guild_db():
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute(f'PRAGMA table_info(guilds);') as cursor:
+        async with db.execute('PRAGMA table_info(guilds);') as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
         async with db.execute("SELECT * FROM guilds") as cursor:
             rows = await cursor.fetchall()
@@ -101,7 +101,7 @@ async def _get_fc_channels_db():
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute(f'PRAGMA table_info(fc_channels);') as cursor:
+        async with db.execute('PRAGMA table_info(fc_channels);') as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
         async with db.execute("SELECT * FROM fc_channels") as cursor:
             rows = await cursor.fetchall()
@@ -744,7 +744,7 @@ async def add_guild(guild: Guild) -> bool:
         return True
 
     except Exception as e:
-        logger.error(e)
+        logging.error(e)
         return False
 
 
@@ -1051,7 +1051,7 @@ async def add_default_schedule_settings(guild_id: int) -> bool:
         return True
 
     except Exception as e:
-        logger.error(e)
+        logging.error(e)
         return False
 
 

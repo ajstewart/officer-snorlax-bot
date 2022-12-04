@@ -2,7 +2,6 @@
 The admin cog which contains commands related to administrating the bot.
 """
 import discord
-import os
 import logging
 
 from discord import app_commands
@@ -16,7 +15,7 @@ from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
 from .utils import autocompletes as snorlax_autocompletes
 from .utils import log_msgs as snorlax_logs
-from .utils.embeds import get_admin_channel_embed, get_settings_embed
+from .utils.embeds import get_admin_channel_embed, get_settings_embed, get_message_embed
 
 
 logger = logging.getLogger()
@@ -49,8 +48,14 @@ class Admin(commands.GroupCog, name="admin"):
     ) -> None:
         if isinstance(error, discord.app_commands.errors.MissingPermissions):
             if 'administrator' in error.missing_permissions:
-                await interaction.response.send_message(
+
+                embed = get_message_embed(
                     "You do not have permission to use this command.",
+                    msg_type='error'
+                )
+
+                await interaction.response.send_message(
+                    embed=embed,
                     ephemeral=True
                 )
                 logger.error(error)
@@ -65,8 +70,14 @@ class Admin(commands.GroupCog, name="admin"):
                     await log_channel.send(embed=embed)
                     logger.info('Unauthorised command attempt notification sent to log channel.')
             else:
-                await interaction.response.send_message(
+
+                embed = get_message_embed(
                     "You do not have the correct permissions to use this command.",
+                    msg_type='error'
+                )
+
+                await interaction.response.send_message(
+                    embed=embed,
                     ephemeral=True
                 )
 
@@ -86,33 +97,59 @@ class Admin(commands.GroupCog, name="admin"):
         elif isinstance(error, app_commands.CheckFailure):
             if interaction.command.name == 'create-time-channel':
                 if 'manage_channels' in error.missing_permissions or 'connect' in error.missing_permissions:
-                    await interaction.response.send_message(
-                        (
+
+                    embed = get_message_embed(
+                        msg=(
                             "Permission error! Snorlax is missing the following permissions to create a time channel:\n"
-                            f"`{', '.join(error.missing_permissions)}` (`connect` may also be required)."
+                            f"`{', '.join(error.missing_permissions)}` (`connect` may also be required).",
                         ),
+                        msg_type='error'
+                    )
+
+                    await interaction.response.send_message(
+                        embed=embed,
                         ephemeral=True
                     )
                 else:
+
+                    embed = get_message_embed(
+                        "You can't use that here.",
+                        msg_type='error'
+                    )
+
                     await interaction.response.send_message(
-                            "You can't use that here.",
+                            embed=embed,
                             ephemeral=True
                         )
             else:
+
+                embed = get_message_embed(
+                    "You can't use that here.",
+                    msg_type='error'
+                )
+
                 await interaction.response.send_message(
-                        "You can't use that here.",
+                        embed=embed,
                         ephemeral=True
                     )
 
         elif isinstance(error, app_commands.errors.CommandInvokeError) and "Missing Permissions" in str(error):
+            err_embed = get_message_embed(
+                "A permissions error has occurred. Does Snorlax have the correct permissions?",
+                msg_type='error'
+            )
             await interaction.response.send_message(
-                    "A permissions error has occurred. Does Snorlax have the correct permissions?",
+                    embed=err_embed,
                     ephemeral=True
                 )
             logger.error(error, exc_info=True)
         else:
+            err_embed = get_message_embed(
+                "Unexpected error occurred, contact administrator.",
+                msg_type='error'
+            )
             await interaction.response.send_message(
-                    "Unexpected error occurred, contact administrator.",
+                    embed=err_embed,
                     ephemeral=True
                 )
             logger.error(type(error))
@@ -130,8 +167,7 @@ class Admin(commands.GroupCog, name="admin"):
         interaction: discord.Interaction,
         channel: discord.TextChannel
     ) -> None:
-        """
-        Sets the admin channel for a guild.
+        """Set the admin channel for a guild.
 
         Args:
             interaction: The interaction that triggered the request.
@@ -143,11 +179,17 @@ class Admin(commands.GroupCog, name="admin"):
         guild = interaction.guild
         ok = await snorlax_db.add_guild_admin_channel(guild, channel)
         if ok:
-            msg = f"{channel.mention} set as the Snorlax admin channel successfully."
+            embed = get_message_embed(
+                f"{channel.mention} set as the Snorlax admin channel successfully.",
+                msg_type='success'
+            )
         else:
-            msg = "Error when setting the admin channel."
+            embed = get_message_embed(
+                "Error when setting the admin channel.",
+                msg_type='error'
+            )
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="set-log-channel",
@@ -175,11 +217,17 @@ class Admin(commands.GroupCog, name="admin"):
         guild = interaction.guild
         ok = await snorlax_db.add_guild_log_channel(guild, channel)
         if ok:
-            msg = f"{channel.mention} set as the Snorlax log channel successfully."
+            embed = get_message_embed(
+                f"{channel.mention} set as the Snorlax log channel successfully.",
+                msg_type='success',
+            )
         else:
-            msg = "Error when setting the log channel."
+            embed = get_message_embed(
+                "Error when setting the log channel.",
+                msg_type='success'
+            )
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name='set-pokenav-raid-category',
@@ -215,10 +263,11 @@ class Admin(commands.GroupCog, name="admin"):
                 f"**{cat_name.upper()}** set as the Pokenav raid category successfully."
                 " Make sure Snorlax has the correct permissions!"
             )
+            embed = get_message_embed(msg, msg_type='success')
         else:
-            msg = "Error when setting the Pokenav raid channel."
+            embed = get_message_embed("Error when setting the Pokenav raid channel.", msg_type='error')
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name='reset-pokenav-raid-category',
@@ -241,11 +290,11 @@ class Admin(commands.GroupCog, name="admin"):
         guild = interaction.guild
         ok = await snorlax_db.add_guild_meowth_raid_category(guild)
         if ok:
-            msg = "Pokenav raid category has been reset."
+            embed = get_message_embed("Pokenav raid category has been reset.", msg_type='success')
         else:
-            msg = "Error when setting the Pokenav raid channel."
+            embed = get_message_embed("Error when setting the Pokenav raid channel.", msg_type='error')
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="set-timezone",
@@ -272,11 +321,11 @@ class Admin(commands.GroupCog, name="admin"):
         """
         ok = await snorlax_db.add_guild_tz(interaction.guild, tz)
         if ok:
-            msg = f"{tz} set as the timezone successfully."
+            embed = get_message_embed(f"{tz} set as the timezone successfully.", msg_type='success')
         else:
-            msg = "Error when setting the timezone."
+            embed = get_message_embed("Error when setting the timezone.", msg_type='error')
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name='set-prefix',
@@ -302,16 +351,17 @@ class Admin(commands.GroupCog, name="admin"):
         guild_id = interaction.guild.id
 
         if len(prefix) > 3:
-            await interaction.response.send_message("Prefix must be 3 or less characters.", ephemeral=True)
+            embed = get_message_embed("Prefix must be 3 or less characters.", msg_type='warning')
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         ok = await snorlax_db.set_guild_prefix(guild_id, prefix)
         if ok:
-            msg = f"`{prefix}` set as the prefix for Snorlax successfully."
+            embed = get_message_embed(f"`{prefix}` set as the prefix for Snorlax successfully.", msg_type='success')
         else:
-            msg = "Error when setting the prefix."
+            embed = get_message_embed("Error when setting the prefix.", msg_type='error')
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="show-settings",
@@ -337,7 +387,7 @@ class Admin(commands.GroupCog, name="admin"):
         guild_db = await snorlax_db.load_guild_db()
         if guild_id not in guild_db.index:
             await interaction.response.send_message(
-                "Settings have not been configured for this guild.",
+                embed=get_message_embed("Settings have not been configured for this guild.", msg_type='error'),
                 ephemeral=True
             )
         else:
@@ -345,7 +395,10 @@ class Admin(commands.GroupCog, name="admin"):
             guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(guild_id)
             if guild_schedule_settings.empty:
                 await interaction.response.send_message(
-                    'Guild schedule settings failed to load! Contact admin.',
+                    embed=get_message_embed(
+                        'Guild schedule settings failed to load! Contact admin.',
+                        msg_type='error'
+                    ),
                     ephemeral=True
                 )
             else:
@@ -363,16 +416,16 @@ class Admin(commands.GroupCog, name="admin"):
     @commands.check(snorlax_checks.check_bot)
     @commands.is_owner()
     async def shutdown(self, ctx: commands.context) -> None:
-        """
-        Function to force the bot to shutdown.
+        """Force the bot to shutdown.
+
         Args:
             ctx: The command context containing the message content and other
                 metadata.
         Returns:
             None
         """
-
-        await ctx.channel.send("Snorlax is shutting down.")
+        embed = get_message_embed("Snorlax is shutting down.", msg_type='info')
+        await ctx.channel.send(embed=embed)
 
         await self.bot.close()
 
@@ -425,7 +478,10 @@ class Admin(commands.GroupCog, name="admin"):
                 synced = await ctx.bot.tree.sync()
 
             await ctx.send(
-                f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+                embed=get_message_embed(
+                    f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}",
+                    msg_type='info'
+                )
             )
             return
 
@@ -438,7 +494,7 @@ class Admin(commands.GroupCog, name="admin"):
             else:
                 ret += 1
 
-        await ctx.send(f"Synced the tree to {ret} / {len(guilds)}.")
+        await ctx.send(embed=get_message_embed(f"Synced the tree to {ret} / {len(guilds)}.", msg_type='success'))
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild) -> None:
@@ -523,18 +579,19 @@ class Admin(commands.GroupCog, name="admin"):
             ok = await snorlax_db.add_guild_admin_channel(guild, admin_channel)
 
             welcome_message = (
-                "Hi! This is where admin commands for Snorlax can be used.\n\n"
+                "This is where admin commands for Snorlax can be used.\n\n"
                 "If you would like to use an existing channel instead, use the the '/admin set-admin-channel' slash "
-                "command to change it.\n\nAvailable commands can be seen using the slash command interface or by "
-                f"visiting the documentation available here: {self.bot.docs}.\n\nBelow are the default settings for "
-                "the server."
+                "command to change it.\n\nAvailable commands can be seen using the slash command interface."
+                "\n\nBelow are the default settings for the server."
             )
+
+            welcome_embed = get_message_embed(welcome_message, msg_type='info', title='Hello!')
 
             guild_db = await snorlax_db.load_guild_db(active_only=True)
             guild_settings = guild_db.loc[int(guild.id)]
             embed = get_settings_embed(guild, guild_settings)
 
-            await admin_channel.send(welcome_message, embed=embed)
+            await admin_channel.send(embeds=[welcome_embed, embed])
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild) -> None:
