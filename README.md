@@ -161,7 +161,9 @@ When the channel is updated it will appear as so:
 
 ![Time Example](/screenshots/time_display_example.png)
 
-## Schedule Creation
+## Schedules
+
+### Creating a Schedule
 
 To add an open and close schedule you can use the command:
 
@@ -300,6 +302,22 @@ This can be done with the commands:
 ![manual-close-success](/screenshots/manual-close-success.png)
 
 **Manual opening and closing only works on channels with an active schedule!**
+
+### Schedule Global Settings
+
+The following schedules settings apply to all schedules created on the server:
+
+![schedule-settings](/screenshots/schedules-settings.png)
+
+The open and close messages are the base messages that are included with every command. The warning time governs how long before a closure a warning is issued. The inactive and delay times related to the dynamic scheduling behaviour.
+
+These settings can be set using the commands under the command group:
+
+```
+/schedules-settings
+```
+
+![schedules-settings-commands](/screenshots/schedule-settings-commands.png)
 
 ## Friend Code Filtering
 
