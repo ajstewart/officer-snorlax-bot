@@ -46,7 +46,7 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
             name="⚠️  Roles Warning",
             value=(
                 f"There are {num_warning_roles} roles(s) in <#{row.channel}> that the schedule will not apply to."
-                " Use the `/check-schedule-roles` command for more information!"
+                " Use the `/schedules check-schedule-roles` command for more information!"
             )
         )
 

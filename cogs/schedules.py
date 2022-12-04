@@ -838,10 +838,12 @@ class Schedules(commands.GroupCog, name='schedules'):
 
         embed = snorlax_embeds.get_schedule_embed(schedule_df)
 
+        msg = f"Are you sure you want to delete the schedule for <#{schedule_channel_id}>?"
+        msg_embed = snorlax_embeds.get_message_embed(msg, msg_type='warning')
+
         out = await interaction.channel.send(
-            f"Are you sure you want to delete the schedule for <#{schedule_channel_id}>?",
             view=view,
-            embed=embed
+            embeds=[msg_embed, embed]
         )
 
         view.response = out
@@ -926,10 +928,12 @@ class Schedules(commands.GroupCog, name='schedules'):
 
             confirm_view = snorlax_views.Confirm(user=interaction.user)
 
+            msg = f"Are you sure you want to delete the {len(schedules_to_delete)} selected schedules?"
+            msg_embed = snorlax_embeds.get_message_embed(msg, msg_type='warning')
+
             confirm_out = await interaction.channel.send(
-                f"Are you sure you want to delete the {len(schedules_to_delete)} selected schedules?",
                 view=confirm_view,
-                embed=embed
+                embeds=[msg_embed, embed]
             )
 
             confirm_view.response = confirm_out
@@ -1001,11 +1005,15 @@ class Schedules(commands.GroupCog, name='schedules'):
         view = snorlax_views.Confirm(interaction.user, timeout=30)
         embed = snorlax_embeds.get_schedule_embed(schedules)
 
-        out = await interaction.channel.send(
+        msg = (
             "Are you sure you want to remove all "
-            f"{schedules.shape[0]} schedules?",
+            f"{schedules.shape[0]} schedules?"
+        )
+        msg_embed = snorlax_embeds.get_message_embed(msg, 'warning')
+
+        out = await interaction.channel.send(
             view=view,
-            embed=embed
+            embeds=[msg_embed, embed]
         )
 
         view.response = out
