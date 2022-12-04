@@ -1,5 +1,7 @@
 *.pyc
 .env
 *.db
+*.db.bk
 *.log
 .DS_Store
+alembic.ini

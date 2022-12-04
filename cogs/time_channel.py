@@ -1,24 +1,28 @@
-from discord.ext import commands, tasks
-from discord import TextChannel, VoiceChannel
-from typing import Optional
+"""The time channel cog.
+"""
+import asyncio
+import datetime
 import discord
 import logging
-import datetime
-import asyncio
+
+from discord.ext import commands, tasks
+from discord import app_commands
+from discord.abc import GuildChannel
 from discord.utils import get
-from .utils.checks import (
-    check_admin,
-    check_admin_channel,
-    check_bot,
-)
-from .utils.utils import get_current_time, get_hour_emoji
-from .utils.db import add_guild_time_channel, load_guild_db
 from discord.errors import DiscordServerError, Forbidden
+from typing import Optional
+
+from .utils import checks as snorlax_checks
+from .utils import utils as snorlax_utils
+from .utils import db as snorlax_db
+from .utils.embeds import get_message_embed
+from .utils.log_msgs import time_channel_reset_log_embed
 
 
 logger = logging.getLogger()
 
 
+@app_commands.default_permissions(administrator=True)
 class TimeChannel(commands.Cog):
     """
     The cog that manages all aspects of the Time channel, for which there
@@ -42,74 +46,102 @@ class TimeChannel(commands.Cog):
         )
         self.time_channels_manager.start()
 
-    @commands.command(
-        help=(
-            "Activates a channel as a 'time channel'. Which means the channel"
-            " will become purely a channel to display the current local time"
-            " in the channel name."
-        ),
-        brief="Set a channel as the time channel."
+    @app_commands.command(
+        name='create-time-channel',
+        description=(
+            'Create a voice channel that will display the local time (according to the '
+            'server timezone setting.'
+        )
     )
-    @commands.check(check_bot)
-    @commands.check(check_admin)
-    @commands.check(check_admin_channel)
-    async def setTimeChannel(
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    @app_commands.check(snorlax_checks.check_admin_channel)
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.checks.bot_has_permissions(manage_channels=True, connect=True)
+    async def createTimeChannel(
         self,
-        ctx: commands.context,
-        channel: VoiceChannel
+        interaction: discord.Interaction,
+        category: Optional[discord.CategoryChannel] = None
     ) -> None:
-        """
-        Command to set the time channel for the server.
+        """Creates a voice channel that will display the local server time.
+
+        Time is determined using the set server timezone.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            channel: The voice channel to set as the time channel.
-
-        Returns:
-            None
+            interaction: The interaction containing the request.
         """
-        guild = ctx.guild
-        ok = add_guild_time_channel(guild, channel)
-        if ok:
+        # Check if time channel already exists.
+        time_channel_id = await snorlax_db.get_guild_time_channel(interaction.guild.id)
+
+        if time_channel_id != -1:
+            time_channel = self.bot.get_channel(time_channel_id)
+
             msg = (
-                "{} set as the Snorlax time channel successfully."
-                " Make sure Snorlax has the correct permissions!".format(
-                    channel.mention
-                )
+                f'Time channel {time_channel.mention} already exists!'
+                ' Delete this channel before creating a new one.'
             )
-            # Make sure the channel permissions are set
-            role = ctx.guild.default_role
-            overwrites = channel.overwrites_for(role)
-            overwrites.connect = False
-            await channel.set_permissions(role, overwrite=overwrites)
+            embed = get_message_embed(msg, msg_type='warning')
+            await interaction.response.send_message(embed=embed)
+
         else:
-            msg = (
-                "Error when setting the time channel."
+            overwrites = {}
+
+            # Give bot permission to connect to channel
+            bot_role = interaction.guild.self_role
+            overwrites[bot_role] = discord.PermissionOverwrite(
+                connect=True
             )
 
-        await ctx.channel.send(msg)
+            # block everybody from connecting
+            default_role = interaction.guild.default_role
+            overwrites[default_role] = discord.PermissionOverwrite(
+                connect=False
+            )
 
+            time_channel = await interaction.guild.create_voice_channel(
+                'temp-time-channel',
+                overwrites=overwrites,
+                category=category,
+                reason='Channel created for Snorlax to display time.'
+            )
 
-    @setTimeChannel.error
-    async def setTimeChannel_error(self, ctx: commands.context, error) -> None:
+            ok = await snorlax_db.add_guild_time_channel(interaction.guild, time_channel)
+
+            if ok:
+                msg = (
+                    f"{time_channel.mention} set as the Snorlax time channel successfully."
+                    " The time is updated every 10 minutes."
+                )
+                embed = get_message_embed(msg, msg_type='success')
+            else:
+                msg = "Error when setting the time channel."
+                embed = get_message_embed(msg, msg_type='error')
+
+            await interaction.response.send_message(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
         """
-        Handles any error from setTimeChannel.
+        Checks on a channel deletion whether the channel was the time channel.
 
         Args:
-            ctx: The command context containing the message content and other
-                metadata.
-            error (Exception): The actual exception that could be a range of
-                error types.
+            channel: The deleted channel object.
 
         Returns:
             None
         """
-        if isinstance(error, commands.BadArgument):
-            await ctx.send(
-                'Channel not found. Hint: It must be a voice channel!'
-            )
+        guild_id = channel.guild.id
 
+        if channel.id == await snorlax_db.get_guild_time_channel(guild_id):
+            # No channel entry resets the time channel.
+            ok = await snorlax_db.add_guild_time_channel(channel.guild)
+            if ok:
+                log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
+                if log_channel != -1:
+                    log_channel = get(channel.guild.channels, id=int(log_channel))
+                    log_embed = time_channel_reset_log_embed(channel)
+                    await log_channel.send(embed=log_embed)
+                logger.info(f'Time channel reset for guild {channel.guild.name}.')
 
     @tasks.loop(minutes=10)
     async def time_channels_manager(self) -> None:
@@ -120,8 +152,7 @@ class TimeChannel(commands.Cog):
         Returns:
             None
         """
-        client_user = self.bot.user
-        guild_db = load_guild_db()
+        guild_db = await snorlax_db.load_guild_db(active_only=True)
 
         # check if there are actually any time channels set
         guild_db = guild_db.loc[guild_db['time_channel'] != -1]
@@ -129,7 +160,7 @@ class TimeChannel(commands.Cog):
             for tz in guild_db['tz'].unique():
                 guilds = guild_db.loc[guild_db['tz'] == tz]
 
-                now = get_current_time(tz=tz)
+                now = snorlax_utils.get_current_time(tz=tz)
 
                 for i in guilds['time_channel']:
                     try:
@@ -137,7 +168,7 @@ class TimeChannel(commands.Cog):
                         time_channel = self.bot.get_channel(time_channel_id)
 
                         new_name = now.strftime("%I:%M %p %Z")
-                        new_name = get_hour_emoji(new_name[:5]) + " " + new_name
+                        new_name = snorlax_utils.get_hour_emoji(new_name[:5]) + " " + new_name
 
                         await time_channel.edit(name=new_name)
 
@@ -152,7 +183,6 @@ class TimeChannel(commands.Cog):
                         logger.error(f'Error: {e}')
         else:
             logger.warning('No time channels set skipping loop.')
-
 
     @time_channels_manager.before_loop
     async def before_timer(self):
@@ -176,3 +206,18 @@ class TimeChannel(commands.Cog):
         )
 
         await asyncio.sleep(sleep_time)
+
+
+async def setup(bot: commands.bot) -> None:
+    """The setup function to initiate the cog.
+
+    Args:
+        bot: The bot for which the cog is to be added.
+    """
+    if bot.test_guild is not None:
+        await bot.add_cog(
+            TimeChannel(bot),
+            guild=discord.Object(id=bot.test_guild)
+        )
+    else:
+        await bot.add_cog(TimeChannel(bot))

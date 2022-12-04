@@ -2,9 +2,11 @@
 Contains the embeds that are used as part of the logging.
 """
 import datetime
+import discord
 import pytz
 
-from discord import TextChannel, Embed, Message, User
+from discord import app_commands
+from discord.utils import utcnow
 from dotenv import load_dotenv, find_dotenv
 from typing import Optional
 
@@ -13,26 +15,23 @@ load_dotenv(find_dotenv())
 
 
 def filter_delete_log_embed(
-    message: Message,
-    tz: str,
+    message: discord.Message,
     reason: Optional[str] = "None"
-) -> Embed:
+) -> discord.Embed:
     """
     Create an embed to send to the logging channel upon a filter message
     deletion.
 
     Args:
         message: The message that triggered the filter.
-        tz: The timezone of the guild.
         reason: The reason of the deletion.
 
     Returns:
         The Discord Embed object to send to the log channel.
     """
-    tz = pytz.timezone(tz)
-    now = datetime.datetime.now(tz=tz)
+    now = utcnow()
     user = message.author
-    embed = Embed(
+    embed = discord.Embed(
         description=(
             f'**Message from {user.mention} deleted in '
             f'{message.channel.mention}**\n{message.content}'
@@ -40,9 +39,10 @@ def filter_delete_log_embed(
         timestamp=now,
         color=2061822
     )
+
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar_url
+        icon_url=user.display_avatar
     )
     embed.add_field(
         name="Reason",
@@ -56,10 +56,10 @@ def filter_delete_log_embed(
 
 
 def ban_log_embed(
-    user: User,
+    user: discord.User,
     tz: str,
     reason: Optional[str] = "None"
-) -> Embed:
+) -> discord.Embed:
     """
     Create an embed to send to the logging channel on the event of a member
     being banned using the join name filter.
@@ -74,14 +74,14 @@ def ban_log_embed(
     """
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
-    embed = Embed(
+    embed = discord.Embed(
         description=f'**New joiner {user.mention} banned**',
         timestamp=now,
         color=10038562
     )
     embed.set_author(
         name=f"{user.name}#{user.discriminator}",
-        icon_url=user.avatar_url
+        icon_url=user.display_avatar
     )
     embed.add_field(
         name="Reason",
@@ -95,13 +95,13 @@ def ban_log_embed(
 
 
 def schedule_log_embed(
-    channel: TextChannel,
+    channel: discord.TextChannel,
     tz: str,
     stype: str,
     delay_mins: int = -1,
     delay_num: int = -1,
     max_delay_num: int = -1
-) -> Embed:
+) -> discord.Embed:
     """
     Create an embed to send to the logging channel for channel schedule events.
 
@@ -158,7 +158,7 @@ def schedule_log_embed(
 
     tz = pytz.timezone(tz)
     now = datetime.datetime.now(tz=tz)
-    embed = Embed(
+    embed = discord.Embed(
         title=titles[stype],
         description=descriptions[stype],
         timestamp=now,
@@ -167,7 +167,153 @@ def schedule_log_embed(
 
     embed.set_author(
         name=f"{channel.guild.name}",
-        icon_url=channel.guild.icon_url
+        icon_url=channel.guild.icon
+    )
+
+    return embed
+
+
+def fc_channel_removed_log_embed(channel: discord.TextChannel) -> discord.Embed:
+    """
+    Create an embed to send to the logging channel upon a filter message
+    deletion.
+
+    Args:
+        channel: The channel that has been removed.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = discord.Embed(
+        description=(
+            f'Channel **#{channel.name}** has been removed from the allowed friend codes list.'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{channel.guild.name}",
+        icon_url=channel.guild.icon
+    )
+    embed.add_field(
+        name="Reason",
+        value="Channel has been deleted."
+    )
+
+    return embed
+
+
+def time_channel_reset_log_embed(channel: discord.TextChannel) -> discord.Embed:
+    """
+    Create an embed to send to the logging channel upon a time channel deletion.
+
+    Args:
+        channel: The channel that has been removed.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = discord.Embed(
+        description=(
+            f'Time channel has been reset.'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{channel.guild.name}",
+        icon_url=channel.guild.icon
+    )
+    embed.add_field(
+        name="Reason",
+        value=f"Deletion of time channel **#{channel.name}**."
+    )
+
+    return embed
+
+
+def schedules_deleted_log_embed(channel: discord.TextChannel, id: int) -> discord.Embed:
+    """
+    Create an embed to send to the logging channel upon a channel deletion that had a schedule.
+
+    Args:
+        channel: The channel which schedules have been removed.
+        id: The id of the schedule removed.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = discord.Embed(
+        description=(
+            f'Schedule ID {id} has been deleted.'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{channel.guild.name}",
+        icon_url=channel.guild.icon
+    )
+    embed.add_field(
+        name="Reason",
+        value=f"Deletion of channel **#{channel.name}**."
+    )
+
+    return embed
+
+
+def attempted_app_command_embed(
+    command: app_commands.Command,
+    channel: discord.TextChannel,
+    user: discord.User
+) -> discord.Embed:
+    """
+    Create an embed to send to the logging channel that a user attempted to use an admin command.
+
+    Args:
+        command: The app command that was attempted to be used.
+        channel: The channel where it was attempted.
+        user: The user who attempted the command.
+
+    Returns:
+        The Discord Embed object to send to the log channel.
+    """
+    now = utcnow()
+    embed = discord.Embed(
+        description=(
+            f'Unauthorised command attempted!'
+        ),
+        timestamp=now,
+        color=15105570
+    )
+
+    embed.set_author(
+        name=f"{user.name}#{user.discriminator}",
+        icon_url=user.display_avatar
+    )
+
+    embed.add_field(
+        name="User",
+        value=f"{user.mention} (id: {user.id})",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Command",
+        value=f"{command.name}",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Channel",
+        value=f"{channel.mention}",
+        inline=False
     )
 
     return embed
