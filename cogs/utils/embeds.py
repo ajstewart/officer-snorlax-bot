@@ -494,12 +494,23 @@ def get_admin_channel_embed(
 def get_message_embed(msg: str, msg_type: str, title: Optional[str] = None) -> Embed:
     """Return a generic embed with the provided message and type.
 
+    Args:
+        msg: The message to display.
+        msg_type: The type of message, one of 'info', 'error', 'warning' or 'success'.
+            This selects the colour of the embed.
+        title: An optional title of the embed.
 
+    Returns:
+        The discord embed object.
+
+    Raises:
+        ValueError: If the msg_type is not valid.
     """
     msg_colors = {
         'info': 2061822,
         'error': 15158332,
-        'success': 3066993
+        'success': 3066993,
+        'warning': 16756290
     }
 
     msg_type = msg_type.lower()
