@@ -8,7 +8,7 @@ from discord.utils import get
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
-from .utils.embeds import get_friend_channels_embed
+from .utils.embeds import get_friend_channels_embed, get_message_embed
 from .utils import log_msgs as snorlax_log
 
 
@@ -64,6 +64,7 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
             msg = (
                 "Channel is already in the whitelist."
             )
+            embed = get_message_embed(msg, msg_type='warning')
             ephemeral = True
         else:
             ok = await snorlax_db.add_allowed_friend_code_channel(guild, channel, secret)
@@ -73,14 +74,16 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
                         channel.mention
                     )
                 )
+                embed = get_message_embed(msg, msg_type='success')
                 ephemeral = False
             else:
                 msg = (
                     "Error when adding the channel to the friend code whitelist."
                 )
+                embed = get_message_embed(msg, msg_type='error')
                 ephemeral = True
 
-        await interaction.response.send_message(msg, ephemeral=ephemeral)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @app_commands.command(
         name='list',
@@ -103,8 +106,12 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         """
         friend_db = await snorlax_db.load_friend_code_channels_db()
         if interaction.guild.id not in friend_db['guild'].values:
-            await interaction.response.send_message(
+            embed = get_message_embed(
                 "No channels have been set, the filter is not active.",
+                msg_type='warning'
+            )
+            await interaction.response.send_message(
+                embed=embed,
                 ephemeral=True
             )
         else:
@@ -144,6 +151,7 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
 
         if not present:
             msg = "Channel is not in the whitelist."
+            embed = get_message_embed(msg, msg_type='warning')
             ephemeral = True
         else:
             ok = await snorlax_db.drop_allowed_friend_code_channel(guild, channel)
@@ -152,15 +160,17 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
                     f"{channel.mention} removed from the friend code"
                     " whitelist successfully."
                 )
+                embed = get_message_embed(msg, msg_type='success')
                 ephemeral = False
             else:
                 msg = (
                     f"Error when removing {channel.mention} from the friend code"
                     " whitelist."
                 )
+                embed = get_message_embed(msg, msg_type='error')
                 ephemeral = True
 
-        await interaction.response.send_message(msg, ephemeral=ephemeral)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -191,27 +201,34 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
                             origin_channel_id = message.channel.parent_id
                         else:
                             origin_channel_id = message.channel.id
+
                         if origin_channel_id not in allowed_channels['channel'].values:
                             msg = (
                                 "{}, that looks like a friend code so"
                                 " Snorlax ate it!\n\n"
                                 "Friend codes are allowed in:"
                             ).format(message.author.mention)
+
                             for c in allowed_channels[~allowed_channels['secret']]['channel']:
                                 msg += ' <#{}>'.format(c)
+
                             if guild_db.loc[message.guild.id]['meowth_raid_category'] != -1:
                                 msg += (
                                     ' or any raid channel generated using'
                                     ' the Pokenav bot.'
                                 )
+
+                            embed = get_message_embed(msg, msg_type='warning')
                             await message.channel.send(
-                                msg,
-                                delete_after=30
+                                embed=embed,
+                                delete_after=15
                             )
+
                             await message.delete()
                             log_channel_id = (
                                 guild_db.loc[message.guild.id]['log_channel']
                             )
+
                             if log_channel_id != -1:
                                 log_channel = get(
                                     message.guild.channels, id=int(

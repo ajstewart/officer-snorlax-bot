@@ -2,7 +2,6 @@
 The misc cog which contains miscellaneous commands.
 """
 import discord
-import os
 import logging
 
 from discord import app_commands
@@ -77,7 +76,8 @@ class Miscellaneous(commands.Cog):
         Returns:
             None
         """
-        await interaction.response.send_message("Pong!", ephemeral=True)
+        embed = get_message_embed("Pong!", msg_type='info')
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
         name='show-schedule',

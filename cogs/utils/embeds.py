@@ -522,7 +522,6 @@ def get_message_embed(msg: str, msg_type: str, title: Optional[str] = None) -> E
 
     embed = Embed(
         color=msg_colors[msg_type],
-        timestamp=utcnow(),
         description=msg
     )
 

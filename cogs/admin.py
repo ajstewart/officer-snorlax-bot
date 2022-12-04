@@ -579,17 +579,19 @@ class Admin(commands.GroupCog, name="admin"):
             ok = await snorlax_db.add_guild_admin_channel(guild, admin_channel)
 
             welcome_message = (
-                "Hi! This is where admin commands for Snorlax can be used.\n\n"
+                "This is where admin commands for Snorlax can be used.\n\n"
                 "If you would like to use an existing channel instead, use the the '/admin set-admin-channel' slash "
                 "command to change it.\n\nAvailable commands can be seen using the slash command interface."
                 "\n\nBelow are the default settings for the server."
             )
 
+            welcome_embed = get_message_embed(welcome_message, msg_type='info', title='Hello!')
+
             guild_db = await snorlax_db.load_guild_db(active_only=True)
             guild_settings = guild_db.loc[int(guild.id)]
             embed = get_settings_embed(guild, guild_settings)
 
-            await admin_channel.send(welcome_message, embed=embed)
+            await admin_channel.send(embeds=[welcome_embed, embed])
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild) -> None:

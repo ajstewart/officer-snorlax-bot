@@ -6,6 +6,7 @@ from discord.utils import get
 
 from .utils import checks as snorlax_checks
 from .utils import db as snorlax_db
+from .utils.embeds import get_message_embed
 from .utils.log_msgs import filter_delete_log_embed
 from .utils.utils import strip_mentions
 
@@ -49,14 +50,17 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
         if any_filter:
             msg = "The 'any raids' filter is already activated."
+            embed = get_message_embed(msg, msg_type='warning')
         else:
             ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, True)
             if ok:
                 msg = "'Any raids' filter activated."
+                embed = get_message_embed(msg, msg_type='success')
             else:
                 msg = "Error when attempting to activate the 'Any raids' filter"
+                embed = get_message_embed(msg, msg_type='error')
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="deactivate",
@@ -79,14 +83,17 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
         if not any_filter:
             msg = "The 'any raids' filter is already deactivated."
+            embed = get_message_embed(msg, msg_type='warning')
         else:
             ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, False)
             if ok:
                 msg = "'Any raids' filter deactivated."
+                embed = get_message_embed(msg, msg_type='success')
             else:
-                msg = "Error when attempting to deactivate the 'Any raids' filter"
+                msg = "Error when attempting to deactivate the 'Any raids' filter."
+                embed = get_message_embed(msg, msg_type='error')
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, message: Message) -> None:
@@ -113,10 +120,14 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
                             " host one yourself. See the relevant rules"
                             " channel for rules and instructions."
                         ).format(message.author.mention)
+
+                        embed = get_message_embed(msg, msg_type='warning')
+
                         await message.channel.send(
-                            msg,
-                            delete_after=30
+                            embed=embed,
+                            delete_after=20
                         )
+
                         await message.delete()
                         log_channel_id = await snorlax_db.get_guild_log_channel(message.guild.id)
 
