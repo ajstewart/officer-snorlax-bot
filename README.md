@@ -203,13 +203,19 @@ When creating the schedule, Snorlax will check if any roles have an explicit sen
 
 ### Warning Option
 
-If selected, then if the channel has seen activity in the past `X` minutes, where `X` is determined by the setting `INACTIVE_TIME`, then `Y` minutes before the scheduled closeure, where `Y` is determined by the setting `WARNING_TIME`, the bot will post a warning that the channel is scheduled to close soon.
+If selected, then if the channel has seen activity in the past `X` minutes, where `X` is determined by the global schedules setting `Inactive Time`, then `Y` minutes before the scheduled closure, where `Y` is determined by the global schedules setting `Warning Time`, the bot will post a warning that the channel is scheduled to close soon.
+
+See the [Schedule Global Settings](#schedule-global-settings) section for details on how to set the inactive and warning time settings.
+
+![warning-example](/screenshots/warning-example.png)
 
 ### Dynamic Closure Option
 
-If the channel has been active for `INACTIVE_TIME` minutes before the closure then the closure is pushed back by `DELAY_TIME` minutes. 
+If the channel has been active for `Inactive Time` minutes before the closure then the closure is pushed back by the global schedules setting `Delay Time` minutes. 
 This happens silently from the users point of view.
 There is a `max_num_delays` setting available when adding the schedule to force closure after a chosen amount of delays (defaults to 1).
+
+See the [Schedule Global Settings](#schedule-global-settings) section for details on how to set the inactive and delay time settings.
 
 ### Silent Mode
 
