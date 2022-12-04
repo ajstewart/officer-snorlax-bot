@@ -542,6 +542,11 @@ class Admin(commands.GroupCog, name="admin"):
                     logger.warning(f'Raid category not found for {guild.name}, resetting.')
                     await snorlax_db.add_guild_meowth_raid_category(guild)
 
+            # Check for schedule settings and create if not found.
+            guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(guild.id)
+            if guild_schedule_settings.empty:
+                ok = await snorlax_db.add_default_schedule_settings(guild.id)
+
             schedules = await snorlax_db.load_schedule_db(guild_id=guild.id)
             if not schedules.empty:
                 for _, row in schedules.iterrows():
@@ -578,6 +583,9 @@ class Admin(commands.GroupCog, name="admin"):
 
             ok = await snorlax_db.add_guild_admin_channel(guild, admin_channel)
 
+            # Create schedules settings
+            ok = await snorlax_db.add_default_schedule_settings(guild.id)
+
             welcome_message = (
                 "This is where admin commands for Snorlax can be used.\n\n"
                 "If you would like to use an existing channel instead, use the the '/admin set-admin-channel' slash "
@@ -589,7 +597,8 @@ class Admin(commands.GroupCog, name="admin"):
 
             guild_db = await snorlax_db.load_guild_db(active_only=True)
             guild_settings = guild_db.loc[int(guild.id)]
-            embed = get_settings_embed(guild, guild_settings)
+            guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(guild.id)
+            embed = get_settings_embed(guild, guild_settings, guild_schedule_settings)
 
             await admin_channel.send(embeds=[welcome_embed, embed])
 

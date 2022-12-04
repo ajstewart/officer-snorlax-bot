@@ -12,20 +12,13 @@ It seems to do the job but undoubtedly could be done much better!
 It is for this reason that I am not yet generally using an invite link for a hosted instance, and rather made the code public for people to self-host if they wish.
 But if you are interested in using a hosted instance please find me on the Sydney Pokemon Go server.
 
-This version supports `discord.py` v2.0 however it only contains all the features that were present in Snorlax v0.2.0. Slash commands are coming!
+This version supports `discord.py` v2.0 including features such as slash commands.
 
 ## Requirements
 
-* Python 3.9+
-* discord.py >= 2.0
-* pandas > 1.1.0
-* python-dotenv == 0.20.0
-* alembic == 1.8.0
-* aiosqlite == 0.17.0
-
-There is a requirements.txt file to install the dependencies from:
+The project uses poetry to manage the dependencies and they can be installed with:
 ```
-pip install -r requirements.txt
+poetry install
 ```
 
 ## Self-Hosting Setup
@@ -87,25 +80,25 @@ For channels that are part of a schedule it's important to have the following pe
   * Manage messages
   * Read message history
 
+### Permissions Code
+
+Below is a permissions code that can be used when creating a url invite:
+
+```permissions=1393986497620```
+
 ## Bot Setup
 
 **All the commands below are done on the Discord server.**
 
-Once added to your server the bot will need to be set up with an admin channel before all the other commands can be used, this can be done by any admin in any channel:
+Once added to your server the bot will automatically create a `snorlax-admin` channel that only admins can see with the following welcome message:
 
-```
-@Officer Snorlax setAdminChannel <#channel-mention>
-```
+![Welcome message](/screenshots/welcome.png)
 
-![setAdminChannel](/screenshots/setadmin.png)
+All admin commands should be issued in this channel.
 
-Once this is set use the designated `admin channel` to issue all other commands. Use the help function to see a list of commands.
+The settings summary can be viewed at any time by using the `/admin show-settings` command.
 
-A summary of all the settings can be shown with the command
-
-```
-@Officer Snorlax showSettings
-```
+![Show settings](/screenshots/show-settings.png)
 
 ### Log Channel
 
@@ -114,12 +107,14 @@ To enable logging firstly create or identify the text channel where you wish log
 Then in the admin channel use the command:
 
 ```
-@Officer Snorlax setLogChannel <#channel-mention>
+/admin set-log-channel
 ```
+
+![set-log-channel](/screenshots/set-log-channel.png)
+![log channel success](/screenshots/log-channel-success.png)
 
 Log messages will now be sent to your chosen channel.
 
-![setLogChannel](/screenshots/setLogChannel.png)
 ![Log Example](/screenshots/log_example.png)
 
 ### Guild Timezone
@@ -127,32 +122,16 @@ Log messages will now be sent to your chosen channel.
 You can set the timezone for your Guild (if different from the default option set in the `.env` file) using the command:
 
 ```
-@Officer Snorlax setTimezone <tz>
+/admin set-timezone
 ```
 
-where `<tz>` is one of the standard timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+![Set timezone](/screenshots/set-timezone.png)
 
-For example:
+The command contains a list of standard timezones (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) where you can type the name of your nearest major city to find the correct timezone.
 
-```
-@Officer Snorlax setTimezone Europe/London
-```
+In the example above `London` is searched for, obtaining the `Europe/London` timezone.
 
-### Guild Prefix
-
-By default the bot will respond to the `!` prefix or a direct mention.
-The prefix can be changed by using the `setPrefix` option.
-
-```
-@Officer Snorlax setPrefix <prefix>
-```
-
-The prefix must be 3 characters or shorter.
-For example:
-
-```
-@Officer Snorlax setPrefix $
-```
+![Timezone success](/screenshots/set-timezone-success.png)
 
 ## Local Time Display Channel
 
@@ -161,40 +140,51 @@ The name of the voice channel is updated periodically to represent the time.
 **Note**: Because of Discord rate limiting the amount of times a bot can change a channel name, the time is only updated every 10 mins.
 On first launch the bot will wait for a even 10 minute time to start displaying the time. E.g. if you launch the bot at 1:36 the first update will be done at 1:40.
 
-To set this up:
+### Create a Time Channel
 
-  1. Create a voice channel and make sure the permissions are so that no one can connect to it.
-  2. Copy the ID of the voice channel created.
-  3. Enter the following command in Discord in the Snorlax admin channel, replacing ID with the channel ID copied (the `<#>` is needed in this case):
-      ```
-      @Officer Snorlax setTimeChannel <#ID>
-      ```
+A time channel can be created by using the command:
+
+```
+/create-time-channel
+```
+
+The command has one optional argument of what category to place the channel under.
 
 The voice channel name will now be updated every 10 minutes and will look like the example below.
 
-![setTimeChannel](/screenshots/setTimeChannel.png)
-![Time Example](/screenshots/time_display_example.png)
+![create-time-channel](/screenshots/create-time-channel.png)
+![setTimeChannel](/screenshots/time-channel-success.png)
 
 Note that Snorlax should take care of the permissions of the voice channel.
 
-## Schedule Behaviour
+When the channel is updated it will appear as so:
 
-To add an open and close schedule you mention the bot and use the `createSchedule` command in the following format:
+![Time Example](/screenshots/time_display_example.png)
+
+## Schedule Creation
+
+To add an open and close schedule you can use the command:
 
 ```
-@Officer Snorlax createSchedule <#channel-mention> <open-time> <close-time> "<custom-open-message>" "<custom-close-message>" <warning> <dynamic> <max_num_delays> <silent>
+/schedules create-schedule
 ```
 
-![createSchedule](/screenshots/createSchedule.png)
+![create schedule](/screenshots/create-schedule.png)
+![create schedule success](/screenshots/create-schedule-success.png)
 
-The time entries must be in the format of `HH:MM` in 24-hour format and the warning and dynamic are boolean entries which will accept `true,  yes, y, 1, on` as true. 
-By default warning is `False` and dynamic is `True`. 
-The custom messages are added to the base message provided in the `.env`.
-A custom message with spaces should be entered with quotation marks, e.g. `"Example open message."`.
+The Discord slash command interface will make sure the arguments are entered as required though note that **the time entries must be in the format of `HH:MM` in 24-hour format**
 
-Once created the bot will display a summary of the schedule which will include the assigned ID.
-The ID is used to refer to the schedule when using other features such as updating or deleting the schedule.
-A summary of all created schedules can be 
+See the explanations further on in this README for information on `dynamic`, `max_num_delays` and `silent` options.
+
+Note that by default the selected channel is the channel where the command is being issued.
+
+A summary of all created schedules can be viewed by using the command:
+
+```
+/schedules view-schedules
+```
+
+### How does it work?
 
 It works by toggling the `@everyone` role on the channel to `deny` for closure and `neutral` for open. 
 The bot will check if the channel is already closed or opening before applying the change, so it won't attempt to close a channel already closed for example.
@@ -229,45 +219,21 @@ At the moment it's possible to add multiple schedules to one channel - BUT - the
 
 ### Updating a Schedule
 
-Once created the schedule can be updated using the following command:
+A schedule can be updated by using the command:
 
 ```
-@Officer Snorlax updateSchedule <id> <column> <value>
+/schedules update-schedule
 ```
 
-The `id` refers to the ID of the schedule, the `column` refers to the parameter to be changed, and `value` is the value you wish to apply.
-The channel of a schedule cannot be changed using this method.
-The available columns to use are:
+A selection menu will appear for the first option to select the schedule to update.
 
-  * `open` The open time.  
-    ```@Officer Snorlax updateSchedule 1 open 06:30```
-  * `close` The close time.  
-    ```@Officer Snorlax updateSchedule 1 close 22:30```
-  * `open_message` Custom open message to add to the channel open bot post.  
-    ```@Officer Snorlax updateSchedule 1 open_message "Custom open message."```
-  * `close_message` Custom close message to add to the channel closed bot post.  
-    ```@Officer Snorlax updateSchedule 1 close_message "Custom close message."```
-  * `warning` Turn on or off close warnings.  
-    ```@Officer Snorlax updateSchedule 1 warning on```
-  * `dynamic` Turn on or off the [dynamic closing behaviour](#dynamic-closure-option).  
-    ```@Officer Snorlax updateSchedule 1 dynamic off```
-  * `max_num_delays` The maximum number of delays to use with the dynamic option.  
-    ```@Officer Snorlax updateSchedule 1 max_num_delays 4```
-  * `silent` Turn on or off [silent mode](#silent-mode) when opening and closing channels.  
-    ```@Officer Snorlax updateSchedule 1 silent on```
+![update schedule](/screenshots/update-schedule.png)
 
-It is possible to update multiple values with one command.
-To achieve this the format should be:
+Then all other options can be entered like that done in the command creation.
 
-```
-@Officer Snorlax updateSchedule <id> <column1> <value1> <column2> <value2> ... <columnN> <valueN>
-```
+![update schedule options](/screenshots/update-schedule-options.png)
 
-for example:
-
-```
-@Officer Snorlax updateSchedule 1 open 06:30 close 22:30 silent on
-```
+![update schedule success](/screenshots/update-schedule-success.png)
 
 ### Deactivating & Activating a Schedule
 
@@ -275,80 +241,63 @@ Schedules have an 'active' status which can be on or off.
 Upon creation a schedule is activated by default.
 When set to off a schedule will not be processed when the time comes.
 
-Deactivating a schedule can be done with the following commands, where the numbers used refer to the ID of the schedule to be processed.
-
-Single schedule:
-```
-@Officer Snorlax deactivateSchedule 1
-```
-
-Multiple schedules:
-```
-@Officer Snorlax deactivateSchedules 1 2 3 10
-```
-
-All schedules:
-```
-@Officer Snorlax deactivateAllSchedules
-```
-
-Similarly a schedule can be set to active again using the following:
+Deactivating a schedule can be done using the command:
 
 ```
-@Officer Snorlax activateSchedule 1
+/schedules deactivate-schedule
 ```
 
-```
-@Officer Snorlax activateSchedules 1 2 3 10
-```
+![deactivate-schedule](/screenshots/deactivate-schedule.png)
+
+Multiple schedules can be deactivated with:
 
 ```
-@Officer Snorlax activateAllSchedules
+/schedules deactivate-schedules
 ```
+
+And all schedules can be deactivated with:
+
+```
+/schedules deactivate-all
+```
+
+The same commands exists for activating a schedule.
 
 ### Removing a Schedule
 
-A schedule can be deleted by using the following commands.
+A schedule can be deleted with the command:
 
-Single schedule:
 ```
-@Officer Snorlax removeSchedule 1
-```
-
-Multiple schedules:
-```
-@Officer Snorlax removeSchedules 1 2 3 10
+/schedules delete-schedule
 ```
 
-All schedules:
+![delete-schedule](/screenshots/delete-schedule.png)
+
+A confirmation will be requested before any deletion.
+
+![delete-schedule-confirm](/screenshots/delete-schedule-confirm.png)
+
+![delete-schedule-success](/screenshots/delete-schedule-success.png)
+
+Note that like activating and deactivating, there are commands available to delete more than one schedule at a time.
+
 ```
-@Officer Snorlax removeAllSchedules
+/schedules delete-schedules
+/schedules delete-all
 ```
-
-The `removeAllSchedules` command will ask for confirmation before processing request:
-
-![removeAllSchedules](/screenshots/remove_all_confirmation.png)
-
-Click on the `Confirm` to confirm the deletion, or the `Cancel` button to cancel. The command will timeout after 1 minute.
 
 ### Manual Open and Closing
 
 Channels with active schedules can have the opening or closing triggered manually.
 This can be done with the commands:
+
 ```
-@Officer Snorlax manualOpen <#channel-mention>
-```
-and
-```
-@Officer Snorlax manualClose <#channel-mention>
+/schedules manual-open
+/schedules manual-close
 ```
 
-There is also an option to perform the action silently by entering:
-```
-@Officer Snorlax manualOpen <#channel-mention> True
-```
-
-By default silent mode is turned off when using the manual commands regardless of the schedule setting.
+![manual-close](/screenshots/manual-close.png)
+![manual-close-success](/screenshots/manual-close-success.png)
 
 **Manual opening and closing only works on channels with an active schedule!**
 
@@ -361,13 +310,26 @@ The bot can monitor all messages on the server and remove those that contain fri
 The feature is activated when a channel is added to the whitelist. This is done with the command:
 
 ```
-@Officer Snorlax addFriendChannel <#channel-mention> <secret>
+/friend-code-filter add-channel
 ```
+
+![friend-code-commands](/screenshots/friend-code-commands.png)
+![friend-code-add](/screenshots/friend-code-add.png)
+![friend-code-add](/screenshots/friend-code-add-success.png)
 
 The `secret` option (accepting the true and false like above) if true means that while friend codes will be allowed in the added channel, it won't be communicated to the user in the removal notice message.
 
-![FriendCodeRemoval](/screenshots/FriendCodeRemoval.png)
+Channels in the whitelist can be view with the command
 
+```
+/friend-code-filter list
+```
+
+![friend-code-add](/screenshots/friend-code-list.png)
+
+A user will see the following message when they attempt to post a friend code in a non-whitelisted channel:
+
+![FriendCodeRemoval](/screenshots/friend-code-filter-message.png)
 
 ### Friend Code Filtering & Meowth/PokeNav
 
@@ -375,20 +337,20 @@ Some raid bots create individual channels for raids, where of course friend code
 You can use the command: 
 
 ```
-@Officer Snorlax setMeowthRaidCategory <category id>
+/admin set-pokenav-raid-category
 ```
 
 to add a category where any channels created within the category will be added to the friend code whitelist automatically.
 Only set this if the friend code filter is being used.
 To get the category id, make sure you developer mode activated on Discord and then proceed to right click on the category, and select `Copy ID`.
 
-The `MeowthRaidCategory` can be reset with:
+The `PokenavRaidCategory` can be reset with:
 
 ```
-@Officer Snorlax resetMeowthRaidCategory
+/admin reset-pokenav-raid-category
 ```
 
-Currently only one category can be set, but this is planned to expanded in future to support defining multiple categories.
+Currently only one category can be set.
 
 ## Any Raids Filter
 
@@ -400,16 +362,24 @@ Snorlax will let the user know to please not spam this message in raid channels.
 The feature is activated by issuing the command below in the admin channel:
 
 ```
-@Officer Snorlax activateAnyRaidsFilter
+/any-raids-filter activate
 ```
+
+![any-raids-commands](/screenshots/any-raids-commands.png)
 
 It is deactivated with:
 
 ```
-@Officer Snorlax deactivateAnyRaidsFilter
+/any-raids-filter deactivate
 ```
 
+When a user triggers the filter they will see:
+
+![any-raids-filter-message](/screenshots/any-raids-filter-message.png)
+
 ## Join Name Filtering
+
+**Note this feature is not fully supported yet as it only supports a global list of banned names**.
 
 By default this feature is turned off.
 
@@ -418,14 +388,16 @@ The bot can ban new members to a server who's name matches a user defined patter
 The feature is activated by issuing the command below in the admin channel:
 
 ```
-@Officer Snorlax activateJoinNameFilter
+/join-name-filter activate
 ```
 
 It is deactivated with:
 
 ```
-@Officer Snorlax deactivateJoinNameFilter
+/join-name-filter deactivate
 ```
+
+![join-name-filter](/screenshots/join-name-filter-commands.png)
 
 The ban list is defined in the `.env` file using a comma separated list. For example:
 
