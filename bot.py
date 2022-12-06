@@ -9,7 +9,7 @@ from cogs.utils.checks import check_admin
 from cogs.utils.utils import get_logger, get_prefix
 
 
-__version__ = '1.0.0'
+__version__ = '1.1.0-dev'
 DOCS_URL = 'placeholder'
 
 
