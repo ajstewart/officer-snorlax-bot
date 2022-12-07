@@ -154,7 +154,7 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
             embed = get_message_embed(msg, msg_type='warning')
             ephemeral = True
         else:
-            ok = await snorlax_db.drop_allowed_friend_code_channel(guild, channel)
+            ok = await snorlax_db.drop_allowed_friend_code_channel(guild.id, channel.id)
             if ok:
                 msg = (
                     f"{channel.mention} removed from the friend code"
@@ -289,7 +289,7 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         fc_channels = await snorlax_db.load_friend_code_channels_db()
 
         if channel.id in fc_channels['channel'].tolist():
-            ok = await snorlax_db.drop_allowed_friend_code_channel(channel.guild, channel)
+            ok = await snorlax_db.drop_allowed_friend_code_channel(channel.guild.id, channel.id)
             if ok:
                 log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
                 if log_channel != -1:

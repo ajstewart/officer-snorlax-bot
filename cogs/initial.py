@@ -32,6 +32,7 @@ class Initial(commands.Cog):
 
         self.remove_zombie_schedules.start()
         self.remove_zombie_guilds.start()
+        self.remove_zombie_friend_channels.start()
 
     # EVENT LISTENER FOR WHEN THE BOT HAS SWITCHED FROM OFFLINE TO ONLINE.
     @commands.Cog.listener()
@@ -127,6 +128,38 @@ class Initial(commands.Cog):
         logging.info(f"Zombie schedules check completed: {removed} removed.")
 
     @tasks.loop(seconds=900)
+    async def remove_zombie_friend_channels(self) -> None:
+        """Runs a check of friend code whitelist channels to see if a channel has been deleted that was missed.
+
+        If a channel is found to be missing then that friend channel is removed.
+        """
+        logging.info("Performing zombie friend channel check.")
+
+        removed = 0
+        fc_df = await snorlax_db.load_friend_code_channels_db()
+        guilds_df = await snorlax_db.load_guild_db(active_only=True)
+
+        for _, row in fc_df[['guild', 'channel']].iterrows():
+            # If a guild is not active then don't check.
+            if row['guild'] not in guilds_df.index.to_numpy():
+                continue
+            channel = self.bot.get_channel(row['channel'])
+            if channel is None:
+                logging.warning(f"Channel {row['channel']} not found! Removing from friend code whitelist database.")
+                try:
+                    ok = await snorlax_db.drop_allowed_friend_code_channel(int(row['guild']), int(row['channel']))
+                except Exception as e:
+                    logging.warning(f"Dropping of friend code channel {row['channel']} failed! Error: {e}.")
+                else:
+                    if ok:
+                        logging.info(f"Dropping of friend code channel {row['channel']} successful.")
+                        removed += 1
+                    else:
+                        logging.warning(f"Dropping of friend code channel {row['channel']} failed! Error: {e}.")
+
+        logging.info(f"Zombie friend code channels check completed: {removed} removed.")
+
+    @tasks.loop(seconds=900)
     async def remove_zombie_guilds(self) -> None:
         """Runs a check of guilds to see if a guild has left which was missed.
 
@@ -159,7 +192,19 @@ class Initial(commands.Cog):
         logging.info(f"Zombie guilds check completed: {removed} deactivated.")
 
     @remove_zombie_schedules.before_loop
-    async def before_timer(self) -> None:
+    async def before_timer_schedules(self) -> None:
+        """
+        Method to process before the zombie check loop is started.
+
+        The purpose is to make sure the bot is ready before starting.
+        """
+        await self.bot.wait_until_ready()
+
+        # Delay by 1 min so zombie guild check can complete.
+        await asyncio.sleep(60)
+
+    @remove_zombie_friend_channels.before_loop
+    async def before_timer_friend_channels(self) -> None:
         """
         Method to process before the zombie check loop is started.
 
@@ -171,7 +216,7 @@ class Initial(commands.Cog):
         await asyncio.sleep(60)
 
     @remove_zombie_guilds.before_loop
-    async def before_timer(self) -> None:
+    async def before_timer_guilds(self) -> None:
         """
         Method to process before the zombie check loop is started.
 
