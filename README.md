@@ -311,6 +311,9 @@ This can be done with the commands:
 
 **Manual opening and closing only works on channels with an active schedule!**
 
+**Warning**: Manual opening and closing may leave residual open and close messages if a channel has multiple schedules.
+This will be fixed in a future update.
+
 ### Schedule Global Settings
 
 The following schedules settings apply to all schedules created on the server:

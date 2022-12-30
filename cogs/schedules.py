@@ -587,6 +587,7 @@ class Schedules(commands.GroupCog, name='schedules'):
             return
 
         # Grab the schedule row
+        # TODO: Poor logic when multiple schedules on a single channel
         row = schedule_db[schedule_db['channel'] == channel.id].iloc[0]
 
         guild_db = await snorlax_db.load_guild_db()
@@ -1297,21 +1298,19 @@ class Schedules(commands.GroupCog, name='schedules'):
             time_format_fill
         )
 
+        last_open_message = await snorlax_db.get_schedule_last_open_message(rowid)
+
+        # Remove the previous close message if present.
+        if last_open_message is not None:
+            try:
+                last_open_message = await channel.fetch_message(last_open_message)
+            except Exception as e:
+                logger.warning(f"Last open message not found, skipping deletion (error: {e}).")
+            else:
+                logger.info(f"Deleting previous open message in {channel.name} in {channel.guild.name}.")
+                await last_open_message.delete()
+
         if not silent:
-            # Check for the previous messages to see if no one has said anything since the last open.
-            # If the last two messages are the previous open and close messages then these are removed
-            # to avoid clutter in the channel.
-            messages = [message async for message in channel.history(limit=2)]
-            messages_ids = [message.id for message in messages]
-
-            last_close_message = await snorlax_db.get_schedule_last_close_message(rowid)
-            last_open_message = await snorlax_db.get_schedule_last_open_message(rowid)
-
-            if last_close_message in messages_ids and last_open_message in messages_ids:
-                logger.info(f"Removing previous open and close messages for schedule: {rowid}.")
-                for message in messages:
-                    await message.delete()
-
             # Send the new one
             close_message = await channel.send(embed=close_embed)
 
@@ -1396,6 +1395,18 @@ class Schedules(commands.GroupCog, name='schedules'):
             client_user,
             time_format_fill
         )
+
+        last_close_message = await snorlax_db.get_schedule_last_close_message(rowid)
+
+        # Remove the previous close message if present.
+        if last_close_message is not None:
+            try:
+                last_close_message = await channel.fetch_message(last_close_message)
+            except Exception as e:
+                logger.warning(f"Last close message not found, skipping deletion (error: {e}).")
+            else:
+                logger.info(f"Deleting previous close message in {channel.name} in {channel.guild.name}.")
+                await last_close_message.delete()
 
         if not silent:
             open_message = await channel.send(embed=open_embed)
