@@ -1,6 +1,4 @@
-"""
-Contains all the options used in dropdown commands.
-"""
+"""Contains all the options used in dropdown commands."""
 from discord import Guild, SelectOption
 from typing import Optional
 
@@ -11,7 +9,7 @@ async def schedule_options(
     guild: Guild,
     active: Optional[bool] = None
 ) -> list[SelectOption]:
-    """Fetches schedules to present to user.
+    """Fetch the schedules to present to the user.
 
     The options are formed by creating strings for the user to recognise the schedule
     while these are attached to the database id value.

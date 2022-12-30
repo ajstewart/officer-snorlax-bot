@@ -195,7 +195,7 @@ When creating the schedule Snorlax will check that it has the correct permission
 
 ![CloseAndOpen](/screenshots/CloseAndOpen.png)
 
-**Note**: If there is no activity in the channel since the last opening then the bot will self-tidy the opening and close messages in the channel to avoid clutter.
+**Note**: The bot self-tidies the messages, i.e. when an opening occurs it will remove the previous close message and vice versa.
 
 ### Roles Not Affected By Schedule
 
@@ -311,6 +311,9 @@ This can be done with the commands:
 
 **Manual opening and closing only works on channels with an active schedule!**
 
+**Warning**: Manual opening and closing may leave residual open and close messages if a channel has multiple schedules.
+This will be fixed in a future update.
+
 ### Schedule Global Settings
 
 The following schedules settings apply to all schedules created on the server:
@@ -356,6 +359,19 @@ Channels in the whitelist can be view with the command
 A user will see the following message when they attempt to post a friend code in a non-whitelisted channel:
 
 ![FriendCodeRemoval](/screenshots/friend-code-filter-message.png)
+
+The secret setting of a channel can be changed using the command
+
+```
+/friend-code-filter toggle-secret
+```
+
+The command will provide a list of the channels and what the secret value is and will become.
+Autocomplete can be used to narrow down the options presented.
+
+![friend-code-add](/screenshots/friend-code-channel-secret-toggle-01.png)
+![friend-code-add](/screenshots/friend-code-channel-secret-toggle-02.png)
+![friend-code-add](/screenshots/friend-code-channel-secret-toggle-03.png)
 
 ### Friend Code Filtering & Meowth/PokeNav
 

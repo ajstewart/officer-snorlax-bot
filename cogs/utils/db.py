@@ -170,10 +170,11 @@ async def load_guild_schedule_settings(guild_id: int) -> pd.DataFrame:
     return guild_schedule_settings
 
 
-async def load_friend_code_channels_db() -> pd.DataFrame:
-    """
-    Loads the friend code channels database table and returns as a pandas
-    dataframe.
+async def load_friend_code_channels_db(guild_id: Optional[int] = None) -> pd.DataFrame:
+    """Load the friend code channels database table and returns as a pandas dataframe.
+
+    Args:
+        guild_id: The guild id to load specifically. Will load all if not provided.
 
     Returns:
         A pandas dataframe containing the table.
@@ -183,6 +184,11 @@ async def load_friend_code_channels_db() -> pd.DataFrame:
     fc_channels = pd.DataFrame(rows, columns=columns)
 
     fc_channels['secret'] = fc_channels['secret'].astype(bool)
+    fc_channels['guild'] = fc_channels['guild'].astype(int)
+    fc_channels['channel'] = fc_channels['channel'].astype(int)
+
+    if guild_id is not None:
+        fc_channels = fc_channels[fc_channels['guild'] == guild_id].reset_index(drop=True)
 
     return fc_channels
 
@@ -530,15 +536,17 @@ async def update_schedule(
 
 
 async def drop_allowed_friend_code_channel(
-    guild: Guild,
-    channel: TextChannel
+    guild_id: int,
+    channel_id: int
 ) -> bool:
     """
     Drops a channel from the allowed whitelist.
 
+    Arguments have to be id values in the event of a channel being deleted.
+
     Args:
-        guild: The discord guild object.
-        channel: The discord TextChannel object.
+        guild: The discord guild id.
+        channel: The discord channel id.
 
     Returns:
         A bool to signify that the database transaction was successful
@@ -547,7 +555,7 @@ async def drop_allowed_friend_code_channel(
     try:
         async with aiosqlite.connect(DATABASE) as db:
             sql_query = "SELECT rowid FROM fc_channels WHERE guild = ? AND channel = ?"
-            async with db.execute(sql_query, (guild.id, channel.id)) as cursor:
+            async with db.execute(sql_query, (guild_id, channel_id)) as cursor:
                 async for row in cursor:
                     # row is a tuple of the row id only, e.g. (2,)
                     await cursor.execute("DELETE FROM fc_channels WHERE rowid = ?", row)
@@ -576,6 +584,31 @@ async def check_friend_code_channel(channel_id: int) -> bool:
             open = await cursor.fetchone()
 
     return False if open is None else True
+
+
+async def set_friend_code_channel_secret(guild_id: int, channel_id: int, secret: Union[str, bool]) -> bool:
+    """
+    Set the friend code whitelist entry secret value to the desired value.
+
+    Args:
+        guild_id: The discord guild object.
+        channel_id: The channel it applies to.
+        secret: The boolean value of True or False.
+
+    Returns:
+        A bool to signify that the database transaction was successful
+        ('True') or not ('False').
+    """
+    try:
+        async with aiosqlite.connect(DATABASE) as db:
+            sql_command = "UPDATE fc_channels SET secret = ? WHERE guild = ? AND channel = ?"
+            await db.execute(sql_command, (secret, guild_id, channel_id))
+            await db.commit()
+
+        return True
+
+    except Exception as e:
+        return False
 
 
 async def drop_schedule(id_to_drop: int) -> bool:
