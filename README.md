@@ -357,6 +357,19 @@ A user will see the following message when they attempt to post a friend code in
 
 ![FriendCodeRemoval](/screenshots/friend-code-filter-message.png)
 
+The secret setting of a channel can be changed using the command
+
+```
+/friend-code-filter toggle-secret
+```
+
+The command will provide a list of the channels and what the secret value is and will become.
+Autocomplete can be used to narrow down the options presented.
+
+![friend-code-add](/screenshots/friend-code-channel-secret-toggle-01.png)
+![friend-code-add](/screenshots/friend-code-channel-secret-toggle-02.png)
+![friend-code-add](/screenshots/friend-code-channel-secret-toggle-03.png)
+
 ### Friend Code Filtering & Meowth/PokeNav
 
 Some raid bots create individual channels for raids, where of course friend codes need to be shared.
