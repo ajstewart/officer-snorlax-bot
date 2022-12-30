@@ -120,14 +120,18 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
     """
     embed = Embed(
         title='Friend Code Channels',
-        color=1879160
+        color=2061822
     )
 
+    secret_vals = {
+        True: '✅',
+        False: '❌'
+    }
+
     value = ""
-    for i, row in friend_db.iterrows():
-        value += '<#{}> ({})\n'.format(
-            row.channel, row.secret
-        )
+    for _, row in friend_db.iterrows():
+        value += f"<#{row['channel']}> ({secret_vals[row['secret']]})\n"
+
     embed.add_field(
         name="Allowed (secret)",
         value=value,
