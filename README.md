@@ -195,7 +195,7 @@ When creating the schedule Snorlax will check that it has the correct permission
 
 ![CloseAndOpen](/screenshots/CloseAndOpen.png)
 
-**Note**: If there is no activity in the channel since the last opening then the bot will self-tidy the opening and close messages in the channel to avoid clutter.
+**Note**: The bot self-tidies the messages, i.e. when an opening occurs it will remove the previous close message and vice versa.
 
 ### Roles Not Affected By Schedule
 
@@ -310,6 +310,9 @@ This can be done with the commands:
 ![manual-close-success](/screenshots/manual-close-success.png)
 
 **Manual opening and closing only works on channels with an active schedule!**
+
+**Warning**: Manual opening and closing may leave residual open and close messages if a channel has multiple schedules.
+This will be fixed in a future update.
 
 ### Schedule Global Settings
 
