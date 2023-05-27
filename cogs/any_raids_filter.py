@@ -1,6 +1,7 @@
+"""The any raids filter cog."""
 import discord
 
-from discord import app_commands, Message
+from discord import Message, app_commands
 from discord.ext import commands
 from discord.utils import get
 
@@ -14,9 +15,9 @@ from .utils.utils import strip_mentions
 @app_commands.default_permissions(administrator=True)
 class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
     """Cog for the Any raids filter feature."""
+
     def __init__(self, bot: commands.bot) -> None:
-        """
-        Init method for the any raids filter.
+        """Init method for the any raids filter.
 
         Args:
             bot: The discord.py bot representation.
@@ -28,7 +29,7 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         self.bot = bot
 
     @app_commands.command(
-        name='activate',
+        name="activate",
         description=(
             "Turn on the 'any raids' filter. Filters messages containing 'any raids?'."
         ),
@@ -38,8 +39,7 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
     @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def activateAnyRaidsFilter(self, interaction: discord.Interaction) -> None:
-        """
-        Method to activate the any raids filter on the guild.
+        """Method to activate the any raids filter on the guild.
 
         Args:
             interaction: The interaction triggering the request.
@@ -50,29 +50,27 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
         if any_filter:
             msg = "The 'any raids' filter is already activated."
-            embed = get_message_embed(msg, msg_type='warning')
+            embed = get_message_embed(msg, msg_type="warning")
         else:
             ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, True)
             if ok:
                 msg = "'Any raids' filter activated."
-                embed = get_message_embed(msg, msg_type='success')
+                embed = get_message_embed(msg, msg_type="success")
             else:
                 msg = "Error when attempting to activate the 'Any raids' filter"
-                embed = get_message_embed(msg, msg_type='error')
+                embed = get_message_embed(msg, msg_type="error")
 
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
-        name="deactivate",
-        description="Turns off the 'any raids' filter."
+        name="deactivate", description="Turns off the 'any raids' filter."
     )
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
     @app_commands.check(snorlax_checks.check_admin_channel)
     @app_commands.checks.has_permissions(administrator=True)
     async def deactivateAnyRaidsFilter(self, interaction: discord.Interaction):
-        """
-        Command to deactivate the any raids filter.
+        """Command to deactivate the any raids filter.
 
         Args:
             interaction: The interaction that triggered the request.
@@ -83,23 +81,23 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
         if not any_filter:
             msg = "The 'any raids' filter is already deactivated."
-            embed = get_message_embed(msg, msg_type='warning')
+            embed = get_message_embed(msg, msg_type="warning")
         else:
             ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, False)
             if ok:
                 msg = "'Any raids' filter deactivated."
-                embed = get_message_embed(msg, msg_type='success')
+                embed = get_message_embed(msg, msg_type="success")
             else:
                 msg = "Error when attempting to deactivate the 'Any raids' filter."
-                embed = get_message_embed(msg, msg_type='error')
+                embed = get_message_embed(msg, msg_type="error")
 
         await interaction.response.send_message(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, message: Message) -> None:
-        """
-        Method run for each message received which checks for any raid
-        content and takes the appropriate action.
+        """Method run for each message received.
+
+        Checks for 'any raid' content and takes the appropriate action.
 
         Args:
             message: The message object.
@@ -121,18 +119,16 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
                             " channel for rules and instructions."
                         ).format(message.author.mention)
 
-                        embed = get_message_embed(msg, msg_type='warning')
+                        embed = get_message_embed(msg, msg_type="warning")
 
-                        await message.channel.send(
-                            embed=embed,
-                            delete_after=20
-                        )
+                        await message.channel.send(embed=embed, delete_after=20)
 
                         await message.delete()
-                        log_channel_id = await snorlax_db.get_guild_log_channel(message.guild.id)
+                        log_channel_id = await snorlax_db.get_guild_log_channel(
+                            message.guild.id
+                        )
 
                         if log_channel_id != -1:
-
                             log_channel = get(
                                 message.guild.channels, id=int(log_channel_id)
                             )
@@ -150,9 +146,6 @@ async def setup(bot: commands.bot) -> None:
         bot: The bot for which the cog is to be added.
     """
     if bot.test_guild is not None:
-        await bot.add_cog(
-            AnyRaidsFilter(bot),
-            guild=discord.Object(id=bot.test_guild)
-        )
+        await bot.add_cog(AnyRaidsFilter(bot), guild=discord.Object(id=bot.test_guild))
     else:
         await bot.add_cog(AnyRaidsFilter(bot))

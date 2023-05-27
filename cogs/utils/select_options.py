@@ -1,13 +1,13 @@
 """Contains all the options used in dropdown commands."""
-from discord import Guild, SelectOption
 from typing import Optional
+
+from discord import Guild, SelectOption
 
 from . import db as snorlax_db
 
 
 async def schedule_options(
-    guild: Guild,
-    active: Optional[bool] = None
+    guild: Guild, active: Optional[bool] = None
 ) -> list[SelectOption]:
     """Fetch the schedules to present to the user.
 
@@ -27,11 +27,15 @@ async def schedule_options(
     if schedules_db.empty:
         return options
 
-    for i, row in schedules_db[['rowid', 'channel_name', 'open', 'close']].iloc[:25].iterrows():
+    for i, row in (
+        schedules_db[["rowid", "channel_name", "open", "close"]].iloc[:25].iterrows()
+    ):
         label = f"#{row['channel_name']}"
         description = f"Opens @ {row['open']} & Closes @ {row['close']}"
-        value = row['rowid']
+        value = row["rowid"]
 
-        options.append(SelectOption(label=label, description=description, value=value, emoji='⏰'))
+        options.append(
+            SelectOption(label=label, description=description, value=value, emoji="⏰")
+        )
 
     return options
