@@ -1,5 +1,6 @@
 """Contains all the autocomplete functions used in app_commands."""
 import logging
+
 import pandas as pd
 
 from discord import Interaction, app_commands
@@ -7,13 +8,11 @@ from pytz import common_timezones
 
 from . import db as snorlax_db
 
-
 logger = logging.getLogger()
 
 
 async def timezones_autocomplete(
-    interaction: Interaction,
-    current: str
+    interaction: Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
     """Obtain the searchable choices for the timezone entry.
 
@@ -28,7 +27,8 @@ async def timezones_autocomplete(
     """
     choices = [
         app_commands.Choice(name=tz, value=tz)
-        for tz in common_timezones if current.lower() in tz.lower()
+        for tz in common_timezones
+        if current.lower() in tz.lower()
     ]
 
     if len(choices) > 25:
@@ -38,8 +38,7 @@ async def timezones_autocomplete(
 
 
 async def schedule_selection_autocomplete(
-    interaction: Interaction,
-    current: str
+    interaction: Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
     """Fetch schedules to present to the user.
 
@@ -53,32 +52,35 @@ async def schedule_selection_autocomplete(
     Returns:
         The list of filtered schedule choices.
     """
-    if interaction.command.name in ['activate-schedule']:
+    if interaction.command.name in ["activate-schedule"]:
         active = False
-    elif interaction.command.name in ['deactivate-schedule']:
+    elif interaction.command.name in ["deactivate-schedule"]:
         active = True
     else:
         active = None
 
-    schedules_db = await snorlax_db.load_schedule_db(guild_id=interaction.guild.id, active=active)
+    schedules_db = await snorlax_db.load_schedule_db(
+        guild_id=interaction.guild.id, active=active
+    )
 
     if schedules_db.empty:
         return []
 
     # create a label so humans can see the schedule
     # TODO: Is this worth being a database column?
-    schedules_db['label'] = schedules_db[['channel_name', 'open', 'close']].apply(
+    schedules_db["label"] = schedules_db[["channel_name", "open", "close"]].apply(
         lambda x: f"{x['channel_name']}: Opens @ {x['open']} & Closes @ {x['close']}",
-        axis=1
+        axis=1,
     )
 
     schedule_dict = pd.Series(
-        schedules_db['rowid'].astype(str).tolist(), index=schedules_db['label']
+        schedules_db["rowid"].astype(str).tolist(), index=schedules_db["label"]
     ).to_dict()
 
     choices = [
         app_commands.Choice(name=label, value=schedule_dict[label])
-        for label in schedule_dict if current.lower() in label.lower()
+        for label in schedule_dict
+        if current.lower() in label.lower()
     ]
 
     if len(choices) > 25:
@@ -87,7 +89,9 @@ async def schedule_selection_autocomplete(
     return choices
 
 
-async def friend_code_channel_autocomplete(interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def friend_code_channel_autocomplete(
+    interaction: Interaction, current: str
+) -> list[app_commands.Choice[str]]:
     """Fetch the friend code channels to present to the user to toggle secret.
 
     The options are formed by creating strings for the user to recognise the channel
@@ -109,22 +113,25 @@ async def friend_code_channel_autocomplete(interaction: Interaction, current: st
     if fc_channels_db.empty:
         return choices
 
-    secret_human = {
-        True: "Secret ✅",
-        False: "Secret ❌"
-    }
+    secret_human = {True: "Secret ✅", False: "Secret ❌"}
 
     for _, row in fc_channels_db.iterrows():
         # Check if the channel still exists
         try:
-            channel = int(row['channel'])
+            channel = int(row["channel"])
             interaction.guild.get_channel(channel)
         except Exception as e:
-            logger.error(f"Channel fetch failed for channel {channel} in guild {interaction.guild.name} (error: {e}).")
+            logger.error(
+                f"Channel fetch failed for channel {channel} in guild"
+                f" {interaction.guild.name} (error: {e})."
+            )
             continue
 
-        secret = row['secret']
-        label = f"#{row['channel_name']}: {secret_human[secret]} -> {secret_human[not secret]}"
+        secret = row["secret"]
+        label = (
+            f"#{row['channel_name']}: {secret_human[secret]} ->"
+            f" {secret_human[not secret]}"
+        )
         value = f"{channel}-{not secret}"
 
         if current.lower() in label.lower():

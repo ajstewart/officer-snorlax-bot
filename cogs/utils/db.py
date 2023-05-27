@@ -1,24 +1,25 @@
 """Contains all the database operations performed by the bot."""
 
-import aiosqlite
 import logging
 import os
+
+from typing import Any, Optional, Union
+
+import aiosqlite
 import pandas as pd
 
 from discord import Guild, TextChannel
-from dotenv import load_dotenv, find_dotenv
-from typing import Optional, Union, Any
-
+from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
-DATABASE = os.getenv('DATABASE')
-DEFAULT_TZ = os.getenv('DEFAULT_TZ')
-DEFAULT_PREFIX = os.getenv('DEFAULT_PREFIX')
-DEFAULT_OPEN_MESSAGE = os.getenv('DEFAULT_OPEN_MESSAGE')
-DEFAULT_CLOSE_MESSAGE = os.getenv('DEFAULT_CLOSE_MESSAGE')
-DEFAULT_WARNING_TIME = os.getenv('DEFAULT_WARNING_TIME')
-DEFAULT_INACTIVE_TIME = os.getenv('DEFAULT_INACTIVE_TIME')
-DEFAULT_DELAY_TIME = os.getenv('DEFAULT_DELAY_TIME')
+DATABASE = os.getenv("DATABASE")
+DEFAULT_TZ = os.getenv("DEFAULT_TZ")
+DEFAULT_PREFIX = os.getenv("DEFAULT_PREFIX")
+DEFAULT_OPEN_MESSAGE = os.getenv("DEFAULT_OPEN_MESSAGE")
+DEFAULT_CLOSE_MESSAGE = os.getenv("DEFAULT_CLOSE_MESSAGE")
+DEFAULT_WARNING_TIME = os.getenv("DEFAULT_WARNING_TIME")
+DEFAULT_INACTIVE_TIME = os.getenv("DEFAULT_INACTIVE_TIME")
+DEFAULT_DELAY_TIME = os.getenv("DEFAULT_DELAY_TIME")
 
 
 async def _get_schedule_db() -> tuple[tuple[Any], tuple[str]]:
@@ -29,8 +30,8 @@ async def _get_schedule_db() -> tuple[tuple[Any], tuple[str]]:
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute('PRAGMA table_info(schedules);') as cursor:
-            columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
+        async with db.execute("PRAGMA table_info(schedules);") as cursor:
+            columns = ["rowid"] + [i[1] for i in await cursor.fetchall()]
         async with db.execute("SELECT rowid, * FROM schedules") as cursor:
             rows = await cursor.fetchall()
 
@@ -48,8 +49,8 @@ async def _get_single_schedule(rowid: int) -> tuple[tuple[Any], tuple[str]]:
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute('PRAGMA table_info(schedules);') as cursor:
-            columns = ['rowid'] + [i[1] for i in await cursor.fetchall()]
+        async with db.execute("PRAGMA table_info(schedules);") as cursor:
+            columns = ["rowid"] + [i[1] for i in await cursor.fetchall()]
         query = "SELECT rowid, * FROM schedules WHERE rowid = ?"
         async with db.execute(query, (rowid,)) as cursor:
             rows = await cursor.fetchall()
@@ -68,7 +69,7 @@ async def _get_guild_schedule_settings(guild_id: int) -> tuple[tuple[Any], tuple
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute('PRAGMA table_info(guild_schedule_settings);') as cursor:
+        async with db.execute("PRAGMA table_info(guild_schedule_settings);") as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
         query = "SELECT * FROM guild_schedule_settings WHERE guild = ?"
         async with db.execute(query, (guild_id,)) as cursor:
@@ -85,7 +86,7 @@ async def _get_guild_db():
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute('PRAGMA table_info(guilds);') as cursor:
+        async with db.execute("PRAGMA table_info(guilds);") as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
         async with db.execute("SELECT * FROM guilds") as cursor:
             rows = await cursor.fetchall()
@@ -101,7 +102,7 @@ async def _get_fc_channels_db():
         The columns of the database table.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        async with db.execute('PRAGMA table_info(fc_channels);') as cursor:
+        async with db.execute("PRAGMA table_info(fc_channels);") as cursor:
             columns = [i[1] for i in await cursor.fetchall()]
         async with db.execute("SELECT * FROM fc_channels") as cursor:
             rows = await cursor.fetchall()
@@ -112,10 +113,9 @@ async def _get_fc_channels_db():
 async def load_schedule_db(
     guild_id: Optional[int] = None,
     active: Optional[bool] = None,
-    rowid: Optional[int] = None
+    rowid: Optional[int] = None,
 ) -> pd.DataFrame:
-    """
-    Loads the schedules database table and returns it as a pandas dataframe.
+    """Loads the schedules database table and returns it as a pandas dataframe.
 
     Args:
         guild_id: If provided, the returned schedules will be limited to only
@@ -138,19 +138,19 @@ async def load_schedule_db(
     # Sort into a pandas dataframe as it's just much easier to deal with.
     schedules = pd.DataFrame(rows, columns=columns)
 
-    schedules['active'] = schedules['active'].astype(bool)
-    schedules['warning'] = schedules['warning'].astype(bool)
-    schedules['dynamic'] = schedules['dynamic'].astype(bool)
-    schedules['silent'] = schedules['silent'].astype(bool)
+    schedules["active"] = schedules["active"].astype(bool)
+    schedules["warning"] = schedules["warning"].astype(bool)
+    schedules["dynamic"] = schedules["dynamic"].astype(bool)
+    schedules["silent"] = schedules["silent"].astype(bool)
 
     if guild_id is not None:
-        schedules = schedules.loc[schedules['guild'] == guild_id]
+        schedules = schedules.loc[schedules["guild"] == guild_id]
 
     if active is not None:
         if active:
-            schedules = schedules.loc[schedules['active']]
+            schedules = schedules.loc[schedules["active"]]
         else:
-            schedules = schedules.loc[~schedules['active']]
+            schedules = schedules.loc[~schedules["active"]]
 
     return schedules
 
@@ -183,19 +183,20 @@ async def load_friend_code_channels_db(guild_id: Optional[int] = None) -> pd.Dat
 
     fc_channels = pd.DataFrame(rows, columns=columns)
 
-    fc_channels['secret'] = fc_channels['secret'].astype(bool)
-    fc_channels['guild'] = fc_channels['guild'].astype(int)
-    fc_channels['channel'] = fc_channels['channel'].astype(int)
+    fc_channels["secret"] = fc_channels["secret"].astype(bool)
+    fc_channels["guild"] = fc_channels["guild"].astype(int)
+    fc_channels["channel"] = fc_channels["channel"].astype(int)
 
     if guild_id is not None:
-        fc_channels = fc_channels[fc_channels['guild'] == guild_id].reset_index(drop=True)
+        fc_channels = fc_channels[fc_channels["guild"] == guild_id].reset_index(
+            drop=True
+        )
 
     return fc_channels
 
 
 async def load_guild_db(active_only: bool = False) -> pd.DataFrame:
-    """
-    Loads the guilds database table and returns as a pandas dataframe.
+    """Loads the guilds database table and returns as a pandas dataframe.
 
     Args:
         active_only: If True, only active guilds are returned.
@@ -207,21 +208,20 @@ async def load_guild_db(active_only: bool = False) -> pd.DataFrame:
 
     guilds = pd.DataFrame(rows, columns=columns)
 
-    guilds['any_raids_filter'] = guilds['any_raids_filter'].astype(bool)
-    guilds['join_name_filter'] = guilds['join_name_filter'].astype(bool)
-    guilds['active'] = guilds['active'].astype(bool)
+    guilds["any_raids_filter"] = guilds["any_raids_filter"].astype(bool)
+    guilds["join_name_filter"] = guilds["join_name_filter"].astype(bool)
+    guilds["active"] = guilds["active"].astype(bool)
 
     if active_only:
-        guilds = guilds.loc[guilds['active']]
+        guilds = guilds.loc[guilds["active"]]
 
-    guilds = guilds.set_index('id')
+    guilds = guilds.set_index("id")
 
     return guilds
 
 
 async def get_guild_prefix(guild_id: int) -> str:
-    """
-    Fetches the string prefix of the requested guild.
+    """Fetches the string prefix of the requested guild.
 
     TODO: Does this fail when the guild is not present?
 
@@ -240,12 +240,9 @@ async def get_guild_prefix(guild_id: int) -> str:
 
 
 async def add_allowed_friend_code_channel(
-    guild: Guild,
-    channel: TextChannel,
-    secret: bool = False
+    guild: Guild, channel: TextChannel, secret: bool = False
 ) -> bool:
-    """
-    Adds an allowed friend code channel to the database.
+    """Adds an allowed friend code channel to the database.
 
     Args:
         guild: The discord guild object.
@@ -265,20 +262,26 @@ async def add_allowed_friend_code_channel(
                 await cursor.execute(query, (guild.id, channel.id))
                 data = await cursor.fetchone()
                 if not data:
-                    insert_cmd = "INSERT INTO fc_channels(guild, channel, channel_name, secret) VALUES (?, ?, ?, ?);"
-                    await cursor.execute(insert_cmd, (guild.id, channel.id, channel.name, secret))
+                    insert_cmd = (
+                        "INSERT INTO fc_channels(guild, channel, channel_name, secret)"
+                        " VALUES (?, ?, ?, ?);"
+                    )
+                    await cursor.execute(
+                        insert_cmd, (guild.id, channel.id, channel.name, secret)
+                    )
 
             await db.commit()
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
-async def add_guild_admin_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
-    """
-    Records the admin channel for the guild to the database.
+async def add_guild_admin_channel(
+    guild: Guild, channel: Optional[TextChannel] = None
+) -> bool:
+    """Records the admin channel for the guild to the database.
 
     Args:
         guild: The discord guild object.
@@ -301,13 +304,14 @@ async def add_guild_admin_channel(guild: Guild, channel: Optional[TextChannel] =
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
-async def add_guild_log_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
-    """
-    Records the log channel for the guild to the database.
+async def add_guild_log_channel(
+    guild: Guild, channel: Optional[TextChannel] = None
+) -> bool:
+    """Records the log channel for the guild to the database.
 
     Args:
         guild: The discord guild object.
@@ -330,13 +334,14 @@ async def add_guild_log_channel(guild: Guild, channel: Optional[TextChannel] = N
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
-async def add_guild_time_channel(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
-    """
-    Records the time channel for a guild to the database.
+async def add_guild_time_channel(
+    guild: Guild, channel: Optional[TextChannel] = None
+) -> bool:
+    """Records the time channel for a guild to the database.
 
     Args:
         guild: The discord guild object.
@@ -359,13 +364,12 @@ async def add_guild_time_channel(guild: Guild, channel: Optional[TextChannel] = 
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def add_guild_tz(guild: Guild, tz: str) -> bool:
-    """
-    Sets the timezone for a guild and saves it to the database.
+    """Sets the timezone for a guild and saves it to the database.
 
     Args:
         guild: The discord guild object.
@@ -383,14 +387,14 @@ async def add_guild_tz(guild: Guild, tz: str) -> bool:
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
-async def add_guild_meowth_raid_category(guild: Guild, channel: Optional[TextChannel] = None) -> bool:
-    """
-    Sets the Meowth/Pokenav raid category for the guild and writes it to the
-    database.
+async def add_guild_meowth_raid_category(
+    guild: Guild, channel: Optional[TextChannel] = None
+) -> bool:
+    """Sets the Meowth/Pokenav raid category for the guild and writes it to the db.
 
     Args:
         guild: The discord guild object.
@@ -413,7 +417,7 @@ async def add_guild_meowth_raid_category(guild: Guild, channel: Optional[TextCha
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -430,10 +434,9 @@ async def create_schedule(
     warning: bool = False,
     dynamic: bool = False,
     max_num_delays: int = 1,
-    silent: bool = False
+    silent: bool = False,
 ) -> tuple[bool, int]:
-    """
-    Save a new channel schedule to the database.
+    """Save a new channel schedule to the database.
 
     Args:
         guild_id: The id of the associated guild.
@@ -467,10 +470,11 @@ async def create_schedule(
     try:
         async with aiosqlite.connect(DATABASE) as db:
             sql_command = (
-                "INSERT INTO schedules(guild, channel, role, channel_name, role_name, open, close, "
-                "open_message, close_message, warning, dynamic, dynamic_close, max_num_delays, "
-                "current_delay_num, silent, active, last_open_message, last_close_message) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO schedules(guild, channel, role, channel_name, role_name,"
+                " open, close, open_message, close_message, warning, dynamic,"
+                " dynamic_close, max_num_delays, current_delay_num, silent, active,"
+                " last_open_message, last_close_message) VALUES (?, ?, ?, ?, ?, ?, ?,"
+                " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             params = (
                 guild_id,
@@ -490,7 +494,7 @@ async def create_schedule(
                 silent,
                 True,
                 0,  # last_open_message
-                0   # last_close_message
+                0,  # last_close_message
             )
             async with db.execute(sql_command, params) as cursor:
                 rowid = cursor.lastrowid
@@ -499,17 +503,14 @@ async def create_schedule(
 
         return True, rowid
 
-    except Exception as e:
+    except Exception:
         return False, 0
 
 
 async def update_schedule(
-    schedule_id: int,
-    column: str,
-    value: Union[str, bool, int]
+    schedule_id: int, column: str, value: Union[str, bool, int]
 ) -> bool:
-    """
-    Update a parameter of an existing schedule.
+    """Update a parameter of an existing schedule.
 
     Currently entered columns must be valid before use. No checks are
     performed in the method itself.
@@ -531,22 +532,18 @@ async def update_schedule(
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
-async def drop_allowed_friend_code_channel(
-    guild_id: int,
-    channel_id: int
-) -> bool:
-    """
-    Drops a channel from the allowed whitelist.
+async def drop_allowed_friend_code_channel(guild_id: int, channel_id: int) -> bool:
+    """Drops a channel from the allowed whitelist.
 
     Arguments have to be id values in the event of a channel being deleted.
 
     Args:
-        guild: The discord guild id.
-        channel: The discord channel id.
+        guild_id: The discord guild id.
+        channel_id: The discord channel id.
 
     Returns:
         A bool to signify that the database transaction was successful
@@ -564,13 +561,12 @@ async def drop_allowed_friend_code_channel(
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def check_friend_code_channel(channel_id: int) -> bool:
-    """
-    Checks whether the requested channel is in the friend code database.
+    """Checks whether the requested channel is in the friend code database.
 
     Args:
         channel_id: The id of the channel to be checked.
@@ -586,9 +582,10 @@ async def check_friend_code_channel(channel_id: int) -> bool:
     return False if open is None else True
 
 
-async def set_friend_code_channel_secret(guild_id: int, channel_id: int, secret: Union[str, bool]) -> bool:
-    """
-    Set the friend code whitelist entry secret value to the desired value.
+async def set_friend_code_channel_secret(
+    guild_id: int, channel_id: int, secret: Union[str, bool]
+) -> bool:
+    """Set the friend code whitelist entry secret value to the desired value.
 
     Args:
         guild_id: The discord guild object.
@@ -601,19 +598,20 @@ async def set_friend_code_channel_secret(guild_id: int, channel_id: int, secret:
     """
     try:
         async with aiosqlite.connect(DATABASE) as db:
-            sql_command = "UPDATE fc_channels SET secret = ? WHERE guild = ? AND channel = ?"
+            sql_command = (
+                "UPDATE fc_channels SET secret = ? WHERE guild = ? AND channel = ?"
+            )
             await db.execute(sql_command, (secret, guild_id, channel_id))
             await db.commit()
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def drop_schedule(id_to_drop: int) -> bool:
-    """
-    Remove a channel from the schedule table.
+    """Remove a channel from the schedule table.
 
     Args:
         id_to_drop: The database id of the schedule to drop.
@@ -630,16 +628,12 @@ async def drop_schedule(id_to_drop: int) -> bool:
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
-async def update_dynamic_close(
-    schedule_id: int,
-    new_close_time: str = "99:99"
-) -> None:
-    """
-    Update the dynamic close time field of a schedule in the database.
+async def update_dynamic_close(schedule_id: int, new_close_time: str = "99:99") -> None:
+    """Update the dynamic close time field of a schedule in the database.
 
     Args:
         schedule_id: The database id of the schedule to update.
@@ -656,8 +650,7 @@ async def update_dynamic_close(
 
 
 async def update_current_delay_num(schedule_id: int, new_delay_num: int = 0) -> None:
-    """
-    Update the current delay number of a schedule in the database.
+    """Update the current delay number of a schedule in the database.
 
     Args:
         schedule_id: The database id of the schedule to update.
@@ -673,8 +666,7 @@ async def update_current_delay_num(schedule_id: int, new_delay_num: int = 0) -> 
 
 
 async def toggle_any_raids_filter(guild: Guild, any_raids: Union[str, bool]) -> bool:
-    """
-    Sets the 'any raids' filter to be on or off.
+    """Sets the 'any raids' filter to be on or off.
 
     Args:
         guild: The discord guild object.
@@ -692,13 +684,12 @@ async def toggle_any_raids_filter(guild: Guild, any_raids: Union[str, bool]) -> 
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def toggle_join_name_filter(guild: Guild, join_name: str) -> bool:
-    """
-    Toggles the join name filter on and off.
+    """Toggles the join name filter on and off.
 
     Args:
         guild: The discord guild object.
@@ -716,13 +707,12 @@ async def toggle_join_name_filter(guild: Guild, join_name: str) -> bool:
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def set_guild_active(guild_id: int, value: Union[str, bool]) -> bool:
-    """
-    Toggles the guild active status on and off.
+    """Toggles the guild active status on and off.
 
     Args:
         guild_id: The id of the guild to set the value for.
@@ -738,13 +728,12 @@ async def set_guild_active(guild_id: int, value: Union[str, bool]) -> bool:
             await db.execute(sql_command, (value, guild_id))
             await db.commit()
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def add_guild(guild: Guild) -> bool:
-    """
-    Adds a guild to the database.
+    """Adds a guild to the database.
 
     Args:
         guild: The discord guild object.
@@ -756,8 +745,9 @@ async def add_guild(guild: Guild) -> bool:
     try:
         async with aiosqlite.connect(DATABASE) as db:
             sql_command = (
-                "INSERT INTO guilds(id, tz, meowth_raid_category, any_raids_filter, log_channel, time_channel, "
-                "join_name_filter, active, prefix, admin_channel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO guilds(id, tz, meowth_raid_category, any_raids_filter,"
+                " log_channel, time_channel, join_name_filter, active, prefix,"
+                " admin_channel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             params = (
                 guild.id,
@@ -769,7 +759,7 @@ async def add_guild(guild: Guild) -> bool:
                 False,
                 True,
                 DEFAULT_PREFIX,
-                -1
+                -1,
             )
             await db.execute(sql_command, params)
             await db.commit()
@@ -782,11 +772,10 @@ async def add_guild(guild: Guild) -> bool:
 
 
 async def set_guild_prefix(guild_id: int, value: str) -> bool:
-    """
-    Sets the guild prefix.
+    """Sets the guild prefix.
 
     Args:
-        guild: The discord guild object.
+        guild_id: The discord guild object.
         value: The prefix to set.
 
     Returns:
@@ -801,13 +790,12 @@ async def set_guild_prefix(guild_id: int, value: str) -> bool:
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def get_schedule_open(schedule_id: int) -> str:
-    """
-    Fetches the open time of the requested schedule.
+    """Fetches the open time of the requested schedule.
 
     Args:
         schedule_id: The id of the schedule to obtain the open time for.
@@ -824,8 +812,7 @@ async def get_schedule_open(schedule_id: int) -> str:
 
 
 async def get_schedule_close(schedule_id: int) -> str:
-    """
-    Fetches the close time of the requested schedule.
+    """Fetches the close time of the requested schedule.
 
     Args:
         schedule_id: The id of the schedule to obtain the close time for.
@@ -842,8 +829,7 @@ async def get_schedule_close(schedule_id: int) -> str:
 
 
 async def get_schedule_channel(schedule_id: int) -> str:
-    """
-    Fetches the channel id of the requested schedule.
+    """Fetches the channel id of the requested schedule.
 
     Args:
         schedule_id: The id of the schedule to obtain the close time for.
@@ -876,7 +862,9 @@ async def get_schedule_ids_by_channel_id(channel_id: int) -> list[tuple[int]]:
     return schedule_ids
 
 
-async def check_schedule_exists_with_times(channel_id: int, open: str, close: str) -> bool:
+async def check_schedule_exists_with_times(
+    channel_id: int, open: str, close: str
+) -> bool:
     """Checks if the schedule with the channel and open and close times exists.
 
     Args:
@@ -888,7 +876,10 @@ async def check_schedule_exists_with_times(channel_id: int, open: str, close: st
         'True' if exists, 'False' if not.
     """
     async with aiosqlite.connect(DATABASE) as db:
-        query = "SELECT EXISTS(SELECT 1 FROM schedules WHERE channel = ? AND open = ? and close = ?)"
+        query = (
+            "SELECT EXISTS(SELECT 1 FROM schedules WHERE channel = ? AND open = ? and"
+            " close = ?)"
+        )
         async with db.execute(query, (channel_id, open, close)) as cursor:
             exists = await cursor.fetchone()
 
@@ -913,8 +904,7 @@ async def check_schedule_exists(schedule_id: int) -> bool:
 
 
 async def get_guild_admin_channel(guild_id: int) -> str:
-    """
-    Fetches the admin channel of the requested guild.
+    """Fetches the admin channel of the requested guild.
 
     Args:
         guild_id: The id of the guild to obtain the admin channel for.
@@ -931,8 +921,7 @@ async def get_guild_admin_channel(guild_id: int) -> str:
 
 
 async def get_guild_log_channel(guild_id: int) -> str:
-    """
-    Fetches the log channel of the requested guild.
+    """Fetches the log channel of the requested guild.
 
     Args:
         guild_id: The id of the guild to obtain the log channel for.
@@ -949,8 +938,7 @@ async def get_guild_log_channel(guild_id: int) -> str:
 
 
 async def get_guild_time_channel(guild_id: int) -> str:
-    """
-    Fetches the time channel of the requested guild.
+    """Fetches the time channel of the requested guild.
 
     Args:
         guild_id: The id of the guild to obtain the time channel for.
@@ -967,8 +955,7 @@ async def get_guild_time_channel(guild_id: int) -> str:
 
 
 async def get_guild_tz(guild_id: int) -> str:
-    """
-    Fetches the time channel of the requested guild.
+    """Fetches the time channel of the requested guild.
 
     Args:
         guild_id: The id of the guild to obtain the time channel for.
@@ -985,8 +972,7 @@ async def get_guild_tz(guild_id: int) -> str:
 
 
 async def get_guild_any_raids_active(guild_id: int) -> bool:
-    """
-    Fetches the any raids filter value of the requested guild.
+    """Fetches the any raids filter value of the requested guild.
 
     Args:
         guild_id: The id of the guild to obtain the any raids value.
@@ -1003,8 +989,7 @@ async def get_guild_any_raids_active(guild_id: int) -> bool:
 
 
 async def get_guild_join_name_active(guild_id: int) -> bool:
-    """
-    Fetches the join name filter value of the requested guild.
+    """Fetches the join name filter value of the requested guild.
 
     Args:
         guild_id: The id of the guild to obtain the any raids value.
@@ -1021,8 +1006,7 @@ async def get_guild_join_name_active(guild_id: int) -> bool:
 
 
 async def get_guild_raid_category(guild_id: int) -> bool:
-    """
-    Fetches the Meowth raid category value of the requested guild.
+    """Fetches the Meowth raid category value of the requested guild.
 
     Args:
         guild_id: The id of the guild to obtain the raid category.
@@ -1067,8 +1051,9 @@ async def add_default_schedule_settings(guild_id: int) -> bool:
     try:
         async with aiosqlite.connect(DATABASE) as db:
             sql_command = (
-                "INSERT INTO guild_schedule_settings(guild, base_open_message, base_close_message, warning_time, "
-                "inactive_time, delay_time) VALUES (?, ?, ?, ?, ?, ?)"
+                "INSERT INTO guild_schedule_settings(guild, base_open_message,"
+                " base_close_message, warning_time, inactive_time, delay_time) VALUES"
+                " (?, ?, ?, ?, ?, ?)"
             )
             params = (
                 guild_id,
@@ -1076,7 +1061,7 @@ async def add_default_schedule_settings(guild_id: int) -> bool:
                 DEFAULT_CLOSE_MESSAGE,
                 DEFAULT_WARNING_TIME,
                 DEFAULT_INACTIVE_TIME,
-                DEFAULT_DELAY_TIME
+                DEFAULT_DELAY_TIME,
             )
             await db.execute(sql_command, params)
             await db.commit()
@@ -1089,12 +1074,9 @@ async def add_default_schedule_settings(guild_id: int) -> bool:
 
 
 async def update_guild_schedule_settings(
-    guild_id: int,
-    column: str,
-    value: Union[str, bool, int]
+    guild_id: int, column: str, value: Union[str, bool, int]
 ) -> bool:
-    """
-    Update a parameter of the guild schedule settings db.
+    """Update a parameter of the guild schedule settings db.
 
     Currently entered columns must be valid before use. No checks are
     performed in the method itself.
@@ -1110,19 +1092,20 @@ async def update_guild_schedule_settings(
     """
     try:
         async with aiosqlite.connect(DATABASE) as db:
-            sql_command = f"UPDATE guild_schedule_settings SET {column} = ? WHERE guild = ?"
+            sql_command = (
+                f"UPDATE guild_schedule_settings SET {column} = ? WHERE guild = ?"
+            )
             await db.execute(sql_command, (value, guild_id))
             await db.commit()
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 
 async def get_schedule_last_open_message(schedule_id: int) -> str:
-    """
-    Fetches the channel id of the requested schedule.
+    """Fetches the channel id of the requested schedule.
 
     Args:
         schedule_id: The id of the schedule to obtain the close time for.
@@ -1144,8 +1127,7 @@ async def get_schedule_last_open_message(schedule_id: int) -> str:
 
 
 async def get_schedule_last_close_message(schedule_id: int) -> str:
-    """
-    Fetches the channel id of the requested schedule.
+    """Fetches the channel id of the requested schedule.
 
     Args:
         schedule_id: The id of the schedule to obtain the close time for.

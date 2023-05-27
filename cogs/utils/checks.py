@@ -1,23 +1,22 @@
-"""
-Contains all the various checks that the commands need to perform.
-"""
-import discord
-import numpy as np
+"""Contains all the various checks that the commands need to perform."""
 import re
 import time
+
+from typing import Iterable, Tuple, Union
+
+import discord
+import numpy as np
 
 from discord import app_commands
 from discord.abc import User
 from discord.ext import commands
-from typing import Iterable, Tuple, Union
 
 from . import db as snorlax_db
 from . import utils as snorlax_utils
 
 
 def check_bot(ctx: Union[commands.Context, discord.Interaction]) -> bool:
-    """
-    Checks whether the context came from a bot.
+    """Checks whether the context came from a bot.
 
     Args:
         ctx: The command context containing the message content and other
@@ -45,8 +44,7 @@ def interaction_check_bot(interaction: discord.Interaction) -> bool:
 
 
 def check_admin(ctx: Union[commands.Context, discord.Interaction]) -> bool:
-    """
-    Checks whether the user is an admin.
+    """Checks whether the user is an admin.
 
     Args:
         ctx: The command context containing the message content and other
@@ -63,12 +61,16 @@ def check_admin(ctx: Union[commands.Context, discord.Interaction]) -> bool:
 
 
 class AdminChannelError(app_commands.CheckFailure):
+    """Raised when the command is not used in the admin channel."""
+
     pass
 
 
-async def check_admin_channel(ctx: Union[commands.Context, discord.Interaction]) -> bool:
-    """
-    Checks if the channel of the command is the set admin channel.
+async def check_admin_channel(
+    ctx: Union[commands.Context, discord.Interaction]
+) -> bool:
+    """Checks if the channel of the command is the set admin channel.
+
     Args:
         ctx: The command context containing the message content and other metadata.
 
@@ -87,8 +89,7 @@ async def check_admin_channel(ctx: Union[commands.Context, discord.Interaction])
 def check_if_channel_active(
     messages: Iterable[discord.Message], client_user: User
 ) -> bool:
-    """
-    Check if the list of messaged passed contains any non-bot activity.
+    """Check if the list of messaged passed contains any non-bot activity.
 
     TODO: This is not very repeat friendly, perhaps needs refactor.
 
@@ -117,8 +118,7 @@ def check_if_channel_active(
 
 
 def check_for_friend_code(content: str) -> bool:
-    """
-    Checks the message content for a friend code.
+    """Checks the message content for a friend code.
 
     Args:
         content: The string representation of the message.
@@ -138,8 +138,7 @@ def check_for_friend_code(content: str) -> bool:
 
 
 def check_time_format(time_input: str) -> Tuple[bool, str]:
-    """
-    Checks user time input is in the %H:%M format.
+    """Checks user time input is in the %H:%M format.
 
     Also checks for single hour and minute entries and returns the correct
     zero-padded entry. E.g. '6:00' is returned as '06:00'.
@@ -152,18 +151,16 @@ def check_time_format(time_input: str) -> Tuple[bool, str]:
         and a string with the correct zero-padded format.
     """
     try:
-        thetime = time.strptime(time_input, '%H:%M')
+        thetime = time.strptime(time_input, "%H:%M")
         # check for single hour entries, e.g. 6:00
-        thetime = time.strftime('%H:%M', thetime)
+        thetime = time.strftime("%H:%M", thetime)
         return True, thetime
     except ValueError:
-        return False, '99:99'
+        return False, "99:99"
 
 
 def check_for_any_raids(content: str) -> bool:
-    """
-    Checks the message string content for any strings matching to the 'any
-    raids' filter.
+    """Checks the message string content for strings matching to the 'any raids' filter.
 
     Args:
         content: The message string content.
@@ -174,15 +171,14 @@ def check_for_any_raids(content: str) -> bool:
     content = snorlax_utils.strip_punctuation(content)
     content_strip = content.strip().split(" ")
 
-    if content_strip[0] == 'any' and content_strip[-1] in ['raid', 'raids']:
+    if content_strip[0] == "any" and content_strip[-1] in ["raid", "raids"]:
         return True
     else:
         return False
 
 
 async def check_schedule_exists(sched_id: int) -> bool:
-    """
-    Checks whether a schedule exists with the provided id number.
+    """Checks whether a schedule exists with the provided id number.
 
     Args:
         sched_id: The provided schedule id to check.
@@ -195,10 +191,10 @@ async def check_schedule_exists(sched_id: int) -> bool:
     return exists
 
 
-async def check_remove_schedule(ctx: Union[commands.Context, discord.Interaction], sched_id: int) -> bool:
-    """
-    Checks whether the provided schedule id is attached to the guild where
-    the command originated.
+async def check_remove_schedule(
+    ctx: Union[commands.Context, discord.Interaction], sched_id: int
+) -> bool:
+    """Checks whether the schedule id is for the guild where the command originated.
 
     Args:
         ctx: The command context containing the message content and other
@@ -211,7 +207,7 @@ async def check_remove_schedule(ctx: Union[commands.Context, discord.Interaction
     """
     schedules = await snorlax_db.load_schedule_db(rowid=sched_id)
 
-    schedule_guild = schedules.iloc[0]['guild']
+    schedule_guild = schedules.iloc[0]["guild"]
     ctx_guild_id = ctx.guild.id
 
     allowed = schedule_guild == ctx_guild_id
@@ -220,8 +216,7 @@ async def check_remove_schedule(ctx: Union[commands.Context, discord.Interaction
 
 
 async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
-    """
-    Checks whether a guild exists and, optionally, whether it is set to active.
+    """Checks whether a guild exists and, optionally, whether it is set to active.
 
     It is intended to be used as part of the initial checks at the bot
     start up.
@@ -238,7 +233,7 @@ async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
 
     if guild_id in guilds.index.astype(int).tolist():
         if check_active:
-            active = guilds.loc[guild_id]['active']
+            active = guilds.loc[guild_id]["active"]
             if not active:
                 await snorlax_db.set_guild_active(guild_id, 1)
         return True
@@ -247,10 +242,10 @@ async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
 
 
 def check_schedule_perms(member: discord.Member, channel: discord.TextChannel) -> bool:
-    """Checks the permissions for the bot for the channel that a schedule is to be created.
+    """Checks bot permissions for the channel where the schedule is to be created.
 
-    Will return False if the bot does not have the required permissions to correctly apply
-    a schedule.
+    Will return False if the bot does not have the required permissions to correctly
+    apply a schedule.
 
     Args:
         member: The bot guild member.
@@ -260,24 +255,25 @@ def check_schedule_perms(member: discord.Member, channel: discord.TextChannel) -
         'True' if all permissions are correct, 'False' if not.
     """
     perms = channel.permissions_for(member)
-    ok = np.all([
-        perms.view_channel,
-        perms.read_messages,
-        perms.read_message_history,
-        perms.manage_roles
-    ])
+    ok = np.all(
+        [
+            perms.view_channel,
+            perms.read_messages,
+            perms.read_message_history,
+            perms.manage_roles,
+        ]
+    )
 
     return ok
 
 
 async def check_schedule_overwrites(
-    channel: discord.TextChannel,
-    bot_user: User
+    channel: discord.TextChannel, bot_user: User
 ) -> discord.Embed:
     """Checks the overwrites on a channel for which a schedule is to be created.
 
-    If any role explicitly has send_messages set to `True` a warning will be sent to the command
-    channel.
+    If any role explicitly has send_messages set to `True` a warning will be sent to
+    the command channel.
 
     Args:
         channel: The channel for which a schedule is to be created.

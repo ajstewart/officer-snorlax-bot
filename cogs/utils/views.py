@@ -1,6 +1,6 @@
-"""Contains the views used throughout the bot
-"""
+"""Contains the views used throughout the bot."""
 import discord
+
 from .embeds import get_message_embed
 
 
@@ -13,6 +13,7 @@ class ScheduleDropdown(discord.ui.Select):
         context: The context of the command, either 'activate', 'deactivate',
             'update', 'list' or 'delete'.
     """
+
     def __init__(self, options: list[discord.SelectOption], context: str) -> None:
         """A schedule dropdown class that displays the passed in options.
 
@@ -28,26 +29,26 @@ class ScheduleDropdown(discord.ui.Select):
             ValueError: If the context is not a valid choice.
         """
         self.context_verbs = {
-            'activate': 'activated',
-            'deactivate': 'deactivated',
-            'update': 'updated',
-            'list': 'listed',
-            'delete': 'deleted'
+            "activate": "activated",
+            "deactivate": "deactivated",
+            "update": "updated",
+            "list": "listed",
+            "delete": "deleted",
         }
 
         if context not in self.context_verbs:
-            raise ValueError(f'context {context} is not valid!')
+            raise ValueError(f"context {context} is not valid!")
 
         self.context = context
 
-        if context in ['activate', 'deactivate', 'delete']:
+        if context in ["activate", "deactivate", "delete"]:
             max_values = len(options)
 
         super().__init__(
-            placeholder='Select the schedule(s)...',
+            placeholder="Select the schedule(s)...",
             min_values=1,
             max_values=max_values,
-            options=options
+            options=options,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -60,8 +61,11 @@ class ScheduleDropdown(discord.ui.Select):
         # Use the interaction object to send a response message containing
         # the user's selected schedules.
         self.view.values = self.values
-        msg = f"The {len(self.values)} selected schedule(s) will be {self.context_verbs[self.context]}."
-        embed = get_message_embed(msg, msg_type='info')
+        msg = (
+            f"The {len(self.values)} selected schedule(s) will be"
+            f" {self.context_verbs[self.context]}."
+        )
+        embed = get_message_embed(msg, msg_type="info")
         await interaction.response.send_message(embed=embed)
         await self.view.disable_children()
         self.view.stop()
@@ -77,12 +81,13 @@ class ScheduleDropdownView(discord.ui.View):
         values: The final view values.
         user: The interaction user.
     """
+
     def __init__(
         self,
         user: discord.User,
         options: list[discord.SelectOption],
         context: str,
-        timeout: int = 60
+        timeout: int = 60,
     ) -> None:
         """The initialisation function of the view.
 
@@ -90,8 +95,8 @@ class ScheduleDropdownView(discord.ui.View):
             user: The discord user who triggered the interaction for which the view
                 will be sent - and only they can reply.
             options: The schedule options to be passed to the Schedule dropdown.
-            context: The context of the schedule command either 'activate', 'deactivate',
-                'update', 'list' or 'delete'.
+            context: The context of the schedule command either 'activate',
+                'deactivate', 'update', 'list' or 'delete'.
             timeout: The value, in seconds, to set as the timeout.
         """
         super().__init__(timeout=timeout)
@@ -106,7 +111,8 @@ class ScheduleDropdownView(discord.ui.View):
         The response must have been attached to the view!
 
         Args:
-            timeout_label: If True, the label of button components will be replaced with 'Timeout!'.
+            timeout_label: If True, the label of button components will
+                be replaced with 'Timeout!'.
         """
         for child in self.children:
             child.disabled = True
@@ -114,14 +120,14 @@ class ScheduleDropdownView(discord.ui.View):
         await self.response.edit(view=self)
 
     async def on_timeout(self) -> None:
-        """Disable the buttons of the view in the event of a timeout.
-        """
+        """Disable the buttons of the view in the event of a timeout."""
         await self.disable_children()
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """The interaction check for the view.
 
-        Checks whether the interaction user is the initial command user. A response is sent if this is not the case.
+        Checks whether the interaction user is the initial command user.
+        A response is sent if this is not the case.
 
         Args:
             interaction: The interaction instance.
@@ -133,7 +139,7 @@ class ScheduleDropdownView(discord.ui.View):
 
         if not check_pass:
             msg = "You do not have permission to do that!"
-            embed = get_message_embed(msg, msg_type='error')
+            embed = get_message_embed(msg, msg_type="error")
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         return check_pass
@@ -147,10 +153,12 @@ class Confirm(discord.ui.View):
     Note that the initial response message should be attached to the class when used!
 
     Attributes:
-        value (Optional[bool]): Whether the interaction is complete (True) or not (False).
-            None indicates a timeout.
-        user (Discord.User): The original author of the command who the view will only respond to.
+        value (Optional[bool]): Whether the interaction is complete (True)
+            or not (False). None indicates a timeout.
+        user (Discord.User): The original author of the command who the view will
+            only respond to.
     """
+
     def __init__(self, user: discord.User, timeout: int = 60) -> None:
         """Init function of the view.
 
@@ -165,8 +173,10 @@ class Confirm(discord.ui.View):
     # When the confirm button is pressed, set the inner value to `True` and
     # stop the View from listening to more input.
     # We also send the user an ephemeral message that we're confirming their choice.
-    @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    async def confirm(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
         """The confirm button of the view.
 
         The value attribute is set to True when used and the view is stopped.
@@ -175,15 +185,18 @@ class Confirm(discord.ui.View):
             interaction: The interaction instance.
             button: The button instance.
         """
-        embed = get_message_embed('Confirmed!', msg_type='success')
+        embed = get_message_embed("Confirmed!", msg_type="success")
         await interaction.response.send_message(embed=embed)
         self.value = True
         await self.disable_children()
         self.stop()
 
-    # This one is similar to the confirmation button except sets the inner value to `False`
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.grey)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+    # This one is similar to the confirmation button except sets
+    # the inner value to `False`
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.grey)
+    async def cancel(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
         """The cancel button of the view.
 
         The value attribute is set to False when used and the view is stopped.
@@ -192,7 +205,7 @@ class Confirm(discord.ui.View):
             interaction: The interaction instance.
             button: The button instance.
         """
-        embed = get_message_embed('Cancelled!', msg_type='error')
+        embed = get_message_embed("Cancelled!", msg_type="error")
         await interaction.response.send_message(embed=embed, ephemeral=True)
         self.value = False
         await self.disable_children()
@@ -209,14 +222,14 @@ class Confirm(discord.ui.View):
         await self.response.edit(view=self)
 
     async def on_timeout(self) -> None:
-        """Disable the buttons of the view in the event of a timeout.
-        """
+        """Disable the buttons of the view in the event of a timeout."""
         await self.disable_children()
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """The interaction check for the view.
 
-        Checks whether the interaction user is the initial command user. A response is sent if this is not the case.
+        Checks whether the interaction user is the initial command user.
+        A response is sent if this is not the case.
 
         Args:
             interaction: The interaction instance.
@@ -228,7 +241,7 @@ class Confirm(discord.ui.View):
 
         if not check_pass:
             msg = "You do not have permission to do that!"
-            embed = get_message_embed(msg, msg_type='error')
+            embed = get_message_embed(msg, msg_type="error")
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         return check_pass
