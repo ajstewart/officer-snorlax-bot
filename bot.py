@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from cogs.utils.checks import check_admin
 from cogs.utils.utils import get_logger, get_prefix
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 DOCS_URL = "placeholder"
 
 
