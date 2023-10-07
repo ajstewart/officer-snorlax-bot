@@ -126,7 +126,7 @@ def check_for_friend_code(content: str) -> bool:
     Returns:
         'True' when the message contains a friend code. 'False' if not.
     """
-    pattern = re.compile(r"\d{4}.*\d{4}.*\d{4}(?!(\d*\>))")
+    pattern = re.compile(r"\d{4}.{0,2}\d{4}.{0,2}\d{4}(?!(\d*\>))")
     content = snorlax_utils.strip_mentions(content)
     content = snorlax_utils.strip_url(content)
     match = re.search(pattern, content)
