@@ -10,6 +10,8 @@ import pandas as pd
 from discord import Embed
 from discord.utils import utcnow
 
+from models import Guild, GuildScheduleSettings
+
 
 def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
     """Create an embed to show the saved schedules.
@@ -121,41 +123,39 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
 
 def get_settings_embed(
     guild: discord.Guild,
-    guild_settings: pd.DataFrame,
-    guild_schedule_settings: pd.DataFrame,
+    guild_settings: Guild,
+    guild_schedule_settings: GuildScheduleSettings,
 ) -> Embed:
     """Create an embed to show the bot settings bot on the guild the command was used.
 
     Args:
         guild: The discord guild.
-        guild_settings: The guild settings database table as a pandas dataframe.
+        guild_settings: The guild settings database model instance.
         guild_schedule_settings: The server schedule settings for the guild.
 
     Returns:
         The embed containing the guild settings.
     """
-    guild_schedule_settings = guild_schedule_settings.iloc[0]
-
-    if guild_settings["meowth_raid_category"] != -1:
-        cat_name = guild.get_channel(guild_settings["meowth_raid_category"]).name
+    if guild_settings.meowth_raid_category != -1:
+        cat_name = guild.get_channel(guild_settings.meowth_raid_category).name
     else:
         cat_name = "Not set"
 
     embed = Embed(title="Settings", color=16756290)
 
-    admin_channel_id = guild_settings["admin_channel"]
+    admin_channel_id = guild_settings.admin_channel
     if admin_channel_id == -1:
         admin_channel = "Not set"
     else:
         admin_channel = "<#{}>".format(admin_channel_id)
 
-    log_channel_id = guild_settings["log_channel"]
+    log_channel_id = guild_settings.log_channel
     if log_channel_id == -1:
         log_channel = "Not set"
     else:
         log_channel = "<#{}>".format(log_channel_id)
 
-    time_channel_id = guild_settings["time_channel"]
+    time_channel_id = guild_settings.time_channel
     if time_channel_id == -1:
         time_channel = "Not set"
     else:
@@ -172,14 +172,14 @@ def get_settings_embed(
             "Any raids filter: **{}**\n"
             "Join name filter: **{}**\n"
             "Prefix: **{}**".format(
-                guild_settings["tz"],
+                guild_settings.tz,
                 admin_channel,
                 log_channel,
                 time_channel,
                 cat_name,
-                guild_settings["any_raids_filter"],
-                guild_settings["join_name_filter"],
-                guild_settings["prefix"],
+                guild_settings.any_raids_filter,
+                guild_settings.join_name_filter,
+                guild_settings.prefix,
             )
         )
         .replace("True", "✅")
@@ -195,11 +195,11 @@ def get_settings_embed(
             "Warning Time: **{}** min\n"
             "Inactive Time: **{}** min\n"
             "Delay Time: **{}** min".format(
-                guild_schedule_settings["base_open_message"],
-                guild_schedule_settings["base_close_message"],
-                guild_schedule_settings["warning_time"],
-                guild_schedule_settings["inactive_time"],
-                guild_schedule_settings["delay_time"],
+                guild_schedule_settings.base_open_message,
+                guild_schedule_settings.base_close_message,
+                guild_schedule_settings.warning_time,
+                guild_schedule_settings.inactive_time,
+                guild_schedule_settings.delay_time,
             )
         ),
         inline=False,

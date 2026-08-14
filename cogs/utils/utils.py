@@ -1,12 +1,11 @@
 """Misc. utility functions used throughout the bot."""
 
 import datetime
-import logging
 import os
 import re
 import string
 
-from typing import Callable, Optional
+from typing import Callable
 
 import pytz
 
@@ -33,38 +32,6 @@ def get_current_time(tz: str) -> datetime.datetime:
     """
     tz = pytz.timezone(tz)
     return datetime.datetime.now(tz=tz)
-
-
-def get_logger(logfile: Optional[str] = None) -> logging.RootLogger:
-    """Set up the logger.
-
-    Args:
-        logfile: File to output log to.
-
-    Returns:
-        The root logger object.
-    """
-    logger = logging.getLogger()
-    s = logging.StreamHandler()
-    if logfile is not None:
-        fh = logging.FileHandler(logfile)
-        fh.setLevel(logging.DEBUG)
-    logformat = "[%(asctime)s] - %(levelname)s - %(message)s"
-
-    formatter = logging.Formatter(logformat, datefmt="%Y-%m-%d %H:%M:%S")
-
-    s.setFormatter(formatter)
-
-    s.setLevel(logging.INFO)
-
-    logger.addHandler(s)
-
-    if logfile is not None:
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-    logger.setLevel(logging.DEBUG)
-
-    return logger
 
 
 def strip_url(content: str) -> str:
