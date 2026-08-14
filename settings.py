@@ -1,7 +1,17 @@
 """Settings for the bot."""
 
-from pydantic import SecretStr
+from typing import Annotated, Any
+
+from pydantic import AfterValidator, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def is_empty_str(value: Any) -> None:
+    """To catch if the test guild is an empty string."""
+    if value == "":
+        return None
+
+    return value
 
 
 class BotSettings(BaseSettings):
@@ -23,7 +33,7 @@ class BotSettings(BaseSettings):
     default_inactive_time: int = 5
     default_delay_time: int = 5
     default_prefix: str = "!"
-    test_guild: int | None = None
+    test_guild: Annotated[int | str | None, AfterValidator(is_empty_str)] = None
     log_level: str = "INFO"
 
 
