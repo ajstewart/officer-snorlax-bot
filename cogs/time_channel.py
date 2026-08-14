@@ -1,7 +1,7 @@
 """The time channel cog."""
+
 import asyncio
 import datetime
-import logging
 
 from typing import Optional
 
@@ -13,13 +13,15 @@ from discord.errors import DiscordServerError, Forbidden
 from discord.ext import commands, tasks
 from discord.utils import get
 
+from bot_logger import get_logger
+from repositories import GuildRepository
+
 from .utils import checks as snorlax_checks
-from .utils import db as snorlax_db
 from .utils import utils as snorlax_utils
 from .utils.embeds import get_message_embed
 from .utils.log_msgs import time_channel_reset_log_embed
 
-logger = logging.getLogger()
+logger = get_logger(__name__)
 
 
 @app_commands.default_permissions(administrator=True)
@@ -68,52 +70,53 @@ class TimeChannel(commands.Cog):
             interaction: The interaction containing the request.
             category: The category to create the channel in.
         """
-        # Check if time channel already exists.
-        time_channel_id = await snorlax_db.get_guild_time_channel(interaction.guild.id)
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(interaction.guild.id)
+            # Check if time channel already exists.
+            time_channel_id = guild_db.time_channel
 
-        if time_channel_id != -1:
-            time_channel = self.bot.get_channel(time_channel_id)
+            if time_channel_id != -1:
+                time_channel = self.bot.get_channel(time_channel_id)
 
-            msg = (
-                f"Time channel {time_channel.mention} already exists!"
-                " Delete this channel before creating a new one."
-            )
-            embed = get_message_embed(msg, msg_type="warning")
-            await interaction.response.send_message(embed=embed)
-
-        else:
-            overwrites = {}
-
-            # Give bot permission to connect to channel
-            bot_role = interaction.guild.self_role
-            overwrites[bot_role] = discord.PermissionOverwrite(connect=True)
-
-            # block everybody from connecting
-            default_role = interaction.guild.default_role
-            overwrites[default_role] = discord.PermissionOverwrite(connect=False)
-
-            time_channel = await interaction.guild.create_voice_channel(
-                "temp-time-channel",
-                overwrites=overwrites,
-                category=category,
-                reason="Channel created for Snorlax to display time.",
-            )
-
-            ok = await snorlax_db.add_guild_time_channel(
-                interaction.guild, time_channel
-            )
-
-            if ok:
                 msg = (
-                    f"{time_channel.mention} set as the Snorlax time channel"
-                    " successfully. The time is updated every 10 minutes."
+                    f"Time channel {time_channel.mention} already exists!"
+                    " Delete this channel before creating a new one."
                 )
-                embed = get_message_embed(msg, msg_type="success")
-            else:
-                msg = "Error when setting the time channel."
-                embed = get_message_embed(msg, msg_type="error")
+                embed = get_message_embed(msg, msg_type="warning")
+                await interaction.response.send_message(embed=embed)
 
-            await interaction.response.send_message(embed=embed)
+            else:
+                overwrites = {}
+
+                # Give bot permission to connect to channel
+                bot_role = interaction.guild.self_role
+                overwrites[bot_role] = discord.PermissionOverwrite(connect=True)
+
+                # block everybody from connecting
+                default_role = interaction.guild.default_role
+                overwrites[default_role] = discord.PermissionOverwrite(connect=False)
+
+                time_channel = await interaction.guild.create_voice_channel(
+                    "temp-time-channel",
+                    overwrites=overwrites,
+                    category=category,
+                    reason="Channel created for Snorlax to display time.",
+                )
+
+                try:
+                    guild_db.time_channel = time_channel.id
+
+                    msg = (
+                        f"{time_channel.mention} set as the Snorlax time channel"
+                        " successfully. The time is updated every 10 minutes."
+                    )
+                    embed = get_message_embed(msg, msg_type="success")
+                except Exception:
+                    msg = "Error when setting the time channel."
+                    embed = get_message_embed(msg, msg_type="error")
+
+                await interaction.response.send_message(embed=embed)
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
@@ -127,16 +130,45 @@ class TimeChannel(commands.Cog):
         """
         guild_id = channel.guild.id
 
-        if channel.id == await snorlax_db.get_guild_time_channel(guild_id):
-            # No channel entry resets the time channel.
-            ok = await snorlax_db.add_guild_time_channel(channel.guild)
-            if ok:
-                log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(guild_id)
+
+            if channel.id == guild_db.time_channel:
+                # No channel entry resets the time channel.
+                guild_db.time_channel = -1
+                log_channel = guild_db.log_channel
                 if log_channel != -1:
                     log_channel = get(channel.guild.channels, id=int(log_channel))
                     log_embed = time_channel_reset_log_embed(channel)
                     await log_channel.send(embed=log_embed)
                 logger.info(f"Time channel reset for guild {channel.guild.name}.")
+
+    async def set_time_channel_name(self, time_channel_id: int, guild_tz: str) -> None:
+        """Sets the name of the time channel to the current time.
+
+        Args:
+            time_channel_id: The ID of the time channel.
+            guild_tz: The timezone of the guild.
+
+        Returns:
+            None
+        """
+        time_channel = self.bot.get_channel(time_channel_id)
+        now = snorlax_utils.get_current_time(tz=guild_tz)
+
+        new_name = now.strftime("%I:%M %p %Z")
+        new_name = snorlax_utils.get_hour_emoji(new_name[:5]) + " " + new_name
+
+        try:
+            await time_channel.edit(name=new_name)
+            logger.info(f"Updated time channel in {time_channel.guild.name}")
+        except Exception as e:
+            logger.exception(
+                f"Updating the time channel for {time_channel.guild.name} failed."
+                " Are the permissions correct?"
+            )
+            raise e
 
     @tasks.loop(minutes=10)
     async def time_channels_manager(self) -> None:
@@ -147,40 +179,17 @@ class TimeChannel(commands.Cog):
         Returns:
             None
         """
-        guild_db = await snorlax_db.load_guild_db(active_only=True)
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            active_guilds = await guild_repo.get_all(active_only=True)
 
-        # check if there are actually any time channels set
-        guild_db = guild_db.loc[guild_db["time_channel"] != -1]
-        if not guild_db.empty:
-            for tz in guild_db["tz"].unique():
-                guilds = guild_db.loc[guild_db["tz"] == tz]
-
-                now = snorlax_utils.get_current_time(tz=tz)
-
-                for i in guilds["time_channel"]:
-                    try:
-                        time_channel_id = int(i)
-                        time_channel = self.bot.get_channel(time_channel_id)
-
-                        new_name = now.strftime("%I:%M %p %Z")
-                        new_name = (
-                            snorlax_utils.get_hour_emoji(new_name[:5]) + " " + new_name
-                        )
-
-                        await time_channel.edit(name=new_name)
-
-                        logger.info(
-                            f"Updated time channel in {time_channel.guild.name}"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "Updating the time channel for "
-                            f"{time_channel.guild.name} failed."
-                            " Are the permissions correct?"
-                        )
-                        logger.error(f"Error: {e}")
-        else:
-            logger.warning("No time channels set skipping loop.")
+            # check if there are actually any time channels set
+            time_channel_guilds = [g for g in active_guilds if g.time_channel != -1]
+            tasks = [
+                self.set_time_channel_name(g.time_channel, g.tz)
+                for g in time_channel_guilds
+            ]
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     @time_channels_manager.before_loop
     async def before_timer(self):

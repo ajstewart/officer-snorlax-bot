@@ -10,7 +10,7 @@ import pandas as pd
 from discord import Embed
 from discord.utils import utcnow
 
-from models import FriendCodeChannel, Guild, GuildScheduleSettings
+from models import FriendCodeChannel, Guild, GuildScheduleSettings, Schedule
 
 
 def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
@@ -56,12 +56,12 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
 
 
 def get_schedule_embed_for_user(
-    schedule_db: pd.DataFrame, channel: discord.TextChannel
+    schedules_db: list[Schedule], channel: discord.TextChannel
 ) -> Embed:
     """Create an embed to show the channel schedule to the user.
 
     Args:
-        schedule_db: The schedule database table as a pandas dataframe.
+        schedules_db: The list of schedule database objects.
         channel: The channel object for the interaction channel.
 
     Returns:
@@ -71,25 +71,25 @@ def get_schedule_embed_for_user(
 
     embed = Embed(title=embed_title, timestamp=utcnow(), color=2061822)
 
-    if schedule_db.empty:
+    if not schedules_db:
         embed.add_field(
             name="No schedule!",
             value=f"There is no schedule set for {channel.mention}.",
         )
     else:
-        for _, row in schedule_db.iterrows():
-            open_hour = int(row["open"].split(":")[0])
+        for schedules_db in schedules_db:
+            open_hour = int(schedules_db.open.split(":")[0])
             p_open = "PM" if open_hour >= 12 else "AM"
 
-            close_hour = int(row["close"].split(":")[0])
+            close_hour = int(schedules_db.close.split(":")[0])
             p_close = "PM" if close_hour >= 12 else "AM"
 
             embed.add_field(
-                name="Open ✅", value=f"{row['open']} {p_open}", inline=True
+                name="Open ✅", value=f"{schedules_db.open} {p_open}", inline=True
             )  # comment to force formatting
 
             embed.add_field(
-                name="Close ❌", value=f"{row['close']} {p_close}", inline=True
+                name="Close ❌", value=f"{schedules_db.close} {p_close}", inline=True
             )
 
             # Dummy field to push any other schedules to next row.

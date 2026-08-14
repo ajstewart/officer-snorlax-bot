@@ -1,8 +1,7 @@
 """The schedules Cog of snorlax."""
+
 import asyncio
 import datetime
-import logging
-import os
 
 from typing import Optional
 
@@ -13,26 +12,21 @@ from discord.abc import GuildChannel
 from discord.errors import DiscordServerError, Forbidden
 from discord.ext import commands, tasks
 from discord.utils import get
-from dotenv import find_dotenv, load_dotenv
+
+from bot_logger import get_logger
+from repositories import (
+    ScheduleRepository,
+)
 
 from .utils import autocompletes as snorlax_autocompletes
 from .utils import checks as snorlax_checks
-from .utils import db as snorlax_db
 from .utils import embeds as snorlax_embeds
 from .utils import log_msgs as snorlax_log
 from .utils import select_options as snorlax_options
 from .utils import utils as snorlax_utils
 from .utils import views as snorlax_views
 
-# obtain the bot settings from the dotenv.
-load_dotenv(find_dotenv())
-DEFAULT_OPEN_MESSAGE = os.getenv("DEFAULT_OPEN_MESSAGE")
-DEFAULT_CLOSE_MESSAGE = os.getenv("DEFAULT_CLOSE_MESSAGE")
-DEFAULT_WARNING_TIME = int(os.getenv("DEFAULT_WARNING_TIME"))
-DEFAULT_INACTIVE_TIME = int(os.getenv("DEFAULT_INACTIVE_TIME"))
-DEFAULT_DELAY_TIME = int(os.getenv("DEFAULT_DELAY_TIME"))
-
-logger = logging.getLogger()
+logger = get_logger(__name__)
 
 
 @app_commands.default_permissions(administrator=True)
@@ -119,37 +113,39 @@ class Schedules(commands.GroupCog, name="schedules"):
             )
             return
 
-        # TODO: Move this check sequence to checks. It is used often.
-        exists = await snorlax_checks.check_schedule_exists(schedule)
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedule_db = await schedule_repo.get(schedule)
 
-        if not exists:
-            msg = "That schedule does not exist!"
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
+            if not schedule_db:
+                msg = "That schedule does not exist!"
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
 
-            await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message(embed=embed)
 
-            return
+                return
 
-        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
+            allowed = snorlax_checks.check_remove_schedule(interaction, schedule_db)
 
-        if not allowed:
-            msg = f"You do not have permission to activate schedule {schedule}."
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
-            await interaction.response.send_message(embed=embed)
+            if not allowed:
+                msg = f"You do not have permission to activate schedule {schedule}."
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
+                await interaction.response.send_message(embed=embed)
 
-            return
+                return
 
-        ok = await snorlax_db.update_schedule(schedule, "active", True)
-        if ok:
-            embed = snorlax_embeds.get_message_embed(
-                "Schedule activated successfully.", msg_type="success"
-            )
-            await interaction.response.send_message(embed=embed)
-        else:
-            embed = snorlax_embeds.get_message_embed(
-                "Schedule activation failed.", msg_type="error"
-            )
-            await interaction.response.send_message(embed=embed)
+            try:
+                schedule_db.active = True
+                embed = snorlax_embeds.get_message_embed(
+                    "Schedule activated successfully.", msg_type="success"
+                )
+                await interaction.response.send_message(embed=embed)
+            except Exception:
+                embed = snorlax_embeds.get_message_embed(
+                    "Schedule activation failed.", msg_type="error"
+                )
+                await interaction.response.send_message(embed=embed)
+                logger.exception("Failed to activate schedule.")
 
     @app_commands.command(
         name="activate-schedules",
@@ -168,9 +164,10 @@ class Schedules(commands.GroupCog, name="schedules"):
         Returns:
             None.
         """
-        options = await snorlax_options.schedule_options(
-            guild=interaction.guild, active=False
-        )
+        async with self.bot.db_session() as session:
+            options = await snorlax_options.schedule_options(
+                session=session, guild=interaction.guild, active=False
+            )
 
         if not options:
             embed = snorlax_embeds.get_message_embed(
@@ -199,22 +196,23 @@ class Schedules(commands.GroupCog, name="schedules"):
             )
             await interaction.followup.send(embed=embed)
         else:
-            all_ok = True
-            for id in view.values:
-                ok = await snorlax_db.update_schedule(id, "active", True)
-                if not ok and all_ok:
-                    all_ok = False
-            if all_ok:
-                embed = snorlax_embeds.get_message_embed(
-                    f"Activated {len(view.values)} schedules successfully.",
-                    msg_type="success",
-                )
-                await interaction.followup.send(embed=embed)
-            else:
-                embed = snorlax_embeds.get_message_embed(
-                    "Activation failed.", msg_type="error"
-                )
-                await interaction.followup.send(embed=embed)
+            async with self.bot.db_session() as session:
+                schedule_repo = ScheduleRepository(session)
+                try:
+                    for id in view.values:
+                        schedule_db = await schedule_repo.get(id)
+                        schedule_db.active = True
+
+                    embed = snorlax_embeds.get_message_embed(
+                        f"Activated {len(view.values)} schedules successfully.",
+                        msg_type="success",
+                    )
+                    await interaction.followup.send(embed=embed)
+                except Exception:
+                    embed = snorlax_embeds.get_message_embed(
+                        "Activation failed.", msg_type="error"
+                    )
+                    await interaction.followup.send(embed=embed)
 
     @app_commands.command(
         name="activate-all",

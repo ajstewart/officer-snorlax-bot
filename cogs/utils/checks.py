@@ -12,7 +12,8 @@ from discord import app_commands
 from discord.abc import User
 from discord.ext import commands
 
-from repositories import GuildRepository, ScheduleRepository
+from models import Schedule
+from repositories import GuildRepository
 
 from . import utils as snorlax_utils
 
@@ -182,28 +183,22 @@ def check_for_any_raids(content: str) -> bool:
         return False
 
 
-async def check_remove_schedule(
-    ctx: Union[commands.Context, discord.Interaction], sched_id: int
+def check_remove_schedule(
+    ctx: Union[commands.Context, discord.Interaction], schedule: Schedule
 ) -> bool:
     """Checks whether the schedule id is for the guild where the command originated.
 
     Args:
         ctx: The command context containing the message content and other
             metadata.
-        sched_id: The schedule id.
+        schedule: The schedule object.
 
     Returns:
         'True' when the schedule id is from the same guild as the command.
         'False' if not.
     """
-    async with ctx.bot.db_session() as session:
-        schedule_repo = ScheduleRepository(session)
-        schedules = await schedule_repo.get(sched_id)
-
-    schedule_guild = schedules.guild
     ctx_guild_id = ctx.guild.id
-
-    allowed = schedule_guild == ctx_guild_id
+    allowed = schedule.guild == ctx_guild_id
 
     return allowed
 
