@@ -32,9 +32,8 @@ class MyBot(commands.Bot):
         self.initial_extensions = [
             "cogs.initial",
             "cogs.admin",
-            # "cogs.any_raids_filter",
+            "cogs.any_raids_filter",
             "cogs.fc_filter",
-            # "cogs.join_name_filter",
             # "cogs.misc",
             # "cogs.time_channel",
             # "cogs.schedules",

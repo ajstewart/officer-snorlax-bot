@@ -34,7 +34,6 @@ class Guild(Base):
     any_raids_filter: Mapped[bool] = mapped_column(Boolean, nullable=False)
     log_channel: Mapped[int] = mapped_column(Integer, nullable=False)
     time_channel: Mapped[int] = mapped_column(Integer, nullable=False)
-    join_name_filter: Mapped[bool] = mapped_column(Boolean, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False)
     prefix: Mapped[str] = mapped_column(String(3), nullable=False)
 
@@ -56,7 +55,6 @@ class Guild(Base):
             any_raids_filter=False,
             log_channel=-1,
             time_channel=-1,
-            join_name_filter=False,
             active=True,
             prefix=DEFAULT_PREFIX,
         )

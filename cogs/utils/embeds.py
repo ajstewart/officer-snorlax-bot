@@ -170,7 +170,6 @@ def get_settings_embed(
             "Time Channel: **{}**\n"
             "Pokenav Raid Category: **{}**\n"
             "Any raids filter: **{}**\n"
-            "Join name filter: **{}**\n"
             "Prefix: **{}**".format(
                 guild_settings.tz,
                 admin_channel,
@@ -178,7 +177,6 @@ def get_settings_embed(
                 time_channel,
                 cat_name,
                 guild_settings.any_raids_filter,
-                guild_settings.join_name_filter,
                 guild_settings.prefix,
             )
         )
