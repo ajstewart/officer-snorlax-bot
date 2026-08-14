@@ -10,7 +10,7 @@ import pandas as pd
 from discord import Embed
 from discord.utils import utcnow
 
-from models import Guild, GuildScheduleSettings
+from models import FriendCodeChannel, Guild, GuildScheduleSettings
 
 
 def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
@@ -98,11 +98,11 @@ def get_schedule_embed_for_user(
     return embed
 
 
-def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
+def get_friend_channels_embed(friend_dbs: list[FriendCodeChannel]) -> Embed:
     """Create an embed to show the allowed friend code channels.
 
     Args:
-        friend_db: The friend channels database table as a pandas dataframe.
+        friend_dbs: A list of FriendCodeChannel objects.
 
     Returns:
         The embed containing the list of friend channels.
@@ -113,8 +113,8 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
     secret_vals = {True: "✅", False: "❌"}
 
     value = ""
-    for _, row in friend_db.iterrows():
-        value += f"<#{row['channel']}> ({secret_vals[row['secret']]})\n"
+    for channel in friend_dbs:
+        value += f"<#{channel.channel}> ({secret_vals[channel.secret]})\n"
 
     embed.add_field(name="Allowed (secret)", value=value, inline=False)
 

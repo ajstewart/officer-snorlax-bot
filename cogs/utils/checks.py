@@ -1,4 +1,5 @@
 """Contains all the various checks that the commands need to perform."""
+
 import re
 import time
 
@@ -11,7 +12,8 @@ from discord import app_commands
 from discord.abc import User
 from discord.ext import commands
 
-from . import db as snorlax_db
+from repositories import GuildRepository, ScheduleRepository
+
 from . import utils as snorlax_utils
 
 
@@ -67,7 +69,7 @@ class AdminChannelError(app_commands.CheckFailure):
 
 
 async def check_admin_channel(
-    ctx: Union[commands.Context, discord.Interaction]
+    ctx: Union[commands.Context, discord.Interaction],
 ) -> bool:
     """Checks if the channel of the command is the set admin channel.
 
@@ -78,7 +80,10 @@ async def check_admin_channel(
         'True' when the context originated from the set admin channel.
         'False' if not.
     """
-    admin_channel = await snorlax_db.get_guild_admin_channel(ctx.guild.id)
+    async with ctx.client.db_session() as session:
+        guild_repo = GuildRepository(session)
+        guild_db = await guild_repo.get(ctx.guild.id)
+        admin_channel = guild_db.admin_channel
 
     if ctx.channel.id == admin_channel:
         return True
@@ -177,20 +182,6 @@ def check_for_any_raids(content: str) -> bool:
         return False
 
 
-async def check_schedule_exists(sched_id: int) -> bool:
-    """Checks whether a schedule exists with the provided id number.
-
-    Args:
-        sched_id: The provided schedule id to check.
-
-    Returns:
-        'True' when the content contains a match. 'False' if not.
-    """
-    exists = await snorlax_db.check_schedule_exists(schedule_id=sched_id)
-
-    return exists
-
-
 async def check_remove_schedule(
     ctx: Union[commands.Context, discord.Interaction], sched_id: int
 ) -> bool:
@@ -205,40 +196,16 @@ async def check_remove_schedule(
         'True' when the schedule id is from the same guild as the command.
         'False' if not.
     """
-    schedules = await snorlax_db.load_schedule_db(rowid=sched_id)
+    async with ctx.bot.db_session() as session:
+        schedule_repo = ScheduleRepository(session)
+        schedules = await schedule_repo.get(sched_id)
 
-    schedule_guild = schedules.iloc[0]["guild"]
+    schedule_guild = schedules.guild
     ctx_guild_id = ctx.guild.id
 
     allowed = schedule_guild == ctx_guild_id
 
     return allowed
-
-
-async def check_guild_exists(guild_id: int, check_active: bool = False) -> bool:
-    """Checks whether a guild exists and, optionally, whether it is set to active.
-
-    It is intended to be used as part of the initial checks at the bot
-    start up.
-
-    Args:
-        guild_id: The id number of the guild.
-        check_active: When True the guild is checked that the status in the
-            database is set to 'active'.
-
-    Returns:
-        'True' when the guild is contained in the database. 'False' if not.
-    """
-    guilds = await snorlax_db.load_guild_db()
-
-    if guild_id in guilds.index.astype(int).tolist():
-        if check_active:
-            active = guilds.loc[guild_id]["active"]
-            if not active:
-                await snorlax_db.set_guild_active(guild_id, 1)
-        return True
-    else:
-        return False
 
 
 def check_schedule_perms(member: discord.Member, channel: discord.TextChannel) -> bool:

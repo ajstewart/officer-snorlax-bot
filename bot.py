@@ -33,7 +33,7 @@ class MyBot(commands.Bot):
             "cogs.initial",
             "cogs.admin",
             # "cogs.any_raids_filter",
-            # "cogs.fc_filter",
+            "cogs.fc_filter",
             # "cogs.join_name_filter",
             # "cogs.misc",
             # "cogs.time_channel",

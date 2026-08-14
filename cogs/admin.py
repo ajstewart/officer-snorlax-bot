@@ -9,7 +9,12 @@ from discord.ext import commands
 from discord.utils import get
 
 from bot_logger import get_logger
-from repositories import GuildRepository, GuildScheduleSettingsRepository
+from models import Guild, GuildScheduleSettings
+from repositories import (
+    GuildRepository,
+    GuildScheduleSettingsRepository,
+    ScheduleRepository,
+)
 
 from .utils import autocompletes as snorlax_autocompletes
 from .utils import checks as snorlax_checks
@@ -81,7 +86,7 @@ class Admin(commands.GroupCog, name="admin"):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
 
             elif isinstance(error, snorlax_checks.AdminChannelError):
-                logger.error(
+                logger.warning(
                     "Command '%s' attempted in non-admin channel (%s).",
                     interaction.command.name,
                     interaction.guild.name,
@@ -490,172 +495,186 @@ class Admin(commands.GroupCog, name="admin"):
             )
         )
 
-    # @commands.Cog.listener()
-    # async def on_guild_join(self, guild: discord.Guild) -> None:
-    #     """Process to complete when the bot joins a new guild.
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        """Process to complete when the bot joins a new guild.
 
-    #     Args:
-    #         guild: The guild object representing the new guild.
+        Args:
+            guild: The guild object representing the new guild.
 
-    #     Returns:
-    #         None
-    #     """
-    #     # check if the new guild is already in the database
-    #     if await snorlax_checks.check_guild_exists(guild.id):
-    #         logger.info(f"Setting guild {guild.name} to active.")
-    #         await snorlax_db.set_guild_active(guild.id, 1)
+        Returns:
+            None
+        """
+        # check if the new guild is already in the database
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_schedule_repo = GuildScheduleSettingsRepository(session)
+            schedule_repo = ScheduleRepository(session)
+            guild_db = await guild_repo.get(guild.id)
+            if guild_db is not None:
+                logger.info(f"Setting guild {guild.name} to active.")
+                guild_db.active = True
 
-    #         # Then go through admin_channel, log_channel, time_channel, schedules
-    #         # and raid category to see if the channels still exist.
-    #         # Reset or drop if they don't.
-    #         admin_channel_id = await snorlax_db.get_guild_admin_channel(guild.id)
-    #         if admin_channel_id != -1:
-    #             admin_channel = get(guild.channels, id=int(admin_channel_id))
-    #             if admin_channel is None:
-    #                 logger.warning(
-    #                     f"Admin channel not found for {guild.name}, resetting."
-    #                 )
-    #                 await snorlax_db.add_guild_admin_channel(guild)
+                # Then go through admin_channel, log_channel, time_channel, schedules
+                # and raid category to see if the channels still exist.
+                # Reset or drop if they don't.
+                if guild_db.admin_channel != -1:
+                    admin_channel = get(guild.channels, id=int(guild_db.admin_channel))
+                    if admin_channel is None:
+                        logger.warning(
+                            f"Admin channel not found for {guild.name}, resetting."
+                        )
+                        guild_db.admin_channel = -1
 
-    #         log_channel_id = await snorlax_db.get_guild_log_channel(guild.id)
-    #         if log_channel_id != -1:
-    #             log_channel = get(guild.channels, id=int(log_channel_id))
-    #             if log_channel is None:
-    #                 logger.warning(
-    #                     f"Log channel not found for {guild.name}, resetting."
-    #                 )
-    #                 await snorlax_db.add_guild_log_channel(guild)
+                if guild_db.log_channel != -1:
+                    log_channel = get(guild.channels, id=int(guild_db.log_channel))
+                    if log_channel is None:
+                        logger.warning(
+                            f"Log channel not found for {guild.name}, resetting."
+                        )
+                        guild_db.log_channel = -1
 
-    #         time_channel_id = await snorlax_db.get_guild_time_channel(guild.id)
-    #         if time_channel_id != -1:
-    #             time_channel = get(guild.channels, id=int(time_channel_id))
-    #             if time_channel is None:
-    #                 logger.warning(
-    #                     f"Time channel not found for {guild.name}, resetting."
-    #                 )
-    #                 await snorlax_db.add_guild_time_channel(guild)
+                if guild_db.time_channel != -1:
+                    time_channel = get(guild.channels, id=int(guild_db.time_channel))
+                    if time_channel is None:
+                        logger.warning(
+                            f"Time channel not found for {guild.name}, resetting."
+                        )
+                        guild_db.time_channel = -1
 
-    #         raid_category_id = await snorlax_db.get_guild_raid_category(guild.id)
-    #         if raid_category_id != -1:
-    #             raid_category = get(guild.categories, id=int(raid_category_id))
-    #             if raid_category is None:
-    #                 logger.warning(
-    #                     f"Raid category not found for {guild.name}, resetting."
-    #                 )
-    #                 await snorlax_db.add_guild_meowth_raid_category(guild)
+                if guild_db.meowth_raid_category != -1:
+                    raid_category = get(
+                        guild.categories, id=int(guild_db.meowth_raid_category)
+                    )
+                    if raid_category is None:
+                        logger.warning(
+                            f"Raid category not found for {guild.name}, resetting."
+                        )
+                        guild_db.meowth_raid_category = -1
 
-    #         # Check for schedule settings and create if not found.
-    #         guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(
-    #             guild.id
-    #         )
-    #         if guild_schedule_settings.empty:
-    #             await snorlax_db.add_default_schedule_settings(guild.id)
+                # Check for schedule settings and create if not found.
+                guild_schedule_settings_db = await guild_schedule_repo.get(guild.id)
+                if guild_schedule_settings_db is None:
+                    guild_schedule_settings_db = GuildScheduleSettings.create_default(
+                        guild.id
+                    )
+                    guild_schedule_repo.create(guild_schedule_settings_db)
 
-    #         schedules = await snorlax_db.load_schedule_db(guild_id=guild.id)
-    #         if not schedules.empty:
-    #             for _, row in schedules.iterrows():
-    #                 sched_channel_id = row["channel"]
-    #                 sched_channel = get(guild.channels, id=int(sched_channel_id))
-    #                 if sched_channel is None:
-    #                     logger.warning(
-    #                         f"Dropping schedule {row['rowid']} in {guild.name} as"
-    #                         " channel not found."
-    #                     )
-    #                     await snorlax_db.drop_schedule(row["rowid"])
+                schedules = await schedule_repo.get_all(guild_id=guild.id)
+                if not schedules:
+                    for schedule in schedules:
+                        sched_channel_id = schedule.channel
+                        sched_channel = get(guild.channels, id=int(sched_channel_id))
+                        if sched_channel is None:
+                            logger.warning(
+                                f"Dropping schedule {schedule.id} in {guild.name} as"
+                                " channel not found."
+                            )
+                            await schedule_repo.delete(schedule)
 
-    #     # if not then create the new entry in the db
-    #     else:
-    #         logger.info(f"Adding {guild.name} to database.")
-    #         await snorlax_db.add_guild(guild)
-    #         # create admin channel
-    #         overwrites = {}
+            # if not then create the new entry in the db
+            else:
+                logger.info(f"Adding {guild.name} to database.")
+                guild_db = Guild.create_from_discord_guild(guild)
+                guild_repo.create_guild(guild_db)
 
-    #         bot_role = guild.self_role
-    #         overwrites[bot_role] = discord.PermissionOverwrite(
-    #             read_messages=True, send_messages=True
-    #         )
+                # create admin channel
+                overwrites = {}
 
-    #         # block everybody from viewing channel
-    #         default_role = guild.default_role
-    #         overwrites[default_role] = discord.PermissionOverwrite(read_messages=False)
+                bot_role = guild.self_role
+                overwrites[bot_role] = discord.PermissionOverwrite(
+                    read_messages=True, send_messages=True
+                )
 
-    #         admin_channel = await guild.create_text_channel(
-    #             "snorlax-admin",
-    #             overwrites=overwrites,
-    #             reason="Admin channel for the snorlax bot.",
-    #         )
+                # block everybody from viewing channel
+                default_role = guild.default_role
+                overwrites[default_role] = discord.PermissionOverwrite(
+                    read_messages=False
+                )
 
-    #         await snorlax_db.add_guild_admin_channel(guild, admin_channel)
+                admin_channel = await guild.create_text_channel(
+                    "snorlax-admin",
+                    overwrites=overwrites,
+                    reason="Admin channel for the snorlax bot.",
+                )
 
-    #         # Create schedules settings
-    #         await snorlax_db.add_default_schedule_settings(guild.id)
+                guild_db.admin_channel = admin_channel.id
 
-    #         welcome_message = (
-    #             "This is where admin commands for Snorlax can be used.\n\nIf you would"
-    #             " like to use an existing channel instead, use the the '/admin"
-    #             " set-admin-channel' slash command to change it.\n\nAvailable commands"
-    #             " can be seen using the slash command interface.\n\nBelow are the"
-    #             " default settings for the server."
-    #         )
+                # Create schedules settings
+                guild_schedule_settings_db = GuildScheduleSettings.create_default(
+                    guild.id
+                )
+                await guild_schedule_repo.create(guild_schedule_settings_db)
 
-    #         welcome_embed = get_message_embed(
-    #             welcome_message, msg_type="info", title="Hello!"
-    #         )
+                welcome_message = (
+                    "This is where admin commands for Snorlax can be used.\n\nIf you would"
+                    " like to use an existing channel instead, use the the '/admin"
+                    " set-admin-channel' slash command to change it.\n\nAvailable commands"
+                    " can be seen using the slash command interface.\n\nBelow are the"
+                    " default settings for the server."
+                )
 
-    #         guild_db = await snorlax_db.load_guild_db(active_only=True)
-    #         guild_settings = guild_db.loc[int(guild.id)]
-    #         guild_schedule_settings = await snorlax_db.load_guild_schedule_settings(
-    #             guild.id
-    #         )
-    #         embed = get_settings_embed(guild, guild_settings, guild_schedule_settings)
+                welcome_embed = get_message_embed(
+                    welcome_message, msg_type="info", title="Hello!"
+                )
 
-    #         await admin_channel.send(embeds=[welcome_embed, embed])
+                embed = get_settings_embed(guild, guild_db, guild_schedule_settings_db)
 
-    # @commands.Cog.listener()
-    # async def on_guild_remove(self, guild: discord.Guild) -> None:
-    #     """Process to complete when a guild is removed.
+                await admin_channel.send(embeds=[welcome_embed, embed])
 
-    #     Args:
-    #         guild: The guild object representing the removed guild.
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
+        """Process to complete when a guild is removed.
 
-    #     Returns:
-    #         None
-    #     """
-    #     # check if the new guild is already in the database
-    #     if await snorlax_checks.check_guild_exists(guild.id):
-    #         logger.info(f"Setting guild {guild.name} to not active.")
-    #         # Set guild to inactive
-    #         await snorlax_db.set_guild_active(guild.id, 0)
-    #         # Check for schedules and deactivate them all
-    #         schedules = await snorlax_db.load_schedule_db(guild_id=guild.id)
-    #         if not schedules.empty:
-    #             logger.info(f"Deactivating all schedules for {guild.name}.")
-    #             for rowid in schedules["rowid"]:
-    #                 await snorlax_db.update_schedule(
-    #                     schedule_id=rowid, column="active", value=False
-    #                 )
+        Args:
+            guild: The guild object representing the removed guild.
 
-    # @commands.Cog.listener()
-    # async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
-    #     """Checks on a channel deletion whether the channel was the log channel.
+        Returns:
+            None
+        """
+        # check if the new guild is already in the database
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            schedule_repo = ScheduleRepository(session)
+            guild_db = await guild_repo.get(guild.id)
+            if guild_db is not None:
+                logger.info(f"Setting guild {guild.name} to not active.")
+                # Set guild to inactive
+                guild_db.active = False
+                # Check for schedules and deactivate them all
+                schedules_db = await schedule_repo.get_all(guild_id=guild.id)
+                if schedules_db:
+                    logger.info(f"Deactivating all schedules for {guild.name}.")
+                    for schedule in schedules_db:
+                        schedule.active = False
 
-    #     Args:
-    #         channel: The deleted channel object.
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel) -> None:
+        """Checks on a channel deletion whether the channel was the log channel.
 
-    #     Returns:
-    #         None
-    #     """
-    #     admin_channel = await snorlax_db.get_guild_admin_channel(channel.guild.id)
+        Args:
+            channel: The deleted channel object.
 
-    #     if admin_channel == channel.id:
-    #         await snorlax_db.add_guild_admin_channel(channel.guild)
-    #         logger.info(f"admin channel reset for guild {channel.guild.name}.")
+        Returns:
+            None
+        """
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(channel.guild.id)
+            if guild_db is None:
+                logger.warning(
+                    f"Guild {channel.guild.name} not found in database when checking"
+                    " channel deletion."
+                )
+                return
 
-    #     log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
+            if guild_db.admin_channel == channel.id:
+                guild_db.admin_channel = -1
+                logger.info(f"admin channel reset for guild {channel.guild.name}.")
 
-    #     if log_channel == channel.id:
-    #         await snorlax_db.add_guild_log_channel(channel.guild)
-    #         logger.info(f"Log channel reset for guild {channel.guild.name}.")
+            if guild_db.log_channel == channel.id:
+                guild_db.log_channel = -1
+                logger.info(f"Log channel reset for guild {channel.guild.name}.")
 
 
 async def setup(bot: commands.bot) -> None:

@@ -31,6 +31,8 @@ dev = [
 [tool.ruff]
 line-length = 88
 extend-exclude = ["alembic"]
+
+[tool.ruff.lint]
 select = [
     # pycodestyle
     "E",
@@ -43,13 +45,12 @@ select = [
     "I"
 ]
 
-
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 # Use Google-style docstrings.
 convention = "google"
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 lines-between-types = 1
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["D104"]
