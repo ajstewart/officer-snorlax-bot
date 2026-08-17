@@ -1,6 +1,6 @@
 [project]
 name = "officer-snorlax-bot"
-version = "1.2.0-dev"
+version = "2.0.0-dev"
 description = "Officer Snorlax Discord bot created to open and close channels on a schedule."
 authors = [{ name = "Adam Stewart" }]
 requires-python = ">=3.13,<4"
