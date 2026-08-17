@@ -5,7 +5,6 @@ import datetime
 from typing import Optional, Union
 
 import discord
-import pandas as pd
 
 from discord import Embed
 from discord.utils import utcnow
@@ -13,7 +12,9 @@ from discord.utils import utcnow
 from models import FriendCodeChannel, Guild, GuildScheduleSettings, Schedule
 
 
-def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
+def get_schedule_embed(
+    schedule_db: list[Schedule], num_warning_roles: int = 0
+) -> Embed:
     """Create an embed to show the saved schedules.
 
     Args:
@@ -27,15 +28,18 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
     embed_title = "Schedules Details" if len(schedule_db) > 1 else "Schedule Details"
 
     embed = Embed(title=embed_title, timestamp=utcnow(), color=2061822)
-    for _, row in schedule_db.iterrows():
+    for schedule in schedule_db:
         embed.add_field(
-            name=f"Channel: #{row.channel_name}",
+            name=f"Channel: #{schedule.channel_name}",
             value=(
-                f"Active: **{row.active}**\nOpen: **{row.open}**\nOpen Custom Message:"
-                f" **{row.open_message}**\nClose: **{row.close}**\nClose Custom"
-                f" Message: **{row.close_message}**\nWarning:"
-                f" **{row.warning}**\nDynamic: **{row.dynamic}**\nMax number of delays:"
-                f" **{row.max_num_delays}**\nSilent: **{row.silent}**"
+                f"Active: **{schedule.active}**\nOpen: **{schedule.open}**"
+                "\nOpen Custom Message:"
+                f" **{schedule.open_message}**\nClose: **{schedule.close}**"
+                "\nClose Custom"
+                f" Message: **{schedule.close_message}**\nWarning:"
+                f" **{schedule.warning}**\nDynamic: **{schedule.dynamic}**"
+                "\nMax number of delays:"
+                f" **{schedule.max_num_delays}**\nSilent: **{schedule.silent}**"
             )
             .replace("True", "✅")
             .replace("False", "❌"),
@@ -46,7 +50,8 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
         embed.add_field(
             name="⚠️  Roles Warning",
             value=(
-                f"There are {num_warning_roles} roles(s) in <#{row.channel}> that the"
+                f"There are {num_warning_roles} roles(s) in <#{schedule.channel}> "
+                "that the"
                 " schedule will not apply to. Use the `/schedules"
                 " check-schedule-roles` command for more information!"
             ),

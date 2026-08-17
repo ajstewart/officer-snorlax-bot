@@ -6,7 +6,6 @@ import time
 from typing import Iterable, Tuple, Union
 
 import discord
-import numpy as np
 
 from discord import app_commands
 from discord.abc import User
@@ -217,7 +216,7 @@ def check_schedule_perms(member: discord.Member, channel: discord.TextChannel) -
         'True' if all permissions are correct, 'False' if not.
     """
     perms = channel.permissions_for(member)
-    ok = np.all(
+    ok = all(
         [
             perms.view_channel,
             perms.read_messages,

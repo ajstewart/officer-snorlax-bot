@@ -1,14 +1,12 @@
 """Contains all the autocomplete functions used in app_commands."""
-import logging
-
-import pandas as pd
 
 from discord import Interaction, app_commands
 from pytz import common_timezones
 
-from . import db as snorlax_db
+from bot_logger import get_logger
+from repositories import FriendCodeChannelRepository, ScheduleRepository
 
-logger = logging.getLogger()
+logger = get_logger(__name__)
 
 
 async def timezones_autocomplete(
@@ -59,28 +57,19 @@ async def schedule_selection_autocomplete(
     else:
         active = None
 
-    schedules_db = await snorlax_db.load_schedule_db(
-        guild_id=interaction.guild.id, active=active
-    )
+    async with interaction.client.db_session() as session:
+        schedule_repo = ScheduleRepository(session)
+        schedules_db = await schedule_repo.get_all(
+            guild_id=interaction.guild.id, active=active
+        )
 
     if schedules_db.empty:
         return []
 
-    # create a label so humans can see the schedule
-    # TODO: Is this worth being a database column?
-    schedules_db["label"] = schedules_db[["channel_name", "open", "close"]].apply(
-        lambda x: f"{x['channel_name']}: Opens @ {x['open']} & Closes @ {x['close']}",
-        axis=1,
-    )
-
-    schedule_dict = pd.Series(
-        schedules_db["rowid"].astype(str).tolist(), index=schedules_db["label"]
-    ).to_dict()
-
     choices = [
-        app_commands.Choice(name=label, value=schedule_dict[label])
-        for label in schedule_dict
-        if current.lower() in label.lower()
+        app_commands.Choice(name=schedule.label, value=str(schedule.rowid))
+        for schedule in schedules_db
+        if current.lower() in schedule.label.lower()
     ]
 
     if len(choices) > 25:
@@ -106,19 +95,21 @@ async def friend_code_channel_autocomplete(
     """
     guild = interaction.guild
 
-    fc_channels_db = await snorlax_db.load_friend_code_channels_db(guild_id=guild.id)
+    async with interaction.client.db_session() as session:
+        fc_channel_repo = FriendCodeChannelRepository(session)
+        fc_channels_db = await fc_channel_repo.get_all(guild_id=guild.id)
 
     choices = []
 
-    if fc_channels_db.empty:
+    if not fc_channels_db:
         return choices
 
     secret_human = {True: "Secret ✅", False: "Secret ❌"}
 
-    for _, row in fc_channels_db.iterrows():
+    for channel_db in fc_channels_db:
         # Check if the channel still exists
         try:
-            channel = int(row["channel"])
+            channel = channel_db.channel
             interaction.guild.get_channel(channel)
         except Exception as e:
             logger.error(
@@ -127,9 +118,9 @@ async def friend_code_channel_autocomplete(
             )
             continue
 
-        secret = row["secret"]
+        secret = channel_db.secret
         label = (
-            f"#{row['channel_name']}: {secret_human[secret]} ->"
+            f"#{channel_db.channel_name}: {secret_human[secret]} ->"
             f" {secret_human[not secret]}"
         )
         value = f"{channel}-{not secret}"

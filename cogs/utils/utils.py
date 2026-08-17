@@ -1,7 +1,6 @@
 """Misc. utility functions used throughout the bot."""
 
 import datetime
-import os
 import re
 import string
 
@@ -11,14 +10,8 @@ import pytz
 
 from discord import Client, Message, User
 from discord.ext import commands
-from dotenv import find_dotenv, load_dotenv
 
-load_dotenv(find_dotenv())
-DEFAULT_OPEN_MESSAGE = os.getenv("DEFAULT_OPEN_MESSAGE")
-DEFAULT_CLOSE_MESSAGE = os.getenv("DEFAULT_CLOSE_MESSAGE")
-DEFAULT_WARNING_TIME = os.getenv("DEFAULT_WARNING_TIME")
-DEFAULT_INACTIVE_TIME = os.getenv("DEFAULT_INACTIVE_TIME")
-DEFAULT_DELAY_TIME = os.getenv("DEFAULT_DELAY_TIME")
+from repositories import GuildRepository
 
 
 def get_current_time(tz: str) -> datetime.datetime:
@@ -128,8 +121,10 @@ async def get_prefix(client: User, message: Message) -> Callable[[Client], list[
     Returns:
         The callable to be passed to the bot initialisation.
     """
-    from .db import get_guild_prefix
+    async with client.db_session() as session:
+        guild_repo = GuildRepository(session)
+        guild_db = await guild_repo.get(message.guild.id)
 
-    prefix = await get_guild_prefix(message.guild.id)
+    prefix = guild_db.prefix
 
     return commands.when_mentioned_or(*prefix)(client, message)

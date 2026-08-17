@@ -14,7 +14,10 @@ from discord.ext import commands, tasks
 from discord.utils import get
 
 from bot_logger import get_logger
+from models import Schedule
 from repositories import (
+    GuildRepository,
+    GuildScheduleSettingsRepository,
     ScheduleRepository,
 )
 
@@ -231,33 +234,32 @@ class Schedules(commands.GroupCog, name="schedules"):
         Returns:
             None.
         """
-        schedules = await snorlax_db.load_schedule_db(
-            guild_id=interaction.guild.id, active=False
-        )
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedules_db = await schedule_repo.get_all(
+                guild_id=interaction.guild.id, active=False
+            )
 
-        if schedules.empty:
-            embed = snorlax_embeds.get_message_embed(
-                "All schedules are active already!", msg_type="warning"
-            )
-            await interaction.response.send_message(embed=embed)
-            return
+            if not schedules_db:
+                embed = snorlax_embeds.get_message_embed(
+                    "All schedules are active already!", msg_type="warning"
+                )
+                await interaction.response.send_message(embed=embed)
+                return
 
-        all_ok = True
-        for id in schedules["rowid"].tolist():
-            ok = await snorlax_db.update_schedule(id, "active", True)
-            if not ok and all_ok:
-                all_ok = False
-        if all_ok:
-            embed = snorlax_embeds.get_message_embed(
-                f"Activated {len(schedules)} schedules successfully.",
-                msg_type="success",
-            )
-            await interaction.response.send_message(embed=embed)
-        else:
-            embed = snorlax_embeds.get_message_embed(
-                "Activation failed.", msg_type="error"
-            )
-            await interaction.response.send_message(embed=embed)
+            try:
+                for schedule in schedules_db:
+                    schedule.active = True
+                embed = snorlax_embeds.get_message_embed(
+                    f"Activated {len(schedules_db)} schedules successfully.",
+                    msg_type="success",
+                )
+                await interaction.response.send_message(embed=embed)
+            except Exception:
+                embed = snorlax_embeds.get_message_embed(
+                    "Activation failed.", msg_type="error"
+                )
+                await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="create-schedule",
@@ -338,13 +340,18 @@ class Schedules(commands.GroupCog, name="schedules"):
             await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
             return
 
-        if await snorlax_db.check_schedule_exists_with_times(
-            channel.id, open_time, close_time
-        ):
-            msg = "That schedule already exists!"
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
-            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-            return
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            exists = await schedule_repo.check_exists_with_times(
+                channel.id, open_time, close_time
+            )
+            if exists:
+                msg = "That schedule already exists!"
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
+                await interaction.response.send_message(
+                    embed=embed, ephemeral=ephemeral
+                )
+                return
 
         # Replace empty strings
         if open_message == "":
@@ -366,26 +373,29 @@ class Schedules(commands.GroupCog, name="schedules"):
         # Could support different roles in future.
         role = interaction.guild.default_role
 
-        ok, rowid = await snorlax_db.create_schedule(
-            interaction.guild.id,
-            channel.id,
-            channel.name,
-            role.id,
-            role.name,
-            open_time,
-            close_time,
-            open_message,
-            close_message,
-            warning,
-            dynamic,
-            max_num_delays,
-            silent,
+        new_schedule = Schedule(
+            guild_id=interaction.guild.id,
+            channel_id=channel.id,
+            channel_name=channel.name,
+            role_id=role.id,
+            role_name=role.name,
+            open_time=open_time,
+            close_time=close_time,
+            open_message=open_message,
+            close_message=close_message,
+            warning=warning,
+            dynamic=dynamic,
+            max_num_delays=max_num_delays,
+            silent=silent,
         )
 
-        if ok:
+        try:
+            async with self.bot.db_session() as session:
+                schedule_repo = ScheduleRepository(session)
+                schedule_repo.create(new_schedule)
+
             msg = f"Schedule for {channel.mention} created successfully!"
             msg_embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
-            schedule_df = await snorlax_db.load_schedule_db(rowid=rowid)
 
             (
                 no_effect_roles_allow,
@@ -395,13 +405,13 @@ class Schedules(commands.GroupCog, name="schedules"):
             overwrite_roles = len(no_effect_roles_allow + no_effect_roles_deny)
 
             embed = snorlax_embeds.get_schedule_embed(
-                schedule_df, num_warning_roles=overwrite_roles
+                new_schedule, num_warning_roles=overwrite_roles
             )
 
             await interaction.response.send_message(
                 embeds=[msg_embed, embed], ephemeral=ephemeral
             )
-        else:
+        except Exception:
             embed = snorlax_embeds.get_message_embed(
                 "Error when creating the schedule!", msg_type="error"
             )
@@ -445,33 +455,36 @@ class Schedules(commands.GroupCog, name="schedules"):
             )
             return
 
-        exists = await snorlax_checks.check_schedule_exists(schedule)
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedule_db = schedule_repo.get(schedule)
 
-        if not exists:
-            msg = f"Schedule ID {schedule} does not exist!"
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
-            await interaction.response.send_message(embed=embed)
+            if not schedule_db:
+                msg = f"Schedule ID {schedule} does not exist!"
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
+                await interaction.response.send_message(embed=embed)
 
-            return
+                return
 
-        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
+            allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
 
-        if not allowed:
-            msg = f"You do not have permission to deactivate schedule {schedule}."
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
-            await interaction.response.send_message(embed=embed)
+            if not allowed:
+                msg = f"You do not have permission to deactivate schedule {schedule}."
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
+                await interaction.response.send_message(embed=embed)
 
-            return
+                return
 
-        ok = await snorlax_db.update_schedule(schedule, "active", False)
-        if ok:
-            msg = "Schedule deactivated successfully."
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
-            await interaction.response.send_message(embed=embed)
-        else:
-            msg = "Schedule deactivation failed."
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
-            await interaction.response.send_message(embed=embed)
+            try:
+                schedule_db.active = False
+            except Exception:
+                msg = "Schedule deactivation failed."
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
+                await interaction.response.send_message(embed=embed)
+
+        msg = "Schedule deactivated successfully."
+        embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="deactivate-schedules",
@@ -490,49 +503,65 @@ class Schedules(commands.GroupCog, name="schedules"):
         Returns:
             None.
         """
-        options = await snorlax_options.schedule_options(
-            guild=interaction.guild, active=True
-        )
-
-        if not options:
-            msg = "All schedules are already deactivated!"
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
-            await interaction.response.send_message(embed=embed)
-
-            return
-
-        view = snorlax_views.ScheduleDropdownView(
-            user=interaction.user, options=options, context="deactivate", timeout=120
-        )
-
-        await interaction.response.defer()
-
-        out = await interaction.channel.send(view=view)
-
-        view.response = out
-
-        await view.wait()
-
-        if view.values is None:
-            logger.info("deactivate-schedules command timeout.")
-            embed = snorlax_embeds.get_message_embed(
-                "deactivate-schedules command timed out.", msg_type="info"
+        async with self.bot.db_session() as session:
+            options = await snorlax_options.schedule_options(
+                session=session, guild=interaction.guild, active=True
             )
-            await interaction.followup.send(embed=embed)
-        else:
-            all_ok = True
-            for id in view.values:
-                ok = await snorlax_db.update_schedule(id, "active", False)
-                if not ok and all_ok:
-                    all_ok = False
-            if all_ok:
-                msg = f"Deactivated {len(view.values)} schedules successfully."
-                embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
+
+            if not options:
+                msg = "All schedules are already deactivated!"
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
+                await interaction.response.send_message(embed=embed)
+
+                return
+
+            view = snorlax_views.ScheduleDropdownView(
+                user=interaction.user,
+                options=options,
+                context="deactivate",
+                timeout=120,
+            )
+
+            await interaction.response.defer()
+
+            out = await interaction.channel.send(view=view)
+
+            view.response = out
+
+            await view.wait()
+
+            if view.values is None:
+                logger.info("deactivate-schedules command timeout.")
+                embed = snorlax_embeds.get_message_embed(
+                    "deactivate-schedules command timed out.", msg_type="info"
+                )
                 await interaction.followup.send(embed=embed)
             else:
-                msg = "Deactivation failed."
-                embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
-                await interaction.followup.send(embed=embed)
+                try:
+                    schedule_repo = ScheduleRepository(session)
+                    for id in view.values:
+                        schedule_db = await schedule_repo.get(id)
+                        allowed = await snorlax_checks.check_remove_schedule(
+                            interaction, schedule_db
+                        )
+                        if not allowed:
+                            msg = f"You do not have permission to deactivate schedule {id}."
+                            embed = snorlax_embeds.get_message_embed(
+                                msg, msg_type="error"
+                            )
+                            await interaction.followup.send(embed=embed)
+                            return
+
+                        schedule_db.active = False
+
+                except Exception:
+                    msg = "Deactivation failed."
+                    embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
+                    await interaction.followup.send(embed=embed)
+
+        msg = f"Deactivated {len(view.values)} schedules successfully."
+        embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
+        await interaction.followup.send(embed=embed)
 
     @app_commands.command(
         name="deactivate-all",
@@ -551,30 +580,30 @@ class Schedules(commands.GroupCog, name="schedules"):
         Returns:
             None.
         """
-        schedules = await snorlax_db.load_schedule_db(
-            guild_id=interaction.guild.id, active=True
-        )
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedules = await schedule_repo.get_all(
+                guild_id=interaction.guild.id, active=True
+            )
 
-        if schedules.empty:
-            msg = "All schedules are deactivated already!"
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
-            await interaction.response.send_message(embed=embed)
+            if schedules.empty:
+                msg = "All schedules are deactivated already!"
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
+                await interaction.response.send_message(embed=embed)
 
-            return
+                return
 
-        all_ok = True
-        for id in schedules["rowid"].tolist():
-            ok = await snorlax_db.update_schedule(id, "active", False)
-            if not ok and all_ok:
-                all_ok = False
-        if all_ok:
-            msg = f"Deactivated {len(schedules)} schedules successfully."
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
-            await interaction.response.send_message(embed=embed)
-        else:
+        try:
+            for schedule in schedules:
+                schedule.active = False
+        except Exception:
             msg = "Deactivation failed."
             embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
             await interaction.response.send_message(embed=embed)
+
+        msg = f"Deactivated {len(schedules)} schedules successfully."
+        embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="manual-close",
@@ -606,41 +635,46 @@ class Schedules(commands.GroupCog, name="schedules"):
         if channel is None:
             channel = get(interaction.guild.channels, id=interaction.channel.id)
 
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(interaction.guild.id)
+
         # Allow this to be used outside the admin channel but hide response if it is.
-        ephemeral = interaction.channel.id != await snorlax_db.get_guild_admin_channel(
-            interaction.guild.id
-        )
+        ephemeral = interaction.channel.id != guild_db.admin_channel
 
         # check if in schedule
         # check if already closed
         # close
-        schedule_db = await snorlax_db.load_schedule_db(active=True)
-        if channel.id not in schedule_db["channel"].to_numpy():
-            msg = "That channel has no active schedule set."
-            embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedule_db = await schedule_repo.get_by_channel(channel.id)
 
-            return
+            if not schedule_db or schedule_db[0].active is False:
+                msg = "That channel has no active schedule set."
+                embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+
+                return
 
         # Grab the schedule row
         # TODO: Poor logic when multiple schedules on a single channel
-        row = schedule_db[schedule_db["channel"] == channel.id].iloc[0]
+        schedule = schedule_db[0]
 
-        guild_db = await snorlax_db.load_guild_db()
-        guild_tz = guild_db.loc[interaction.guild.id]["tz"]
+        guild_tz = guild_db.tz
+        log_channel_id = guild_db.log_channel
 
-        log_channel_id = int(guild_db.loc[interaction.guild.id]["log_channel"])
         if log_channel_id != -1:
             log_channel = self.bot.get_channel(log_channel_id)
         else:
             log_channel = None
-        time_channel_id = int(guild_db.loc[interaction.guild.id]["time_channel"])
+
+        time_channel_id = guild_db.time_channel
         if time_channel_id != -1:
             time_format_fill = f"<#{time_channel_id}>"
         else:
             time_format_fill = "Unavailable"
 
-        role = get(channel.guild.roles, id=row.role)
+        role = get(channel.guild.roles, id=schedule.role)
         # get current overwrites
         overwrites = channel.overwrites_for(role)
         allow, deny = overwrites.pair()
@@ -657,13 +691,13 @@ class Schedules(commands.GroupCog, name="schedules"):
             channel,
             role,
             overwrites,
-            row["open"],
-            row["close_message"],
+            schedule.open,
+            schedule.close_message,
             silent,
             log_channel,
             guild_tz,
             time_format_fill,
-            int(row["rowid"]),
+            schedule.rowid,
             self.bot.user,
         )
 
@@ -726,16 +760,21 @@ class Schedules(commands.GroupCog, name="schedules"):
         if channel is None:
             channel = get(interaction.guild.channels, id=interaction.channel.id)
 
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(interaction.guild.id)
+
         # Allow this to be used outside the admin channel but hide response if it is.
-        ephemeral = interaction.channel.id != await snorlax_db.get_guild_admin_channel(
-            interaction.guild.id
-        )
+        ephemeral = interaction.channel.id != guild_db.admin_channel
 
         # check if in schedule
         # check if already open
         # open
-        schedule_db = await snorlax_db.load_schedule_db()
-        if channel.id not in schedule_db["channel"].to_numpy():
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedule_db = await schedule_repo.get_by_channel(channel.id)
+
+        if not schedule_db or schedule_db[0].active is False:
             msg = "That channel has no schedule set."
             embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -743,24 +782,23 @@ class Schedules(commands.GroupCog, name="schedules"):
             return
 
         # Grab the schedule row
-        row = schedule_db[schedule_db["channel"] == channel.id].iloc[0]
+        schedule = schedule_db[0]
 
-        guild_db = await snorlax_db.load_guild_db()
-        guild_tz = guild_db.loc[interaction.guild.id]["tz"]
+        guild_tz = guild_db.tz
 
-        log_channel_id = int(guild_db.loc[interaction.guild.id]["log_channel"])
+        log_channel_id = guild_db.log_channel
         if log_channel_id != -1:
             log_channel = self.bot.get_channel(log_channel_id)
         else:
             log_channel = None
 
-        time_channel_id = int(guild_db.loc[interaction.guild.id]["time_channel"])
+        time_channel_id = guild_db.time_channel
         if time_channel_id != -1:
             time_format_fill = f"<#{time_channel_id}>"
         else:
             time_format_fill = "Unavailable"
 
-        role = get(channel.guild.roles, id=row.role)
+        role = get(channel.guild.roles, id=schedule.role)
         # get current overwrites
         overwrites = channel.overwrites_for(role)
         allow, deny = overwrites.pair()
@@ -777,13 +815,13 @@ class Schedules(commands.GroupCog, name="schedules"):
             channel,
             role,
             overwrites,
-            row["close"],
-            row["open_message"],
+            schedule.close,
+            schedule.open_message,
             silent,
             log_channel,
             guild_tz,
             time_format_fill,
-            int(row["rowid"]),
+            schedule.rowid,
             self.bot.user,
         )
 
@@ -858,16 +896,18 @@ class Schedules(commands.GroupCog, name="schedules"):
 
             return
 
-        exists = await snorlax_checks.check_schedule_exists(schedule)
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedule_db = await schedule_repo.get(schedule)
 
-        if not exists:
+        if not schedule_db:
             msg = "That schedule does not exist!"
             embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
             await interaction.response.send_message(embed=embed)
 
             return
 
-        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule)
+        allowed = await snorlax_checks.check_remove_schedule(interaction, schedule_db)
 
         if not allowed:
             msg = "You do not have permission to delete that schedule."
@@ -878,12 +918,11 @@ class Schedules(commands.GroupCog, name="schedules"):
 
         await interaction.response.defer()
 
-        schedule_df = await snorlax_db.load_schedule_db(rowid=schedule)
-        schedule_channel_id = schedule_df.iloc[0]["channel"]
+        schedule_channel_id = schedule_db.channel
 
         view = snorlax_views.Confirm(interaction.user, timeout=30)
 
-        embed = snorlax_embeds.get_schedule_embed(schedule_df)
+        embed = snorlax_embeds.get_schedule_embed([schedule_db])
 
         msg = (
             "Are you sure you want to delete the schedule for"
@@ -902,14 +941,19 @@ class Schedules(commands.GroupCog, name="schedules"):
             msg = "delete-schedule command timed out."
             embed = snorlax_embeds.get_message_embed(msg, msg_type="info")
         elif view.value:
-            ok = await snorlax_db.drop_schedule(schedule)
-            if ok:
+            try:
+                async with self.bot.db_session() as session:
+                    schedule_repo = ScheduleRepository(session)
+                    # Refresh the object
+                    schedule_db = schedule_repo.get(schedule_db.rowid)
+                    schedule_repo.delete(schedule_db)
+
                 msg = f"<#{schedule_channel_id}> schedule deleted successfully."
                 embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
                 logger.info(
                     f"Schedule {schedule} deleted in guild {interaction.guild.name}."
                 )
-            else:
+            except Exception:
                 msg = (
                     "Error occurred while attempting to delete the"
                     f" <#{schedule_channel_id}> schedule!."
@@ -976,67 +1020,68 @@ class Schedules(commands.GroupCog, name="schedules"):
         else:
             # Get schedules for embed.
             schedules_to_delete = [int(schedule) for schedule in view.values]
-            schedules_db = await snorlax_db.load_schedule_db(
-                guild_id=interaction.guild.id
-            )
-            schedules_db = schedules_db.loc[
-                schedules_db["rowid"].isin(schedules_to_delete)
-            ]
+            async with self.bot.db_session() as session:
+                schedules_repo = ScheduleRepository(session)
+                schedules_db = [
+                    await schedules_repo.get(schedule_id)
+                    for schedule_id in schedules_to_delete
+                ]
 
-            embed = snorlax_embeds.get_schedule_embed(schedules_db)
+                embed = snorlax_embeds.get_schedule_embed(schedules_db)
 
-            confirm_view = snorlax_views.Confirm(user=interaction.user)
+                confirm_view = snorlax_views.Confirm(user=interaction.user)
 
-            msg = (
-                "Are you sure you want to delete the"
-                f" {len(schedules_to_delete)} selected schedules?"
-            )
-            msg_embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
-
-            confirm_out = await interaction.channel.send(
-                view=confirm_view, embeds=[msg_embed, embed]
-            )
-
-            confirm_view.response = confirm_out
-
-            await confirm_view.wait()
-
-            if confirm_view.value is None:
-                logger.info(
-                    f"Deletion request timeout in guild {interaction.guild.name}."
+                msg = (
+                    "Are you sure you want to delete the"
+                    f" {len(schedules_to_delete)} selected schedules?"
                 )
-                msg = "delete-schedules command timed out."
-                embed = snorlax_embeds.get_message_embed(msg, msg_type="info")
-            elif confirm_view.value:
-                all_ok = True
-                for schedule_id in schedules_to_delete:
-                    ok = await snorlax_db.drop_schedule(schedule_id)
-                    if ok:
-                        logger.info(
-                            f"Schedule {schedule_id} deleted in guild"
-                            f" {interaction.guild.name}."
-                        )
-                    else:
-                        logger.error(
-                            f"Schedule {schedule_id} delete failed in guild"
-                            f" {interaction.guild.name}!"
-                        )
-                        all_ok = False
+                msg_embed = snorlax_embeds.get_message_embed(msg, msg_type="warning")
 
-                if all_ok:
-                    msg = f"{len(schedules_to_delete)} schedules deleted successfully."
-                    embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
+                confirm_out = await interaction.channel.send(
+                    view=confirm_view, embeds=[msg_embed, embed]
+                )
 
+                confirm_view.response = confirm_out
+
+                await confirm_view.wait()
+
+                if confirm_view.value is None:
+                    logger.info(
+                        f"Deletion request timeout in guild {interaction.guild.name}."
+                    )
+                    msg = "delete-schedules command timed out."
+                    embed = snorlax_embeds.get_message_embed(msg, msg_type="info")
+                elif confirm_view.value:
+                    for schedule in schedules_db:
+                        try:
+                            schedules_repo.delete(schedule)
+                            logger.info(
+                                f"Schedule {schedule.rowid} deleted in guild"
+                                f" {interaction.guild.name}."
+                            )
+                        except Exception:
+                            logger.error(
+                                f"Schedule {schedule.rowid} delete failed in guild"
+                                f" {interaction.guild.name}!"
+                            )
+                            msg = (
+                                "An error was encountered while deleting the schedules."
+                            )
+                            embed = snorlax_embeds.get_message_embed(
+                                msg, msg_type="error"
+                            )
+                        else:
+                            msg = f"{len(schedules_to_delete)} schedules deleted successfully."
+                            embed = snorlax_embeds.get_message_embed(
+                                msg, msg_type="success"
+                            )
+
+                    # Send feedback to the user in the channel as this can be a
+                    # long message with many schedules.
+                    await interaction.channel.send(embed=embed)
                 else:
-                    msg = "An error was encountered while deleting the schedules."
-                    embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
-
-                # Send feedback to the user in the channel as this can be a
-                # long message with many schedules.
-                await interaction.channel.send(embed=embed)
-            else:
-                msg = "delete-schedules command cancelled."
-                embed = snorlax_embeds.get_message_embed(msg, msg_type="info")
+                    msg = "delete-schedules command cancelled."
+                    embed = snorlax_embeds.get_message_embed(msg, msg_type="info")
 
             await interaction.followup.send(embed=embed)
 
