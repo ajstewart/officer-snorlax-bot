@@ -557,7 +557,7 @@ class Admin(commands.GroupCog, name="admin"):
                     guild_schedule_settings_db = GuildScheduleSettings.create_default(
                         guild.id
                     )
-                    guild_schedule_repo.create(guild_schedule_settings_db)
+                    await guild_schedule_repo.create(guild_schedule_settings_db)
 
                 schedules = await schedule_repo.get_all(guild_id=guild.id)
                 if not schedules:

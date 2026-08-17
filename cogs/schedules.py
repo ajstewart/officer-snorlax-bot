@@ -373,7 +373,7 @@ class Schedules(commands.GroupCog, name="schedules"):
         # Could support different roles in future.
         role = interaction.guild.default_role
 
-        new_schedule = Schedule(
+        new_schedule = Schedule.create(
             guild_id=interaction.guild.id,
             channel_id=channel.id,
             channel_name=channel.name,
@@ -392,7 +392,7 @@ class Schedules(commands.GroupCog, name="schedules"):
         try:
             async with self.bot.db_session() as session:
                 schedule_repo = ScheduleRepository(session)
-                schedule_repo.create(new_schedule)
+                await schedule_repo.create(new_schedule)
 
             msg = f"Schedule for {channel.mention} created successfully!"
             msg_embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
@@ -405,13 +405,14 @@ class Schedules(commands.GroupCog, name="schedules"):
             overwrite_roles = len(no_effect_roles_allow + no_effect_roles_deny)
 
             embed = snorlax_embeds.get_schedule_embed(
-                new_schedule, num_warning_roles=overwrite_roles
+                [new_schedule], num_warning_roles=overwrite_roles
             )
 
             await interaction.response.send_message(
                 embeds=[msg_embed, embed], ephemeral=ephemeral
             )
         except Exception:
+            logger.exception("Error when creating the schedule!")
             embed = snorlax_embeds.get_message_embed(
                 "Error when creating the schedule!", msg_type="error"
             )
@@ -948,8 +949,8 @@ class Schedules(commands.GroupCog, name="schedules"):
                 async with self.bot.db_session() as session:
                     schedule_repo = ScheduleRepository(session)
                     # Refresh the object
-                    schedule_db = schedule_repo.get(schedule_db.rowid)
-                    schedule_repo.delete(schedule_db)
+                    schedule_db = await schedule_repo.get(schedule_db.rowid)
+                    await schedule_repo.delete(schedule_db)
 
                 msg = f"<#{schedule_channel_id}> schedule deleted successfully."
                 embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
@@ -1059,7 +1060,7 @@ class Schedules(commands.GroupCog, name="schedules"):
                     all_ok = True
                     for schedule in schedules_db:
                         try:
-                            schedules_repo.delete(schedule)
+                            await schedules_repo.delete(schedule)
                             logger.info(
                                 f"Schedule {schedule.rowid} deleted in guild"
                                 f" {interaction.guild.name}."
@@ -1071,7 +1072,7 @@ class Schedules(commands.GroupCog, name="schedules"):
                             )
                             all_ok = False
 
-                    if all_ok:
+                    if not all_ok:
                         msg = "An error was encountered while deleting the schedules."
                         embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
                     else:
@@ -1782,7 +1783,7 @@ class Schedules(commands.GroupCog, name="schedules"):
             if schedules_db:
                 log_channel = await guilds_repo.get_log_channel(channel.guild.id)
                 for schedule in schedules_db:
-                    schedules_repo.delete(schedule)
+                    await schedules_repo.delete(schedule)
 
         logger.info(
             f"Schedule ID {id} has been deleted for guild"
