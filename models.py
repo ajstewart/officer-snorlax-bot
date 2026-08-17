@@ -1,20 +1,13 @@
 """SQLAlchemy models that match the current database schema."""
 
-import os
-
 from typing import Self
 
 from discord import Guild as DiscordGuild
 from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-DEFAULT_TZ = os.environ.get("DEFAULT_TZ", "UTC")
-DEFAULT_PREFIX = os.environ.get("DEFAULT_PREFIX", "!")
-DEFAULT_OPEN_MESSAGE = os.getenv("DEFAULT_OPEN_MESSAGE")
-DEFAULT_CLOSE_MESSAGE = os.getenv("DEFAULT_CLOSE_MESSAGE")
-DEFAULT_WARNING_TIME = os.getenv("DEFAULT_WARNING_TIME")
-DEFAULT_INACTIVE_TIME = os.getenv("DEFAULT_INACTIVE_TIME")
-DEFAULT_DELAY_TIME = os.getenv("DEFAULT_DELAY_TIME")
+from settings import bot_settings
+
 GUILD_TABLE = "guilds"
 
 
@@ -49,14 +42,14 @@ class Guild(Base):
         """
         return cls(
             id=guild.id,
-            tz=DEFAULT_TZ,
+            tz=bot_settings.default_tz,
             admin_channel=-1,
             meowth_raid_category=-1,
             any_raids_filter=False,
             log_channel=-1,
             time_channel=-1,
             active=True,
-            prefix=DEFAULT_PREFIX,
+            prefix=bot_settings.default_prefix,
         )
 
 
@@ -147,6 +140,11 @@ class Schedule(Base):
             last_close_message=None,
         )
 
+    @property
+    def label(self) -> str:
+        """Label for the schedule used in communication to the user."""
+        return f"{self.channel_name}: Opens @ {self.open} & Closes @ {self.close}"
+
 
 class FriendCodeChannel(Base):
     """Allowed friend code channels stored in the fc_channels table."""
@@ -185,9 +183,11 @@ class GuildScheduleSettings(Base):
         """
         return cls(
             guild=guild_id,
-            base_open_message=DEFAULT_OPEN_MESSAGE or "The channel is now open!",
-            base_close_message=DEFAULT_CLOSE_MESSAGE or "The channel is now closed!",
-            warning_time=int(DEFAULT_WARNING_TIME or 5),
-            inactive_time=int(DEFAULT_INACTIVE_TIME or 15),
-            delay_time=int(DEFAULT_DELAY_TIME or 5),
+            base_open_message=bot_settings.default_open_message
+            or "The channel is now open!",
+            base_close_message=bot_settings.default_close_message
+            or "The channel is now closed!",
+            warning_time=bot_settings.default_warning_time or 5,
+            inactive_time=bot_settings.default_inactive_time or 15,
+            delay_time=bot_settings.default_delay_time or 5,
         )
