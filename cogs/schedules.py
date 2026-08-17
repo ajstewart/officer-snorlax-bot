@@ -1635,7 +1635,7 @@ class Schedules(commands.GroupCog, name="schedules"):
             )
             return
 
-        async with self.bot.db_session as session:
+        async with self.bot.db_session() as session:
             schedules_repo = ScheduleRepository(session)
             schedule_db = await schedules_repo.get(schedule)
 
