@@ -34,7 +34,7 @@ async def schedule_options(
     for schedule in schedules_db:
         label = f"#{schedule.channel_name}"
         description = f"Opens @ {schedule.open} & Closes @ {schedule.close}"
-        value = schedule.id
+        value = schedule.rowid
 
         options.append(
             SelectOption(label=label, description=description, value=value, emoji="⏰")

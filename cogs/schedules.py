@@ -988,9 +988,10 @@ class Schedules(commands.GroupCog, name="schedules"):
         Returns:
             None.
         """
-        options = await snorlax_options.schedule_options(
-            guild=interaction.guild, active=None
-        )
+        async with self.bot.db_session() as session:
+            options = await snorlax_options.schedule_options(
+                session=session, guild=interaction.guild, active=None
+            )
 
         if not options:
             msg = "There are no schedules to delete!"
@@ -1744,7 +1745,7 @@ class Schedules(commands.GroupCog, name="schedules"):
         if before.name != after.name:
             async with self.bot.db_session() as session:
                 schedules_repo = ScheduleRepository(session)
-                schedules_db = schedules_repo.get_by_channel(before.id)
+                schedules_db = await schedules_repo.get_by_channel(before.id)
 
                 if schedules_db:
                     for schedule in schedules_db:

@@ -567,7 +567,7 @@ class Admin(commands.GroupCog, name="admin"):
                         sched_channel = get(guild.channels, id=int(sched_channel_id))
                         if sched_channel is None:
                             logger.warning(
-                                f"Dropping schedule {schedule.id} in {guild.name} as"
+                                f"Dropping schedule {schedule.rowid} in {guild.name} as"
                                 " channel not found."
                             )
                             await schedule_repo.delete(schedule)
