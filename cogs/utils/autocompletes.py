@@ -63,7 +63,7 @@ async def schedule_selection_autocomplete(
             guild_id=interaction.guild.id, active=active
         )
 
-    if schedules_db.empty:
+    if not schedules_db:
         return []
 
     choices = [

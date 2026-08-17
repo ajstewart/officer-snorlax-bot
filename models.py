@@ -145,6 +145,14 @@ class Schedule(Base):
         """Label for the schedule used in communication to the user."""
         return f"{self.channel_name}: Opens @ {self.open} & Closes @ {self.close}"
 
+    def reset_dynamic_close(self) -> None:
+        """Reset the dynamic close to 99:99."""
+        self.dynamic_close = "99:99"
+
+    def reset_current_delay_num(self) -> None:
+        """Reset the current delay num to zero."""
+        self.current_delay_num = 0
+
 
 class FriendCodeChannel(Base):
     """Allowed friend code channels stored in the fc_channels table."""

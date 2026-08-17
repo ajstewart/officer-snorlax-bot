@@ -36,7 +36,7 @@ class MyBot(commands.Bot):
             "cogs.fc_filter",
             "cogs.misc",
             "cogs.time_channel",
-            # "cogs.schedules",
+            "cogs.schedules",
         ]
         self.help_command.add_check(check_admin)
         self.my_version = version
