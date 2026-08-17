@@ -1786,7 +1786,7 @@ class Schedules(commands.GroupCog, name="schedules"):
                     await schedules_repo.delete(schedule)
 
         logger.info(
-            f"Schedule ID {id} has been deleted for guild"
+            f"Schedule ID {schedules_db.rowid} has been deleted for guild"
             f" {channel.guild.name} (channel deletion)."
         )
 
