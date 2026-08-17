@@ -1763,10 +1763,10 @@ class Schedules(commands.GroupCog, name="schedules"):
                     for schedule in schedules_db:
                         schedule.channel_name = after.name
 
-            logger.info(
-                f"Updated channel {before.name} name to {after.name} "
-                f"for guild {after.guild.name} in schedules database."
-            )
+                    logger.info(
+                        f"Updated channel {before.name} name to {after.name} "
+                        f"for guild {after.guild.name} in schedules database."
+                    )
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
