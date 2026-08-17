@@ -394,6 +394,10 @@ class Schedules(commands.GroupCog, name="schedules"):
                 schedule_repo = ScheduleRepository(session)
                 await schedule_repo.create(new_schedule)
 
+            logger.info(
+                f"New schedule {new_schedule.rowid} created in {interaction.guild.name}"
+            )
+
             msg = f"Schedule for {channel.mention} created successfully!"
             msg_embed = snorlax_embeds.get_message_embed(msg, msg_type="success")
 
@@ -1784,11 +1788,10 @@ class Schedules(commands.GroupCog, name="schedules"):
                 log_channel = await guilds_repo.get_log_channel(channel.guild.id)
                 for schedule in schedules_db:
                     await schedules_repo.delete(schedule)
-
-        logger.info(
-            f"Schedule ID {schedules_db.rowid} has been deleted for guild"
-            f" {channel.guild.name} (channel deletion)."
-        )
+                    logger.info(
+                        f"Schedule ID {schedule.rowid} has been deleted for guild"
+                        f" {channel.guild.name} (channel deletion)."
+                    )
 
         if log_channel != -1:
             log_channel = get(channel.guild.channels, id=int(log_channel))
