@@ -14,6 +14,14 @@ class GuildRepository:
         self.session = session
 
     async def get_or_create(self, guild_id: int) -> Guild:
+        """Fetch or create a guild entry in the database.
+
+        Args:
+            guild_id: The id of the guild to fetch or create.
+
+        Returns:
+            The existing or newly created Guild object.
+        """
         row = await self.session.get(Guild, {"id": guild_id})
         if row is None:
             row = Guild(id=guild_id)
@@ -21,18 +29,26 @@ class GuildRepository:
         return row
 
     async def get(self, guild_id: int) -> Guild | None:
+        """Fetch a guild entry from the database.
+
+        Args:
+            guild_id: ID of the guild to fetch.
+
+        Returns:
+            The guild db object or None if not found.
+        """
         return await self.session.get(Guild, {"id": guild_id})
 
     async def check_exists(self, guild_id: int, check_active: bool = True) -> bool:
         """Check if a guild exists in the database.
 
         Args:
-            guild_id (int): The ID of the guild to check.
-            check_active (bool, optional): Whether to check if the guild is active.
+            guild_id: The ID of the guild to check.
+            check_active: Whether to check if the guild is active.
                 Defaults to True.
 
         Returns:
-            bool: True if the guild exists (and is active if check_active is True),
+            True if the guild exists (and is active if check_active is True),
                 False otherwise.
         """
         guild = await self.get(guild_id)
@@ -102,6 +118,14 @@ class GuildScheduleSettingsRepository:
         self.session = session
 
     async def get_or_create(self, guild_id: int) -> GuildScheduleSettings:
+        """Fetch or create the Guild Schedule Settings object.
+
+        Args:
+            guild_id: The ID to fetch or created.
+
+        Returns:
+            The database object.
+        """
         row = await self.session.get(GuildScheduleSettings, {"guild": guild_id})
         if row is None:
             row = GuildScheduleSettings(guild=guild_id)
@@ -109,13 +133,34 @@ class GuildScheduleSettingsRepository:
         return row
 
     async def get(self, guild_id: int) -> GuildScheduleSettings | None:
+        """Fetch the guild schduled settings matching the id.
+
+        Args:
+            guild_id: The ID of the guild to fetch.
+
+        Returns:
+            The database object of None if not found.
+        """
         return await self.session.get(GuildScheduleSettings, {"guild": guild_id})
 
     async def check_exists(self, guild_id: int) -> bool:
+        """Check if the settings exist for a guild.
+
+        Args:
+            guild_id: The guild to search for.
+
+        Returns:
+            True if exists, False otherwise.
+        """
         settings = await self.get(guild_id)
         return settings is not None
 
     async def create(self, guild_schedule_settings: GuildScheduleSettings) -> None:
+        """Create teh provided guild settings object in the database.
+
+        Args:
+            guild_schedule_settings: The guild settings object to create.
+        """
         self.session.add(guild_schedule_settings)
 
 
@@ -127,6 +172,14 @@ class ScheduleRepository:
         self.session = session
 
     async def get(self, schedule_id: int) -> Schedule | None:
+        """Get the scheduled matching the provided id.
+
+        Args:
+            schedule_id: The id (rowid) of the schedule to fetch.
+
+        Returns:
+            The database scheduled object or None if not found.
+        """
         return await self.session.get(Schedule, {"rowid": schedule_id})
 
     async def check_exists(self, schedule_id: int) -> bool:
@@ -221,6 +274,15 @@ class FriendCodeChannelRepository:
         self.session = session
 
     async def get(self, guild_id: int, channel_id: int) -> FriendCodeChannel | None:
+        """Fetch the friend code channel object for the guild and channel.
+
+        Args:
+            guild_id: The id of the guild to fetch.
+            channel_id: The id of the channel to fetch.
+
+        Returns:
+            The database object of None if not found.
+        """
         return await self.session.get(
             FriendCodeChannel, {"guild": guild_id, "channel": channel_id}
         )

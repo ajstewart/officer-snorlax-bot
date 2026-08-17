@@ -63,7 +63,8 @@ class MyBot(commands.Bot):
         for ext in self.initial_extensions:
             await self.load_extension(ext)
 
-    async def close(self):
+    async def close(self) -> None:
+        """Close the bot and dispose of the database engine."""
         await self.engine.dispose()
         await super().close()
 

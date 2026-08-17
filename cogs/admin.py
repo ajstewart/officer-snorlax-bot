@@ -75,7 +75,8 @@ class Admin(commands.GroupCog, name="admin"):
                         )
                         await log_channel.send(embed=embed)
                         logger.info(
-                            "Unauthorised command attempt notification sent to log channel."
+                            "Unauthorised command attempt notification "
+                            "sent to log channel."
                         )
                 else:
                     embed = get_message_embed(
@@ -99,8 +100,8 @@ class Admin(commands.GroupCog, name="admin"):
                 if interaction.command.name == "create-schedule":
                     embed.set_footer(
                         text=(
-                            "Does not apply when '/schedules create-schedule' is used to"
-                            " create a schedule for the channel where the command is"
+                            "Does not apply when '/schedules create-schedule' is used"
+                            " to create a schedule for the channel where the command is"
                             " issued."
                         )
                     )
@@ -114,12 +115,10 @@ class Admin(commands.GroupCog, name="admin"):
                     ):
                         embed = get_message_embed(
                             msg=(
-                                (
-                                    "Permission error! Snorlax is missing the following"
-                                    " permissions to create a time"
-                                    f" channel:\n`{', '.join(error.missing_permissions)}`"
-                                    " (`connect` may also be required)."
-                                ),
+                                "Permission error! Snorlax is missing the following"
+                                " permissions to create a time"
+                                f" channel:\n`{', '.join(error.missing_permissions)}`"
+                                " (`connect` may also be required)."
                             ),
                             msg_type="error",
                         )
@@ -147,8 +146,8 @@ class Admin(commands.GroupCog, name="admin"):
             ) and "Missing Permissions" in str(error):
                 err_embed = get_message_embed(
                     (
-                        "A permissions error has occurred. Does Snorlax have the correct"
-                        " permissions?"
+                        "A permissions error has occurred. Does Snorlax have the"
+                        " correct permissions?"
                     ),
                     msg_type="error",
                 )
@@ -607,9 +606,11 @@ class Admin(commands.GroupCog, name="admin"):
                 await guild_schedule_repo.create(guild_schedule_settings_db)
 
                 welcome_message = (
-                    "This is where admin commands for Snorlax can be used.\n\nIf you would"
+                    "This is where admin commands for Snorlax can be used."
+                    "\n\nIf you would"
                     " like to use an existing channel instead, use the the '/admin"
-                    " set-admin-channel' slash command to change it.\n\nAvailable commands"
+                    " set-admin-channel' slash command to change it."
+                    "\n\nAvailable commands"
                     " can be seen using the slash command interface.\n\nBelow are the"
                     " default settings for the server."
                 )

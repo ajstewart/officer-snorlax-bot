@@ -153,8 +153,9 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
                 else:
                     row = await fc_channel_repo.get(interaction.guild.id, channel.id)
                     await fc_channel_repo.delete(row)
-                    msg = "{} removed from the friend code whitelist successfully.".format(
-                        channel.mention
+                    msg = (
+                        f"{channel.mention} removed from the friend "
+                        "code whitelist successfully."
                     )
                     embed = get_message_embed(msg, msg_type="success")
                     ephemeral = False
@@ -271,9 +272,9 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
                                 c.channel for c in allowed_channels
                             ]:
                                 msg = (
-                                    f"{message.author.mention}, that looks like a friend"
-                                    " code so Snorlax ate it!\n\nFriend codes are allowed"
-                                    " in:\n\n"
+                                    f"{message.author.mention}, that looks like a"
+                                    " friend code so Snorlax ate it!\n\nFriend codes"
+                                    " are allowed in:\n\n"
                                 )
 
                                 for c in allowed_channels:
@@ -370,8 +371,8 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
                         log_embed = snorlax_log.fc_channel_removed_log_embed(channel)
                         await log_channel.send(embed=log_embed)
                     logger.info(
-                        f"Channel {channel.name} removed from {channel.guild.name} allowed"
-                        " friend code list."
+                        f"Channel {channel.name} removed from {channel.guild.name}"
+                        " allowed friend code list."
                     )
 
 

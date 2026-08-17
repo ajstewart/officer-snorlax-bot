@@ -545,7 +545,10 @@ class Schedules(commands.GroupCog, name="schedules"):
                             interaction, schedule_db
                         )
                         if not allowed:
-                            msg = f"You do not have permission to deactivate schedule {id}."
+                            msg = (
+                                "You do not have permission to "
+                                f"deactivate schedule {id}."
+                            )
                             embed = snorlax_embeds.get_message_embed(
                                 msg, msg_type="error"
                             )
@@ -1381,7 +1384,10 @@ class Schedules(commands.GroupCog, name="schedules"):
                 embed = snorlax_embeds.get_schedule_embed([schedule_db])
                 await interaction.response.send_message(embeds=[msg_embed, embed])
             except Exception:
-                msg = "Error when creating the schedule! Please check the schedule details."
+                msg = (
+                    "Error when creating the schedule! "
+                    "Please check the schedule details."
+                )
                 embed = snorlax_embeds.get_message_embed(msg, msg_type="error")
                 await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -1575,7 +1581,8 @@ class Schedules(commands.GroupCog, name="schedules"):
             if not silent:
                 open_message = await channel.send(embed=open_embed)
                 logger.debug(
-                    f"Updating last open message for schedule {rowid} to {open_message.id}."
+                    f"Updating last open message for schedule {rowid} to "
+                    f"{open_message.id}."
                 )
                 schedules_db.last_open_message = open_message.id
 
