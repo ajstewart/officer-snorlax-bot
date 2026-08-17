@@ -74,7 +74,6 @@ class MyBot(commands.Bot):
 
 
 intents = discord.Intents.default()
-intents.members = True
 intents.message_content = True
 
 logger.info("Starting bot...")
