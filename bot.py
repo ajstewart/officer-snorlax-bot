@@ -15,7 +15,7 @@ from cogs.utils.utils import get_prefix
 from db import make_engine, make_session_factory
 from settings import bot_settings
 
-__version__ = "2.0.1"
+__version__ = "2.0.1-dev"
 DOCS_URL = "placeholder"
 setup_logging()
 logger = get_logger(__name__)
