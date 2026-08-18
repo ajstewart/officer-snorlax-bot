@@ -1,6 +1,6 @@
 """Initial cog for the bot."""
+
 import asyncio
-import logging
 import sys
 import traceback
 
@@ -8,16 +8,22 @@ import discord
 
 from discord.ext import commands, tasks
 
-from .utils import db as snorlax_db
-from .utils.checks import check_guild_exists
+from bot_logger import get_logger
+from models import Guild, GuildScheduleSettings
+from repositories import (
+    FriendCodeChannelRepository,
+    GuildRepository,
+    GuildScheduleSettingsRepository,
+    ScheduleRepository,
+)
 
-logger = logging.getLogger()
+logger = get_logger(__name__)
 
 
 class Initial(commands.Cog):
     """Cog to run on initial startup."""
 
-    def __init__(self, bot: commands.bot) -> None:
+    def __init__(self, bot: commands.Bot) -> None:
         """The initialisation method of the cog.
 
         Args:
@@ -45,24 +51,31 @@ class Initial(commands.Cog):
         """
         guild_count = 0
 
-        # LOOPS THROUGH ALL THE GUILD / SERVERS THAT THE BOT IS ASSOCIATED WITH.
-        for guild in self.bot.guilds:
-            # PRINT THE SERVER'S ID AND NAME.
-            logger.info(f"{guild.id} (name: {guild.name})")
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            # LOOPS THROUGH ALL THE GUILD / SERVERS THAT THE BOT IS ASSOCIATED WITH.
+            for guild in self.bot.guilds:
+                # PRINT THE SERVER'S ID AND NAME.
+                logger.info(f"{guild.id} (name: {guild.name})")
 
-            # INCREMENTS THE GUILD COUNTER.
-            guild_count = guild_count + 1
+                # INCREMENTS THE GUILD COUNTER.
+                guild_count = guild_count + 1
 
-            # CHECK THAT THE GUILD IS IN THE DB
-            if not await check_guild_exists(guild.id, check_active=True):
-                # ADD TO DB IF DOES NOT EXIST
-                logger.info(f"Adding {guild.name} to database.")
-                await snorlax_db.add_guild(guild)
+                # CHECK THAT THE GUILD IS IN THE DB
+                if not await guild_repo.check_exists(guild.id, check_active=True):
+                    # ADD TO DB IF DOES NOT EXIST
+                    logger.info(f"Adding {guild.name} to database.")
+                    guild_db = Guild.create_from_discord_guild(guild)
+                    await guild_repo.create_guild(guild_db)
 
-            # CHECK THAT IT HAS ASSOCIATED GUILD_SCHEDULE_SETTINGS ENTRY
-            if not await snorlax_db.check_schedule_settings_exists(guild.id):
-                logger.info(f"Adding default schedule settings for {guild.name}.")
-                await snorlax_db.add_default_schedule_settings(guild.id)
+                # CHECK THAT IT HAS ASSOCIATED GUILD_SCHEDULE_SETTINGS ENTRY
+                schedule_settings_repo = GuildScheduleSettingsRepository(session)
+                if not await schedule_settings_repo.check_exists(guild.id):
+                    logger.info(f"Adding default schedule settings for {guild.name}.")
+                    guild_schedule_settings_db = GuildScheduleSettings.create_default(
+                        guild.id
+                    )
+                    await schedule_settings_repo.create(guild_schedule_settings_db)
 
         # PRINTS HOW MANY GUILDS / SERVERS THE BOT IS IN.
         logger.info("Snorlax is in " + str(guild_count) + " guilds.")
@@ -72,7 +85,7 @@ class Initial(commands.Cog):
         )
 
     @commands.Cog.listener()
-    async def on_command_error(self, ctx: commands.context, error) -> None:
+    async def on_command_error(self, ctx: commands.Context, error) -> None:
         """Handles any error that occurs with a command that is not standard.
 
         Args:
@@ -98,36 +111,48 @@ class Initial(commands.Cog):
 
         If a channel is found to be missing then that schedule is dropped.
         """
-        logging.info("Performing zombie schedules check.")
+        logger.info("Performing zombie schedules check.")
 
         removed = 0
-        schedules_df = await snorlax_db.load_schedule_db()
-        guilds_df = await snorlax_db.load_guild_db(active_only=True)
 
-        for _, row in schedules_df[["rowid", "guild", "channel"]].iterrows():
-            # If a guild is not active then don't check.
-            if row["guild"] not in guilds_df.index.to_numpy():
-                continue
-            channel = self.bot.get_channel(row["channel"])
-            if channel is None:
-                logging.warning(
-                    f"Channel {row['channel']} not found! Dropping schedule"
-                    f" {row['rowid']}."
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            guild_repo = GuildRepository(session)
+
+            # Get all active guilds
+            active_guilds = await guild_repo.get_all(active_only=True)
+
+            for guild in active_guilds:
+                logger.debug("Checking schedules for guild: %s", guild.id)
+                schedules = await schedule_repo.get_all(guild_id=guild.id)
+                logger.debug(
+                    "Found %s schedules for guild: %s", len(schedules), guild.id
                 )
-                try:
-                    ok = await snorlax_db.drop_schedule(int(row["rowid"]))
-                except Exception as e:
-                    logging.warning(
-                        f"Dropping of schedule {row['rowid']} failed! Error: {e}."
+                for schedule in schedules:
+                    logger.debug(
+                        "Checking schedule: %s for guild: %s", schedule.rowid, guild.id
                     )
-                else:
-                    if ok:
-                        logging.info(f"Dropping of schedule {row['rowid']} successful.")
+                    channel = self.bot.get_channel(schedule.channel)
+                    if channel is None:
+                        logger.warning(
+                            f"Channel {schedule.channel} not found! Dropping schedule"
+                            f" {schedule.rowid}."
+                        )
+                        try:
+                            await schedule_repo.delete(schedule)
+                        except Exception as e:
+                            logger.warning(
+                                "Dropping of schedule %s failed!.",
+                                schedule.rowid,
+                                exc_info=e,
+                            )
+                        logger.info(
+                            "Dropping of schedule %s successful.",
+                            schedule.rowid,
+                        )
                         removed += 1
-                    else:
-                        logging.warning(f"Dropping of schedule {row['rowid']} failed!")
 
-        logging.info(f"Zombie schedules check completed: {removed} removed.")
+        logger.info("Zombie schedules check completed: %s removed.", removed)
 
     @tasks.loop(seconds=900)
     async def remove_zombie_friend_channels(self) -> None:
@@ -137,44 +162,51 @@ class Initial(commands.Cog):
 
         If a channel is found to be missing then that friend channel is removed.
         """
-        logging.info("Performing zombie friend channel check.")
-
+        logger.info("Performing zombie friend channel check.")
         removed = 0
-        fc_df = await snorlax_db.load_friend_code_channels_db()
-        guilds_df = await snorlax_db.load_guild_db(active_only=True)
 
-        for _, row in fc_df[["guild", "channel"]].iterrows():
-            # If a guild is not active then don't check.
-            if row["guild"] not in guilds_df.index.to_numpy():
-                continue
-            channel = self.bot.get_channel(row["channel"])
-            if channel is None:
-                logging.warning(
-                    f"Channel {row['channel']} not found! Removing from friend code"
-                    " whitelist database."
+        async with self.bot.db_session() as session:
+            friend_code_channel_repo = FriendCodeChannelRepository(session)
+            guild_repo = GuildRepository(session)
+
+            friend_code_channels = await friend_code_channel_repo.get_all()
+            logger.debug(
+                "Found %s friend code channels in the database.",
+                len(friend_code_channels),
+            )
+
+            for friend_channel in friend_code_channels:
+                logger.debug(
+                    "Checking friend code channel: %s for guild: %s",
+                    friend_channel.channel,
+                    friend_channel.guild,
                 )
-                try:
-                    ok = await snorlax_db.drop_allowed_friend_code_channel(
-                        int(row["guild"]), int(row["channel"])
+                # If a guild is not active then don't check.
+                guild = await guild_repo.get(friend_channel.guild)
+                if guild is None or guild.active is False:
+                    continue
+                channel = self.bot.get_channel(friend_channel.channel)
+                if channel is None:
+                    logger.warning(
+                        "Channel %s not found! Removing from friend code"
+                        " whitelist database.",
+                        friend_channel.channel,
                     )
-                except Exception as e:
-                    logging.warning(
-                        f"Dropping of friend code channel {row['channel']} failed!"
-                        f" Error: {e}."
+                    try:
+                        await friend_code_channel_repo.delete(friend_channel)
+                    except Exception as e:
+                        logger.warning(
+                            "Dropping of friend code channel %s failed! Error: %s.",
+                            friend_channel.channel,
+                            e,
+                        )
+                    logger.info(
+                        "Dropping of friend code channel %s successful.",
+                        friend_channel.channel,
                     )
-                else:
-                    if ok:
-                        logging.info(
-                            "Dropping of friend code channel"
-                            f" {row['channel']} successful."
-                        )
-                        removed += 1
-                    else:
-                        logging.warning(
-                            f"Dropping of friend code channel {row['channel']} failed!"
-                        )
+                    removed += 1
 
-        logging.info(f"Zombie friend code channels check completed: {removed} removed.")
+        logger.info("Zombie friend code channels check completed: %s removed.", removed)
 
     @tasks.loop(seconds=900)
     async def remove_zombie_guilds(self) -> None:
@@ -183,47 +215,43 @@ class Initial(commands.Cog):
         If a guild is no longer there then it is set to deactive in the
         DB and schedules deactivated.
         """
-        logging.info("Performing zombie guilds check.")
+        logger.info("Performing zombie guilds check.")
 
         removed = 0
-        guilds_df = await snorlax_db.load_guild_db(active_only=True)
 
-        # Remember that the index of the df is the guild id.
-        for guild_id in guilds_df.index:
-            # Make sure it is an integer
-            guild_id = int(guild_id)
-            guild = self.bot.get_guild(guild_id)
-            if guild is None:
-                logging.warning(f"Guild {guild_id} not found! Deactivating.")
-                # Set guild to inactive
-                await snorlax_db.set_guild_active(guild_id, 0)
-                # Check for schedules and deactivate them all
-                schedules = await snorlax_db.load_schedule_db(guild_id=guild_id)
-                if not schedules.empty:
-                    logger.info(f"Deactivating all schedules for guild {guild_id}.")
-                    for rowid in schedules["rowid"]:
-                        logger.info(f"Deactivating schedule: {rowid}.")
-                        await snorlax_db.update_schedule(
-                            schedule_id=int(rowid), column="active", value=False
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            schedule_repo = ScheduleRepository(session)
+
+            guilds = await guild_repo.get_all(active_only=True)
+
+            logger.debug("Found %s active guilds in the database.", len(guilds))
+
+            # Remember that the index of the df is the guild id.
+            for guild in guilds:
+                guild_id = guild.id
+                guild_obj = self.bot.get_guild(guild_id)
+                if guild_obj is None:
+                    logger.warning("Guild %s not found! Deactivating.", guild_id)
+                    # Set guild to inactive
+                    guild.active = False
+                    # Check for schedules and deactivate them all
+                    schedules = await schedule_repo.get_all(guild_id=guild_id)
+                    if schedules:
+                        logger.info(
+                            "Deactivating all schedules for guild %s.", guild_id
                         )
+                        for schedule in schedules:
+                            logger.info("Deactivating schedule: %s.", schedule.rowid)
+                            schedule.active = False
 
-                removed += 1
+                    removed += 1
 
-        logging.info(f"Zombie guilds check completed: {removed} deactivated.")
+        logger.info("Zombie guilds check completed: %s deactivated.", removed)
 
     @remove_zombie_schedules.before_loop
-    async def before_timer_schedules(self) -> None:
-        """Method to process before the zombie check loop is started.
-
-        The purpose is to make sure the bot is ready before starting.
-        """
-        await self.bot.wait_until_ready()
-
-        # Delay by 1 min so zombie guild check can complete.
-        await asyncio.sleep(60)
-
     @remove_zombie_friend_channels.before_loop
-    async def before_timer_friend_channels(self) -> None:
+    async def before_timer_schedules(self) -> None:
         """Method to process before the zombie check loop is started.
 
         The purpose is to make sure the bot is ready before starting.

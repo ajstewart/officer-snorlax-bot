@@ -3,30 +3,26 @@
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         exclude: "README.md"
       - id: end-of-file-fixer
       - id: debug-statements
 
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
-    hooks:
-      - id: black
-
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.0.270"
+    rev: v0.16.3
     hooks:
-      - id: ruff
+      # Run the linter.
+      - id: ruff-check
+        args: [--fix]
+      # Run the formatter.
+      - id: ruff-format
 
-  - repo: https://github.com/python-poetry/poetry
-    rev: "1.5.0" # add version here
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # uv version.
+    rev: 0.12.4
     hooks:
-      - id: poetry-check
-
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.16.3
-    hooks:
-      - id: gitleaks
+      # Update the uv lockfile
+      - id: uv-lock

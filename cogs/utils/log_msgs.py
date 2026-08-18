@@ -1,4 +1,5 @@
 """Contains the embeds that are used as part of the logging."""
+
 import datetime
 
 from typing import Optional

@@ -1,12 +1,14 @@
 """The any raids filter cog."""
+
 import discord
 
 from discord import Message, app_commands
 from discord.ext import commands
 from discord.utils import get
 
+from repositories import GuildRepository
+
 from .utils import checks as snorlax_checks
-from .utils import db as snorlax_db
 from .utils.embeds import get_message_embed
 from .utils.log_msgs import filter_delete_log_embed
 from .utils.utils import strip_mentions
@@ -47,16 +49,18 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         Returns:
             None
         """
-        any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
-        if any_filter:
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(interaction.guild.id)
+        if guild_db.any_raids_filter:
             msg = "The 'any raids' filter is already activated."
             embed = get_message_embed(msg, msg_type="warning")
         else:
-            ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, True)
-            if ok:
+            try:
+                guild_db.any_raids_filter = True
                 msg = "'Any raids' filter activated."
                 embed = get_message_embed(msg, msg_type="success")
-            else:
+            except Exception:
                 msg = "Error when attempting to activate the 'Any raids' filter"
                 embed = get_message_embed(msg, msg_type="error")
 
@@ -78,18 +82,20 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         Returns:
             None
         """
-        any_filter = await snorlax_db.get_guild_any_raids_active(interaction.guild.id)
-        if not any_filter:
-            msg = "The 'any raids' filter is already deactivated."
-            embed = get_message_embed(msg, msg_type="warning")
-        else:
-            ok = await snorlax_db.toggle_any_raids_filter(interaction.guild, False)
-            if ok:
-                msg = "'Any raids' filter deactivated."
-                embed = get_message_embed(msg, msg_type="success")
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(interaction.guild.id)
+            if not guild_db.any_raids_filter:
+                msg = "The 'any raids' filter is already deactivated."
+                embed = get_message_embed(msg, msg_type="warning")
             else:
-                msg = "Error when attempting to deactivate the 'Any raids' filter."
-                embed = get_message_embed(msg, msg_type="error")
+                try:
+                    guild_db.any_raids_filter = False
+                    msg = "'Any raids' filter deactivated."
+                    embed = get_message_embed(msg, msg_type="success")
+                except Exception:
+                    msg = "Error when attempting to deactivate the 'Any raids' filter."
+                    embed = get_message_embed(msg, msg_type="error")
 
         await interaction.response.send_message(embed=embed)
 
@@ -107,36 +113,36 @@ class AnyRaidsFilter(commands.GroupCog, name="any-raids-filter"):
         """
         if snorlax_checks.check_bot(message):
             if not snorlax_checks.check_admin(message):
-                if await snorlax_db.get_guild_any_raids_active(message.guild.id):
-                    content = strip_mentions(message.content.strip().lower())
+                async with self.bot.db_session() as session:
+                    guild_repo = GuildRepository(session)
+                    guild_db = await guild_repo.get(message.guild.id)
+                    if guild_db.any_raids_filter:
+                        content = strip_mentions(message.content.strip().lower())
 
-                    if snorlax_checks.check_for_any_raids(content):
-                        msg = (
-                            "{}, please don't spam this channel with"
-                            " 'any raids?'. Check to see if there is a raid"
-                            " being hosted or post your raid if you'd like to"
-                            " host one yourself. See the relevant rules"
-                            " channel for rules and instructions."
-                        ).format(message.author.mention)
+                        if snorlax_checks.check_for_any_raids(content):
+                            msg = (
+                                "{}, please don't spam this channel with"
+                                " 'any raids?'. Check to see if there is a raid"
+                                " being hosted or post your raid if you'd like to"
+                                " host one yourself. See the relevant rules"
+                                " channel for rules and instructions."
+                            ).format(message.author.mention)
 
-                        embed = get_message_embed(msg, msg_type="warning")
+                            embed = get_message_embed(msg, msg_type="warning")
 
-                        await message.channel.send(embed=embed, delete_after=20)
+                            await message.channel.send(embed=embed, delete_after=20)
 
-                        await message.delete()
-                        log_channel_id = await snorlax_db.get_guild_log_channel(
-                            message.guild.id
-                        )
+                            await message.delete()
+                            log_channel_id = guild_db.log_channel
 
-                        if log_channel_id != -1:
-                            log_channel = get(
-                                message.guild.channels, id=int(log_channel_id)
-                            )
-                            embed = filter_delete_log_embed(
-                                message, "Any raids filter."
-                            )
-                            await log_channel.send(embed=embed)
-                        return
+                            if log_channel_id != -1:
+                                log_channel = get(
+                                    message.guild.channels, id=int(log_channel_id)
+                                )
+                                embed = filter_delete_log_embed(
+                                    message, "Any raids filter."
+                                )
+                                await log_channel.send(embed=embed)
 
 
 async def setup(bot: commands.bot) -> None:

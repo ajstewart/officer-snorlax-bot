@@ -1,5 +1,4 @@
 """The misc cog which contains miscellaneous commands."""
-import logging
 
 import discord
 
@@ -7,12 +6,14 @@ from discord import app_commands
 from discord.ext import commands
 from dotenv import find_dotenv, load_dotenv
 
+from bot_logger import get_logger
+from repositories import GuildRepository, ScheduleRepository
+
 from .utils import checks as snorlax_checks
-from .utils import db as snorlax_db
 from .utils.embeds import get_message_embed, get_schedule_embed_for_user
 from .utils.utils import get_current_time, get_hour_emoji
 
-logger = logging.getLogger()
+logger = get_logger(__name__)
 load_dotenv(find_dotenv())
 
 
@@ -44,7 +45,10 @@ class Miscellaneous(commands.Cog):
         Returns:
             None
         """
-        guild_tz = await snorlax_db.get_guild_tz(interaction.guild.id)
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            guild_db = await guild_repo.get(interaction.guild.id)
+        guild_tz = guild_db.tz
         the_time = get_current_time(guild_tz)
         emoji = get_hour_emoji(the_time.strftime("%I:%M"))
         msg = f"{emoji} **{the_time.strftime('%I:%M %p %Z')}**."
@@ -83,13 +87,13 @@ class Miscellaneous(commands.Cog):
         Returns:
             None
         """
-        schedule_df = await snorlax_db.load_schedule_db(
-            guild_id=interaction.guild.id, active=True
-        )
+        async with self.bot.db_session() as session:
+            schedule_repo = ScheduleRepository(session)
+            schedule = await schedule_repo.get_by_channel(
+                channel_id=interaction.channel.id
+            )
 
-        schedule_df = schedule_df.loc[schedule_df["channel"] == interaction.channel.id]
-
-        embed = get_schedule_embed_for_user(schedule_df, interaction.channel)
+        embed = get_schedule_embed_for_user(schedule, interaction.channel)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
