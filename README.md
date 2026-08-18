@@ -14,6 +14,15 @@ But if you are interested in using a hosted instance please find me on the Sydne
 
 This version supports `discord.py` v2.0 including features such as slash commands.
 
+## Privacy Policy
+
+As can be seen in the code, this bot when deployed records no personal data.
+
+- Any messages deleted by the bot are not stored in the database.
+- No user data is stored in the database.
+
+The only data stored is that to allow the bot to function.
+
 ## Requirements
 
 The project uses `uv` to manage the dependencies and they can be installed with:

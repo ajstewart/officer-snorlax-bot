@@ -57,6 +57,32 @@ class Miscellaneous(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    @app_commands.command(
+        name="privacy-policy",
+        description="Displays the Officer Snorlax Privacy Policy.",
+    )
+    @app_commands.check(snorlax_checks.interaction_check_bot)
+    async def privacyPolicy(self, interaction: discord.Interaction) -> None:
+        """Command to ask the bot to show the privacy policy.
+
+        Args:
+            interaction: The interaction that triggered the request.
+        """
+        msg = """
+        🕵 **Privacy Policy**
+
+        The Officer Snorlax Bot records no personal data or messages.
+
+        Any messages deleted by Officer Snorlax are not stored, and
+        no information on users is stored.
+
+        The code can be viewed on github: https://github.com/ajstewart/officer-snorlax-bot.
+        """
+        logger.info("Privacy policy called.")
+        embed = get_message_embed(msg=msg, msg_type="info")
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
     @app_commands.command(name="ping", description="Get a pong!")
     @app_commands.default_permissions(administrator=True)
     @app_commands.check(snorlax_checks.interaction_check_bot)
