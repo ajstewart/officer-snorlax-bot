@@ -1,25 +1,17 @@
 """Misc. utility functions used throughout the bot."""
 
 import datetime
-import logging
-import os
 import re
 import string
 
-from typing import Callable, Optional
+from typing import Callable
 
 import pytz
 
 from discord import Client, Message, User
 from discord.ext import commands
-from dotenv import find_dotenv, load_dotenv
 
-load_dotenv(find_dotenv())
-DEFAULT_OPEN_MESSAGE = os.getenv("DEFAULT_OPEN_MESSAGE")
-DEFAULT_CLOSE_MESSAGE = os.getenv("DEFAULT_CLOSE_MESSAGE")
-DEFAULT_WARNING_TIME = os.getenv("DEFAULT_WARNING_TIME")
-DEFAULT_INACTIVE_TIME = os.getenv("DEFAULT_INACTIVE_TIME")
-DEFAULT_DELAY_TIME = os.getenv("DEFAULT_DELAY_TIME")
+from repositories import GuildRepository
 
 
 def get_current_time(tz: str) -> datetime.datetime:
@@ -33,38 +25,6 @@ def get_current_time(tz: str) -> datetime.datetime:
     """
     tz = pytz.timezone(tz)
     return datetime.datetime.now(tz=tz)
-
-
-def get_logger(logfile: Optional[str] = None) -> logging.RootLogger:
-    """Set up the logger.
-
-    Args:
-        logfile: File to output log to.
-
-    Returns:
-        The root logger object.
-    """
-    logger = logging.getLogger()
-    s = logging.StreamHandler()
-    if logfile is not None:
-        fh = logging.FileHandler(logfile)
-        fh.setLevel(logging.DEBUG)
-    logformat = "[%(asctime)s] - %(levelname)s - %(message)s"
-
-    formatter = logging.Formatter(logformat, datefmt="%Y-%m-%d %H:%M:%S")
-
-    s.setFormatter(formatter)
-
-    s.setLevel(logging.INFO)
-
-    logger.addHandler(s)
-
-    if logfile is not None:
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-    logger.setLevel(logging.DEBUG)
-
-    return logger
 
 
 def strip_url(content: str) -> str:
@@ -161,8 +121,10 @@ async def get_prefix(client: User, message: Message) -> Callable[[Client], list[
     Returns:
         The callable to be passed to the bot initialisation.
     """
-    from .db import get_guild_prefix
+    async with client.db_session() as session:
+        guild_repo = GuildRepository(session)
+        guild_db = await guild_repo.get(message.guild.id)
 
-    prefix = await get_guild_prefix(message.guild.id)
+    prefix = guild_db.prefix
 
     return commands.when_mentioned_or(*prefix)(client, message)

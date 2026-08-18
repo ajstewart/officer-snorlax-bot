@@ -16,9 +16,9 @@ This version supports `discord.py` v2.0 including features such as slash command
 
 ## Requirements
 
-The project uses poetry to manage the dependencies and they can be installed with:
+The project uses `uv` to manage the dependencies and they can be installed with:
 ```
-poetry install
+uv sync
 ```
 
 ## Self-Hosting Setup
@@ -51,7 +51,7 @@ poetry install
 
 6. Run the bot with:
     ```
-    python bot.py
+    uv run bot.py
     ```
 
 ## Permissions Required
@@ -61,7 +61,6 @@ For all features to work the following permissions are needed:
   * View channels
   * Manage channels
   * Manage roles
-  * Ban members
   * Send messages
   * Add reactions
   * Manage messages
@@ -418,33 +417,3 @@ It is deactivated with:
 When a user triggers the filter they will see:
 
 ![any-raids-filter-message](/screenshots/any-raids-filter-message.png)
-
-## Join Name Filtering
-
-**Note this feature is not fully supported yet as it only supports a global list of banned names**.
-
-By default this feature is turned off.
-
-The bot can ban new members to a server who's name matches a user defined pattern list.
-
-The feature is activated by issuing the command below in the admin channel:
-
-```
-/join-name-filter activate
-```
-
-It is deactivated with:
-
-```
-/join-name-filter deactivate
-```
-
-![join-name-filter](/screenshots/join-name-filter-commands.png)
-
-The ban list is defined in the `.env` file using a comma separated list. For example:
-
-```
-BAN_NAMES=firstname,secondname
-```
-
-The patterns will be matched by converting names to lower case.

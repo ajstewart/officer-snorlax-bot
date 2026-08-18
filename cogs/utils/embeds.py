@@ -5,13 +5,16 @@ import datetime
 from typing import Optional, Union
 
 import discord
-import pandas as pd
 
 from discord import Embed
 from discord.utils import utcnow
 
+from models import FriendCodeChannel, Guild, GuildScheduleSettings, Schedule
 
-def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) -> Embed:
+
+def get_schedule_embed(
+    schedule_db: list[Schedule], num_warning_roles: int = 0
+) -> Embed:
     """Create an embed to show the saved schedules.
 
     Args:
@@ -25,15 +28,18 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
     embed_title = "Schedules Details" if len(schedule_db) > 1 else "Schedule Details"
 
     embed = Embed(title=embed_title, timestamp=utcnow(), color=2061822)
-    for _, row in schedule_db.iterrows():
+    for schedule in schedule_db:
         embed.add_field(
-            name=f"Channel: #{row.channel_name}",
+            name=f"Channel: #{schedule.channel_name}",
             value=(
-                f"Active: **{row.active}**\nOpen: **{row.open}**\nOpen Custom Message:"
-                f" **{row.open_message}**\nClose: **{row.close}**\nClose Custom"
-                f" Message: **{row.close_message}**\nWarning:"
-                f" **{row.warning}**\nDynamic: **{row.dynamic}**\nMax number of delays:"
-                f" **{row.max_num_delays}**\nSilent: **{row.silent}**"
+                f"Active: **{schedule.active}**\nOpen: **{schedule.open}**"
+                "\nOpen Custom Message:"
+                f" **{schedule.open_message}**\nClose: **{schedule.close}**"
+                "\nClose Custom"
+                f" Message: **{schedule.close_message}**\nWarning:"
+                f" **{schedule.warning}**\nDynamic: **{schedule.dynamic}**"
+                "\nMax number of delays:"
+                f" **{schedule.max_num_delays}**\nSilent: **{schedule.silent}**"
             )
             .replace("True", "✅")
             .replace("False", "❌"),
@@ -44,7 +50,8 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
         embed.add_field(
             name="⚠️  Roles Warning",
             value=(
-                f"There are {num_warning_roles} roles(s) in <#{row.channel}> that the"
+                f"There are {num_warning_roles} roles(s) in <#{schedule.channel}> "
+                "that the"
                 " schedule will not apply to. Use the `/schedules"
                 " check-schedule-roles` command for more information!"
             ),
@@ -54,12 +61,12 @@ def get_schedule_embed(schedule_db: pd.DataFrame, num_warning_roles: int = 0) ->
 
 
 def get_schedule_embed_for_user(
-    schedule_db: pd.DataFrame, channel: discord.TextChannel
+    schedules_db: list[Schedule], channel: discord.TextChannel
 ) -> Embed:
     """Create an embed to show the channel schedule to the user.
 
     Args:
-        schedule_db: The schedule database table as a pandas dataframe.
+        schedules_db: The list of schedule database objects.
         channel: The channel object for the interaction channel.
 
     Returns:
@@ -69,25 +76,25 @@ def get_schedule_embed_for_user(
 
     embed = Embed(title=embed_title, timestamp=utcnow(), color=2061822)
 
-    if schedule_db.empty:
+    if not schedules_db:
         embed.add_field(
             name="No schedule!",
             value=f"There is no schedule set for {channel.mention}.",
         )
     else:
-        for _, row in schedule_db.iterrows():
-            open_hour = int(row["open"].split(":")[0])
+        for schedules_db in schedules_db:
+            open_hour = int(schedules_db.open.split(":")[0])
             p_open = "PM" if open_hour >= 12 else "AM"
 
-            close_hour = int(row["close"].split(":")[0])
+            close_hour = int(schedules_db.close.split(":")[0])
             p_close = "PM" if close_hour >= 12 else "AM"
 
             embed.add_field(
-                name="Open ✅", value=f"{row['open']} {p_open}", inline=True
+                name="Open ✅", value=f"{schedules_db.open} {p_open}", inline=True
             )  # comment to force formatting
 
             embed.add_field(
-                name="Close ❌", value=f"{row['close']} {p_close}", inline=True
+                name="Close ❌", value=f"{schedules_db.close} {p_close}", inline=True
             )
 
             # Dummy field to push any other schedules to next row.
@@ -96,11 +103,11 @@ def get_schedule_embed_for_user(
     return embed
 
 
-def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
+def get_friend_channels_embed(friend_dbs: list[FriendCodeChannel]) -> Embed:
     """Create an embed to show the allowed friend code channels.
 
     Args:
-        friend_db: The friend channels database table as a pandas dataframe.
+        friend_dbs: A list of FriendCodeChannel objects.
 
     Returns:
         The embed containing the list of friend channels.
@@ -111,8 +118,8 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
     secret_vals = {True: "✅", False: "❌"}
 
     value = ""
-    for _, row in friend_db.iterrows():
-        value += f"<#{row['channel']}> ({secret_vals[row['secret']]})\n"
+    for channel in friend_dbs:
+        value += f"<#{channel.channel}> ({secret_vals[channel.secret]})\n"
 
     embed.add_field(name="Allowed (secret)", value=value, inline=False)
 
@@ -121,41 +128,39 @@ def get_friend_channels_embed(friend_db: pd.DataFrame) -> Embed:
 
 def get_settings_embed(
     guild: discord.Guild,
-    guild_settings: pd.DataFrame,
-    guild_schedule_settings: pd.DataFrame,
+    guild_settings: Guild,
+    guild_schedule_settings: GuildScheduleSettings,
 ) -> Embed:
     """Create an embed to show the bot settings bot on the guild the command was used.
 
     Args:
         guild: The discord guild.
-        guild_settings: The guild settings database table as a pandas dataframe.
+        guild_settings: The guild settings database model instance.
         guild_schedule_settings: The server schedule settings for the guild.
 
     Returns:
         The embed containing the guild settings.
     """
-    guild_schedule_settings = guild_schedule_settings.iloc[0]
-
-    if guild_settings["meowth_raid_category"] != -1:
-        cat_name = guild.get_channel(guild_settings["meowth_raid_category"]).name
+    if guild_settings.meowth_raid_category != -1:
+        cat_name = guild.get_channel(guild_settings.meowth_raid_category).name
     else:
         cat_name = "Not set"
 
     embed = Embed(title="Settings", color=16756290)
 
-    admin_channel_id = guild_settings["admin_channel"]
+    admin_channel_id = guild_settings.admin_channel
     if admin_channel_id == -1:
         admin_channel = "Not set"
     else:
         admin_channel = "<#{}>".format(admin_channel_id)
 
-    log_channel_id = guild_settings["log_channel"]
+    log_channel_id = guild_settings.log_channel
     if log_channel_id == -1:
         log_channel = "Not set"
     else:
         log_channel = "<#{}>".format(log_channel_id)
 
-    time_channel_id = guild_settings["time_channel"]
+    time_channel_id = guild_settings.time_channel
     if time_channel_id == -1:
         time_channel = "Not set"
     else:
@@ -170,16 +175,14 @@ def get_settings_embed(
             "Time Channel: **{}**\n"
             "Pokenav Raid Category: **{}**\n"
             "Any raids filter: **{}**\n"
-            "Join name filter: **{}**\n"
             "Prefix: **{}**".format(
-                guild_settings["tz"],
+                guild_settings.tz,
                 admin_channel,
                 log_channel,
                 time_channel,
                 cat_name,
-                guild_settings["any_raids_filter"],
-                guild_settings["join_name_filter"],
-                guild_settings["prefix"],
+                guild_settings.any_raids_filter,
+                guild_settings.prefix,
             )
         )
         .replace("True", "✅")
@@ -195,11 +198,11 @@ def get_settings_embed(
             "Warning Time: **{}** min\n"
             "Inactive Time: **{}** min\n"
             "Delay Time: **{}** min".format(
-                guild_schedule_settings["base_open_message"],
-                guild_schedule_settings["base_close_message"],
-                guild_schedule_settings["warning_time"],
-                guild_schedule_settings["inactive_time"],
-                guild_schedule_settings["delay_time"],
+                guild_schedule_settings.base_open_message,
+                guild_schedule_settings.base_close_message,
+                guild_schedule_settings.warning_time,
+                guild_schedule_settings.inactive_time,
+                guild_schedule_settings.delay_time,
             )
         ),
         inline=False,

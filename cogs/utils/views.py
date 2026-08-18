@@ -1,4 +1,5 @@
 """Contains the views used throughout the bot."""
+
 import discord
 
 from .embeds import get_message_embed

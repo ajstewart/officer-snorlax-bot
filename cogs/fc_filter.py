@@ -1,5 +1,4 @@
 """The friend code filter cog for Snorlax."""
-import logging
 
 import discord
 
@@ -8,13 +7,15 @@ from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.utils import get
 
+from bot_logger import get_logger
+from repositories import FriendCodeChannelRepository, GuildRepository
+
 from .utils import checks as snorlax_checks
-from .utils import db as snorlax_db
 from .utils import log_msgs as snorlax_log
 from .utils.autocompletes import friend_code_channel_autocomplete
 from .utils.embeds import get_friend_channels_embed, get_message_embed
 
-logger = logging.getLogger()
+logger = get_logger(__name__)
 
 
 @app_commands.default_permissions(administrator=True)
@@ -57,27 +58,31 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         Returns:
             None
         """
-        guild = interaction.guild
-        present = await snorlax_db.check_friend_code_channel(channel.id)
+        try:
+            async with self.bot.db_session() as session:
+                fc_channel_repo = FriendCodeChannelRepository(session)
+                present = await fc_channel_repo.check_exists(channel.id)
 
-        if present:
-            msg = "Channel is already in the whitelist."
-            embed = get_message_embed(msg, msg_type="warning")
+                if present:
+                    msg = "Channel is already in the whitelist."
+                    embed = get_message_embed(msg, msg_type="warning")
+                    ephemeral = True
+                else:
+                    await fc_channel_repo.get_or_create(
+                        guild_id=interaction.guild.id,
+                        channel_id=channel.id,
+                        channel_name=channel.name,
+                        secret=secret,
+                    )
+                    msg = "{} added to the friend code whitelist successfully.".format(
+                        channel.mention
+                    )
+                    embed = get_message_embed(msg, msg_type="success")
+                    ephemeral = False
+        except Exception:
+            msg = "Error when adding the channel to the friend code whitelist."
+            embed = get_message_embed(msg, msg_type="error")
             ephemeral = True
-        else:
-            ok = await snorlax_db.add_allowed_friend_code_channel(
-                guild, channel, secret
-            )
-            if ok:
-                msg = "{} added to the friend code whitelist successfully.".format(
-                    channel.mention
-                )
-                embed = get_message_embed(msg, msg_type="success")
-                ephemeral = False
-            else:
-                msg = "Error when adding the channel to the friend code whitelist."
-                embed = get_message_embed(msg, msg_type="error")
-                ephemeral = True
 
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
@@ -100,9 +105,12 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         Returns:
             None
         """
-        guild_id = interaction.guild_id
-        friend_db = await snorlax_db.load_friend_code_channels_db(guild_id=guild_id)
-        if friend_db.empty:
+        async with self.bot.db_session() as session:
+            friend_code_repo = FriendCodeChannelRepository(session)
+            guild_id = interaction.guild_id
+            friend_db = await friend_code_repo.get_all(guild_id=guild_id)
+
+        if not friend_db:
             embed = get_message_embed(
                 "No channels have been set, the filter is not active.",
                 msg_type="warning",
@@ -133,29 +141,31 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         Returns:
             None
         """
-        guild = interaction.guild
-        present = await snorlax_db.check_friend_code_channel(channel.id)
+        try:
+            async with self.bot.db_session() as session:
+                fc_channel_repo = FriendCodeChannelRepository(session)
+                present = await fc_channel_repo.check_exists(channel.id)
 
-        if not present:
-            msg = "Channel is not in the whitelist."
-            embed = get_message_embed(msg, msg_type="warning")
+                if not present:
+                    msg = "Channel is not in the whitelist."
+                    embed = get_message_embed(msg, msg_type="warning")
+                    ephemeral = True
+                else:
+                    row = await fc_channel_repo.get(interaction.guild.id, channel.id)
+                    await fc_channel_repo.delete(row)
+                    msg = (
+                        f"{channel.mention} removed from the friend "
+                        "code whitelist successfully."
+                    )
+                    embed = get_message_embed(msg, msg_type="success")
+                    ephemeral = False
+
+        except Exception:
+            msg = (
+                f"Error when removing {channel.mention} from the friend code whitelist."
+            )
+            embed = get_message_embed(msg, msg_type="error")
             ephemeral = True
-        else:
-            ok = await snorlax_db.drop_allowed_friend_code_channel(guild.id, channel.id)
-            if ok:
-                msg = (
-                    f"{channel.mention} removed from the friend code"
-                    " whitelist successfully."
-                )
-                embed = get_message_embed(msg, msg_type="success")
-                ephemeral = False
-            else:
-                msg = (
-                    f"Error when removing {channel.mention} from the friend code"
-                    " whitelist."
-                )
-                embed = get_message_embed(msg, msg_type="error")
-                ephemeral = True
 
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
@@ -186,6 +196,10 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
             channel = int(channel)
             self.bot.get_channel(channel)
         except Exception as e:
+            logger.exception(
+                f"Failed toggle friend code channel secret in {interaction.guild.name}:"
+                f" {e}."
+            )
             msg = (
                 "That doesn't seem to be a valid channel. Please select a channel from"
                 " the options provided."
@@ -199,18 +213,25 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
             )
             return
         else:
-            ok = await snorlax_db.set_friend_code_channel_secret(
-                guild_id=interaction.guild_id, channel_id=channel, secret=secret_val
-            )
-            if ok:
-                msg = "Friend code channel updated successfully."
-                embed = get_message_embed(msg, msg_type="success")
-                friend_db = await snorlax_db.load_friend_code_channels_db(
-                    guild_id=interaction.guild_id
-                )
+            try:
+                async with self.bot.db_session() as session:
+                    fc_channel_repo = FriendCodeChannelRepository(session)
+                    fc_channel_db = await fc_channel_repo.get(
+                        interaction.guild.id, channel
+                    )
+                    fc_channel_db.secret = secret_val
+                    msg = "Friend code channel updated successfully."
+                    embed = get_message_embed(msg, msg_type="success")
+                    friend_db = await fc_channel_repo.get_all(
+                        guild_id=interaction.guild_id
+                    )
                 channels_embed = get_friend_channels_embed(friend_db)
                 embeds = [embed, channels_embed]
-            else:
+            except Exception as e:
+                logger.exception(
+                    "Failed to update friend code channel secret in"
+                    f" {interaction.guild.name}: {e}."
+                )
                 msg = "Error when attempting to update the friend code channel."
                 embeds = [get_message_embed(msg, msg_type="error")]
 
@@ -231,58 +252,57 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         if snorlax_checks.check_bot(message):
             if not snorlax_checks.check_admin(message):
                 content = message.content.strip().lower()
-                guild_db = await snorlax_db.load_guild_db()
 
                 if snorlax_checks.check_for_friend_code(content):
-                    allowed_channels = await snorlax_db.load_friend_code_channels_db()
-                    allowed_channels = allowed_channels.loc[
-                        allowed_channels["guild"] == message.guild.id
-                    ]
-                    if allowed_channels.empty:
-                        return
-                    else:
-                        if isinstance(message.channel, discord.Thread):
-                            origin_channel_id = message.channel.parent_id
+                    async with self.bot.db_session() as session:
+                        fc_channel_repo = FriendCodeChannelRepository(session)
+                        allowed_channels = await fc_channel_repo.get_all(
+                            guild_id=message.guild.id
+                        )
+
+                        if not allowed_channels:
+                            return
                         else:
-                            origin_channel_id = message.channel.id
+                            if isinstance(message.channel, discord.Thread):
+                                origin_channel_id = message.channel.parent_id
+                            else:
+                                origin_channel_id = message.channel.id
 
-                        if origin_channel_id not in allowed_channels["channel"].values:
-                            msg = (
-                                f"{message.author.mention}, that looks like a friend"
-                                " code so Snorlax ate it!\n\nFriend codes are allowed"
-                                " in:\n\n"
-                            )
-
-                            for c in allowed_channels[~allowed_channels["secret"]][
-                                "channel"
+                            if origin_channel_id not in [
+                                c.channel for c in allowed_channels
                             ]:
-                                msg += f":small_blue_diamond: <#{c}>\n"
-
-                            if (
-                                guild_db.loc[message.guild.id]["meowth_raid_category"]
-                                != -1
-                            ):
-                                msg += (
-                                    "\n or any raid channel generated using"
-                                    " the Pokenav bot."
+                                msg = (
+                                    f"{message.author.mention}, that looks like a"
+                                    " friend code so Snorlax ate it!\n\nFriend codes"
+                                    " are allowed in:\n\n"
                                 )
 
-                            embed = get_message_embed(msg, msg_type="warning")
-                            await message.channel.send(embed=embed, delete_after=15)
+                                for c in allowed_channels:
+                                    if c.secret is False:
+                                        msg += f":small_blue_diamond: <#{c.channel}>\n"
 
-                            await message.delete()
-                            log_channel_id = guild_db.loc[message.guild.id][
-                                "log_channel"
-                            ]
+                                guild_repo = GuildRepository(session)
+                                guild_db = await guild_repo.get(message.guild.id)
+                                if guild_db.meowth_raid_category != -1:
+                                    msg += (
+                                        "\n or any raid channel generated using"
+                                        " the Pokenav bot."
+                                    )
 
-                            if log_channel_id != -1:
-                                log_channel = get(
-                                    message.guild.channels, id=int(log_channel_id)
-                                )
-                                embed = snorlax_log.filter_delete_log_embed(
-                                    message, "Friend code filter."
-                                )
-                                await log_channel.send(embed=embed)
+                                embed = get_message_embed(msg, msg_type="warning")
+                                await message.channel.send(embed=embed, delete_after=15)
+
+                                await message.delete()
+                                log_channel_id = guild_db.log_channel
+
+                                if log_channel_id != -1:
+                                    log_channel = get(
+                                        message.guild.channels, id=int(log_channel_id)
+                                    )
+                                    embed = snorlax_log.filter_delete_log_embed(
+                                        message, "Friend code filter."
+                                    )
+                                    await log_channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel: GuildChannel) -> None:
@@ -300,19 +320,25 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         Returns:
             None
         """
-        guild_db = await snorlax_db.load_guild_db()
-        guild_meowth_cat = guild_db.loc[channel.guild.id]["meowth_raid_category"]
-        if guild_meowth_cat == -1:
-            pass
-        elif channel.category is not None:
-            if channel.category.id == guild_meowth_cat:
-                # Add the newly created channel to allow fc
-                await snorlax_db.add_allowed_friend_code_channel(
-                    channel.guild, channel, "True"
-                )
-                # TODO Add logging here.
-            else:
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            friend_code_channel_repo = FriendCodeChannelRepository(session)
+            guild_db = await guild_repo.get(channel.guild.id)
+            if guild_db.meowth_raid_category == -1:
                 pass
+            elif channel.category is not None:
+                if channel.category.id == guild_db.meowth_raid_category:
+                    # Add the newly created channel to allow fc
+
+                    await friend_code_channel_repo.get_or_create(
+                        channel.guild.id, channel.id, True
+                    )
+                    logger.info(
+                        f"Channel {channel.name} added to {channel.guild.name} allowed"
+                        " friend code list."
+                    )
+                else:
+                    pass
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: GuildChannel) -> None:
@@ -330,22 +356,24 @@ class FriendCodeFilter(commands.GroupCog, name="friend-code-filter"):
         Returns:
             None
         """
-        fc_channels = await snorlax_db.load_friend_code_channels_db()
+        async with self.bot.db_session() as session:
+            guild_repo = GuildRepository(session)
+            fc_channel_repo = FriendCodeChannelRepository(session)
+            fc_channels = await fc_channel_repo.get_all(guild_id=channel.guild.id)
 
-        if channel.id in fc_channels["channel"].tolist():
-            ok = await snorlax_db.drop_allowed_friend_code_channel(
-                channel.guild.id, channel.id
-            )
-            if ok:
-                log_channel = await snorlax_db.get_guild_log_channel(channel.guild.id)
-                if log_channel != -1:
-                    log_channel = get(channel.guild.channels, id=int(log_channel))
-                    log_embed = snorlax_log.fc_channel_removed_log_embed(channel)
-                    await log_channel.send(embed=log_embed)
-                logger.info(
-                    f"Channel {channel.name} removed from {channel.guild.name} allowed"
-                    " friend code list."
-                )
+            if channel.id in [c.channel for c in fc_channels]:
+                fc_channel_db = await fc_channel_repo.get(channel.guild.id, channel.id)
+                if fc_channel_db:
+                    await fc_channel_repo.delete(fc_channel_db)
+                    log_channel = (await guild_repo.get(channel.guild.id)).log_channel
+                    if log_channel != -1:
+                        log_channel = get(channel.guild.channels, id=int(log_channel))
+                        log_embed = snorlax_log.fc_channel_removed_log_embed(channel)
+                        await log_channel.send(embed=log_embed)
+                    logger.info(
+                        f"Channel {channel.name} removed from {channel.guild.name}"
+                        " allowed friend code list."
+                    )
 
 
 async def setup(bot: commands.bot) -> None:
