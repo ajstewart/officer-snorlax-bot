@@ -19,7 +19,7 @@ This version supports `discord.py` v2.0 including features such as slash command
 As can be seen in the code, this bot when deployed records no personal data.
 
 - Any messages deleted by the bot are not stored in the database.
-- No user data is stored in the database.
+- No user data is stored in the database, this includes message content, usernames, user ids and all other data.
 
 The only data stored is that to allow the bot to function.
 
